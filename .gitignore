@@ -1,0 +1,34 @@
+# Game data and anything made from a game never belongs in this repository:
+# users translate and build their own copy on their own machine.
+*.iso
+*.ISO
+*.cso
+*.bin.game
+/work/
+/build/
+/analysis/
+games/*/disc/
+games/*/work/
+
+# local configuration (paths of your machine)
+local.toml
+
+# build products
+*.o
+*.a
+*.elf
+*.prx
+*.PBP
+*.pbp
+*.SFO
+*.pmf
+*.pss
+*.wav
+*.bmp
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# logs and profiler dumps from runs
+*.log
+prof*.bin

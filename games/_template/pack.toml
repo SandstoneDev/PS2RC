@@ -1,0 +1,107 @@
+# pack.toml - one game version for PS2RC. Copy games/_template/ to games/<SERIAL>_v<VERSION>/ and fill it in.
+# Format 1. Path values: "{work}/x" = the work dir (local.toml [paths] work: everything derived from the game),
+# "{disc}/x" = this pack's extracted disc (local.toml [games."<pack>"] disc), "{repo}/x" = the checkout,
+# a plain relative path = inside this pack. Check a value with: python3 ps2rc/pack.py get <pack> <key>
+format = 1
+
+[id]
+serial = "SLUS-00000"                      # SYSTEM.CNF BOOT2 program name as a serial
+version = "1.00"                           # SYSTEM.CNF VER
+region = "NTSC-U"                          # NTSC-U / NTSC-J / PAL
+boot_elf = "SLUS_000.00"                   # the boot program's file name in the disc's root
+psp_title = "My game (PS2RC)"              # the PSP menu title; the build appends " (build N)"
+
+[verify]
+system_cnf_boot2 = 'cdrom0:\SLUS_000.00;1' # what identifies the disc
+elf_size = 0                               # size and SHA-256 of the boot program: another disc revision is refused
+elf_sha256 = ""
+# data_fnv64 = "0123456789ABCDEF"          # optional: FNV-1a 64 of guest [code end, bss end) after the PSP loads the
+                                           # data (a string: TOML integers are signed 64-bit)
+
+[memory]
+code = [0x00100000, 0x00100000]            # the translated code [start, end): never read as data, not loaded on the
+                                           # PSP (its host memory holds the runtime's buffers)
+# ctor_code = [0, 0]                       # static-constructor code outside .text, if any
+data_end = 0x00100000                      # end of the program's file data (one PT_LOAD segment from code start)
+bss_end = 0x00100000                       # end of BSS (incl. an overlay window)
+ram_end_psp = 0x01C00000                   # guest RAM present on the PSP (the game heap must fit below it)
+
+# [overlays]                               # code overlays (Metrowerks MWo3 images loaded into a window)
+# scheme = "mwo3"
+# window = [0x00000000, 0x00000000]
+# files = ["ovl1.bin", "ovl2.bin"]
+
+[runtime]                                  # values the core HLE reads (the build writes them into hle_pack.h)
+main_loop = ""                             # a TRACE label of hooks.def: its calls are the main-loop iterations
+                                           # (--mainloop-limit, the PSP's result=main_loop)
+# selftest_at = ""                         # a TRACE label: the host --selftest runs at its entry (pack's
+                                           # hle_selftest_run)
+# wait_loops = []                          # guest addresses of pure wait loops: virtual time jumps to the next event
+cfg = "ps2rc.cfg"                          # the PSP run options file next to the EBOOT
+psp_module = "PS2RC"                       # the PSP module name
+# zones = [["name", "zone.name", 0, 1]]    # extra profiler zones of the pack's modules (id, display name, flags, rate)
+# boot_arg0 = 'cdrom0:\SLUS_000.00;1'      # argv[0] the kernel passes to main (default from boot_elf)
+
+# [symbols]                                # guest data addresses the core touches (named, see hle/core/hle_sce.c)
+# initsys_table = 0x00000000
+
+[translate]                                # ps2rc/pipeline/translate.py
+variant = "v0"                             # v0 = exact everywhere (start here); v4 / v5s1..v5s4 / v5s4y2 = ABI mode
+unit = "main"                              # base name of the generated units
+# functions = "{work}/functions.pkl"       # a function set saved once (omitted: discovery runs from the entry point)
+# non_abi = "{work}/non_abi.json"          # functions translated exact in ABI mode ({"exact_starts": {...}})
+# exempt = true
+# overlays = true
+# vfloc_skip = "lists/vfloc_skip.txt"
+# psp_rules = true                         # argument-liveness rules for hooked functions / syscalls (ABI variants)
+
+[build]                                    # mk/build.sh
+translation = "{work}/trans"               # the translation (translate.py's output)
+hooks = "hooks.def"
+pkg_out = "{work}/psp"                     # where EBOOT.PBP goes
+y_hdr = ""                                 # runtime-header levers of the back-end (e.g. "mb,be" with v5s4y2)
+y_gen = ""                                 # extra compiler flags of the generated units (PSP)
+# sources = ["src"]                        # the pack's C modules (each dir may have host/ and psp/ subdirs)
+# audio_sources = []                       # compiled with AUDIO=1 only (a sound-driver model)
+# defines = []                             # -D flags for the HLE sources
+# psp_ldflags = []                         # extra PSP link flags (e.g. -Wl,--wrap=...)
+# zones = "zones.def"                      # profiler zones on guest functions
+# textpatch = "textpatch.tsv"              # "<function>\t<old text>\t<new text>" patches of the generated C
+# trapset = "{work}/trapset.txt"           # functions whose accesses may reach hardware registers
+# callflush = ["fn_00000000:25"]           # register flushes before calls that read a register as a hidden argument
+# natives = "lists/natives.txt"            # native C fast paths of the pack (y_nat_<addr>)
+# layout = "layout"                        # code layout: cold.txt, order.ld
+# patch_dir = "{work}/patch"               # extra generated units
+
+[run]                                      # mk/run_host.sh
+discmap = "{work}/discmap.txt"             # "lsn size ISO_PATH relative/path" per disc file
+out = "{work}/runs"
+# disc_override = ["FILE.INI={work}/file.ini"]   # serve a disc file from elsewhere (same size)
+
+[stage]                                    # ps2rc/pipeline/stage.py and the PC converter (ps2rc/convert)
+# folder = "PS2RC_MYGAME"                  # the folder under PSP/GAME/ (converter)
+# include = ["DATA/*"]                     # disc paths staged (case-insensitive globs) ...
+# exclude = ["DATA/*.BAK"]                 # ... minus these ...
+files = []                                 # ... plus these disc files (paths in the disc folder)
+# audio_all = ["SOUND/*"]                  # added with --audio all / min (a game with a sound-driver model)
+# audio_min = ["SOUND/BOOT.BNK"]
+# replace = [{ file = "SETTINGS.INI", find = "heap 30000", with = "heap 20000" }]   # same-size text replacements
+# movies = ["MOVIES/INTRO.PSS"]            # movies the converter converts (ps2rc/movies)
+
+# [stage.cfg]                              # run options written into [runtime] cfg (then --cfg key=value)
+# max_seconds = "36000"
+
+# [convert]                                # the PC converter's steps (ps2rc/convert/recipe.py); without it a pack
+                                           # with [translate] gets the generic translation step only
+# analysis = [["{pack}/tools/discover.py"]]          # commands run before the translation ({pack} {work} {repo}
+# analysis_outputs = ["{work}/functions.pkl"]        # {disc} {analysis} {translation})
+# translate = ["{repo}/ps2rc/pipeline/translate.py", "--pack", "{pack}", "--out", "{translation}"]
+# extras = []                                        # commands after it (e.g. a trap set), extras_outputs = [...]
+# analysis_files = ["analysis/sce_matches.json"]     # files of this pack the commands read (copied to {analysis})
+# generators = []                                    # game-derived modules generated on the user's PC
+
+# [convert.build]
+# audio_model = false                      # the pack's audio_sources compiled in (AUDIO=1)
+
+# [disc]
+# layout = "analysis/iso_layout.txt"       # a disc FOLDER has no sector numbers: the layout made once from an image

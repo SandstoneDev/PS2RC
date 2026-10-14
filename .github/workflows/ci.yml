@@ -1,0 +1,50 @@
+name: ci
+
+# Data-free checks only: nothing here needs a game. Tests that need a game's files are
+# marked needs_game and run only on a porter's own machine.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    name: translator and tools (pure Python)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install test dependencies
+        run: python -m pip install --upgrade pip pytest pyelftools
+      - name: Unit tests
+        run: python -m pytest -q -m "not wsl and not oracle and not psp and not slow and not needs_game"
+
+  toolchain:
+    name: generated C, runtime and example pack (pspdev)
+    runs-on: ubuntu-latest
+    container: ghcr.io/pspdev/pspdev:latest
+    steps:
+      - name: Host tools
+        run: |
+          apk add --no-cache bash git make gcc g++ musl-dev zlib-dev python3
+          python3 -m venv /opt/venv
+          /opt/venv/bin/pip install pytest pyelftools
+      - uses: actions/checkout@v4
+      - name: Tests that compile generated C (native gcc + psp-gcc)
+        run: /opt/venv/bin/python -m pytest -q -m "wsl and not oracle and not psp and not needs_game"
+      - name: Example pack, host build and run
+        run: |
+          export PATH=/opt/venv/bin:$PATH
+          bash mk/build.sh --pack example host && bash mk/run_host.sh --pack example
+      - name: Example pack, PSP build
+        # The EBOOT is built to prove it links, and deliberately not uploaded: the project
+        # publishes source only.
+        run: |
+          export PATH=/opt/venv/bin:$PATH
+          bash mk/build.sh --pack example psp

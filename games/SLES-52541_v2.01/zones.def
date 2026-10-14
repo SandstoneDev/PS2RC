@@ -1,0 +1,91 @@
+/* zones.def - profiler zones on translated functions of this game (hle_prof.h). The pipeline's prepare_gen.py
+ * --zones renames each listed function's generated body to <c name>__zbody and generates the timing wrapper
+ * (gen/hle_zones.c); nothing else in the translation changes.
+ *   ZONE(addr, name, flags)            ZONE_OV(overlay, addr, name, flags)
+ *   flags: 0 | PZF_GUEST  - required exactly for functions that hooks.def lists as HOOK/TRACE: the zone times the guest
+ *                           original (fn_X__guest) that the hook / trace wrapper calls
+ *            | PZF_HW     - prof_hw=2: hardware counters read at the zone's boundaries (2 kernel calls of ~65 us per
+ *                           call: only for functions called about once per main-loop iteration)
+ *            | PZF_SAMPLE - hot short function: timed on 1 call in 16, kept out of the zone tree (own table)
+ * Zone ids = order in this file (at most 255). Names are labels only, the address is what counts (every log line
+ * prints both).
+ * Selection: the main-loop call tree of a host profiler run (3000 iterations): every game_loop step, the large
+ * children of game_process / render_scene / render_effects, the render driver's entry points, and the functions with
+ * the largest self time; functions far below ~1 us per call are sampled.
+ */
+
+/* ---- game_loop() 0x246760: one main-loop iteration per pass */
+ZONE(00246760, game_loop, PZF_GUEST)                           /* never returns: its self = loop code + unzoned callees */
+ZONE(002433d0, game_process, PZF_GUEST|PZF_HW)              /* the iteration boundary of the profiler */
+ZONE(00580f70, audio_service, PZF_HW)
+ZONE(00111330, lights_time_of_day, 0)
+ZONE(0026f5e0, render_list_build, PZF_HW)        /* world sector scan 0x270B50 -> 0x593C50 */
+ZONE(0026f8d0, render_prerender, PZF_HW)                  /* entity pre-render (calls the cutscene overlay when loaded) */
+ZONE(002fa580, mirror_pass, PZF_GUEST)         /* HOOK (x_mirror, hle_bd.c) */
+ZONE(0039b5c0, camera_begin_update, 0)
+ZONE(002fa6c0, mirror_draw, 0)
+ZONE(00246cf0, render_scene, PZF_HW)
+ZONE(00246fd0, render_effects, PZF_HW)
+ZONE(0021ff50, camera_motion_blur, 0)
+ZONE(002470b0, render_2d, 0)
+ZONE(00247390, frontend_247390, PZF_GUEST)                   /* traced as main_loop_frame_end_247390 */
+ZONE(002461a0, screen_fade, 0)
+ZONE(002473c0, render_2d_after_fade, 0)
+ZONE(0039b5b0, camera_show, PZF_HW)                   /* the flip: driver DMA queue / frame wait */
+
+/* ---- inside game_process (in the order of the calls in 0x2433D0) */
+ZONE(00247a90, pads_update, 0)                           /* first call */
+ZONE(00244a00, process_244a00, 0)                            /* second call; large self time on the host */
+ZONE(002bfed0, streaming_update, PZF_HW)                    /* between the two game-timer cycle reads; VCALLMS users below */
+ZONE(002c3df0, streaming_2c3df0, 0)                          /* its main child */
+ZONE(00304a50, cutscene_update, 0)                       /* calls the cutscene overlay */
+ZONE(001f9e30, scripts_process, PZF_HW)
+ZONE(001fa780, script_run, 0)                    /* ~27 calls per iteration = running scripts */
+ZONE(00283900, world_process, PZF_GUEST|PZF_HW)             /* per-entity processing below; HOOK (x_farcol, zone x.world) */
+ZONE(0022f580, world_entity_22f580, 0)                       /* ~17 calls per iteration */
+ZONE(00102930, entity_102930, 0)                             /* child of 0x22F580, many trapped (scratchpad) stores */
+ZONE(0024e5a0, world_entity_24e5a0, 0)                       /* ~17 calls per iteration */
+ZONE(0021c7e0, camera_process, 0)                           /* camera module 0x21xxxx */
+ZONE(00489690, plants_update, PZF_GUEST)                  /* next to the grass renderer 0x48CB80;
+                                                                HOOK (x_grass), times the guest original */
+ZONE(003d4640, process_3d4640, 0)
+ZONE(00182130, process_182130, 0)                            /* last call of game_process */
+
+/* ---- inside the render steps */
+ZONE(0026faa0, render_roads, 0)
+ZONE(0026fc50, render_non_roads, 0)        /* the largest render_scene pass on the host */
+ZONE(0026fb90, render_fading, 0)
+ZONE(00182850, render_scene_cullnone_182850, PZF_GUEST)       /* cull-none pass = the water renderer; HOOK (hle_water.c) */
+ZONE(002ec460, render_scene_sky_2ec460, 0)                    /* sky / clouds */
+ZONE(002e1350, plane_trails, PZF_GUEST)                /* HOOK (x_fxskip bit 2) */
+ZONE(002ef270, render_scene_2ef270, 0)                        /* weather / effects */
+ZONE(00116180, shadows_stored, PZF_GUEST)       /* HOOK (x_fxskip bit 1) */
+ZONE(002313c0, entity_render, 0)                            /* per visible entity (atomic callback / clump render) */
+ZONE(00514300, post_effects, 0)
+ZONE_OV(8, 00891200, cutscene_891200, 0)                     /* cutscene overlay, called from the pre-render */
+
+/* ---- the render driver: the hooked entry points time their guest original */
+ZONE(0034df00, drv_dma_queue_34df00, 0)                      /* contains the wait loop 0x34DFD8 (once 56 % of the samples) */
+ZONE(0034d2a8, drv_dma_kick_34d2a8, 0)                       /* also the DMAC interrupt handler */
+ZONE(0035b418, drv_raster_show, PZF_GUEST)               /* flip */
+ZONE(00351088, drv_camera_begin, PZF_GUEST)
+ZONE(0035b360, drv_camera_end, PZF_GUEST)
+ZONE(00366c68, drv_2d_prim, PZF_GUEST)
+ZONE(003c50f0, batch_flush, PZF_GUEST)                 /* VU render-buffer flush */
+ZONE(00391398, mesh_node, PZF_GUEST|PZF_SAMPLE)            /* the node body all 10 mesh pipelines run, ~90/it;
+                                                                hooked by hle_w3d.c: times the guest original */
+ZONE(0034ffe8, drv_set_state, PZF_GUEST|PZF_SAMPLE)   /* ~300 calls per iteration */
+ZONE(00368b58, drv_texcache_access, PZF_GUEST|PZF_SAMPLE)   /* ~280 calls per iteration */
+
+/* ---- functions with a large self time on the host (flat profile) */
+ZONE(0010dbd0, hot_10dbd0, 0)                                /* ~38/it */
+ZONE(00259870, hot_259870, 0)                                /* ~26/it; an early hot loop */
+ZONE(00123770, hot_123770, 0)                                /* ~8/it; an early hot loop */
+ZONE(0034da88, drv_34da88, 0)                               /* ~3/it */
+ZONE(0028b880, hot_28b880, 0)                                /* ~1/it */
+ZONE(00365380, drv_365380, 0)                               /* ~1.5/it */
+ZONE(00110310, VU0_matvec_110310, PZF_SAMPLE)                /* the hot 30-instruction VU0-macro helper, ~760/it */
+ZONE(002713b0, hot_2713b0, PZF_SAMPLE|PZF_GUEST)             /* ~310/it; HOOK (x_ndd) */
+ZONE(004ceff0, hot_4ceff0, PZF_SAMPLE)                       /* ~130/it */
+ZONE(00106850, hot_106850, PZF_SAMPLE)                       /* ~200/it */
+ZONE(003b4960, hot_3b4960, PZF_SAMPLE)                       /* ~70/it */

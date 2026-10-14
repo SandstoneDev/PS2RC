@@ -1,0 +1,198 @@
+# Game pack SLES-52541 v2.01 (PAL). README.md in this folder says what the pack is and what it needs.
+# Format: games/_template/pack.toml documents every key. Paths: {work}/ = work dir (local.toml), {repo}/ = checkout,
+# {disc}/ = this pack's extracted disc (local.toml [games."SLES-52541_v2.01"] disc), plain = relative to this folder.
+format = 1
+
+[id]
+serial = "SLES-52541"
+version = "2.01"
+region = "PAL"
+boot_elf = "SLES_525.41"
+psp_title = "PS2RC SLES-52541"              # XMB title; the build adds " (build N)"
+
+[verify]
+system_cnf_boot2 = 'cdrom0:\SLES_525.41;1'
+elf_size = 5684848
+elf_sha256 = "67458503d86d3000546cbccc5a7b2746b4c5172e7c787c24d74424ea01a8a85c"
+data_fnv64 = "AF3F2F092038E239"             # FNV-1a 64 of guest [code end, bss end) after the PSP loads the data
+
+[memory]
+code = [0x00100000, 0x005A2000]            # translated code (never read as data: the PSP does not load it)
+ctor_code = [0x00658680, 0x0065BC80]       # static-constructor code after .data
+data_end = 0x0066BA00                      # end of the ELF's file data
+bss_end = 0x008A5D80                       # end of BSS incl. the overlay buffer (_end)
+ram_end_psp = 0x01BC0000                   # guest RAM present on the PSP (20.0 MB game heap; the heap set-up is
+                                           # patched to it, textpatch.tsv) - also the host's --psp-layout
+
+[overlays]
+scheme = "mwo3"
+window = [0x0088E500, 0x00900000]
+files = ["clothes.pm", "credits.pm", "cutscene.pm", "fileload.pm", "init.pm", "jpeg.pm", "mc.pm", "mpeg.pm"]
+
+[runtime]                                  # values the core HLE reads (generated into hle_pack.h)
+main_loop = "main_loop_iteration_2433d0"   # TRACE label: its calls are the main-loop iterations (--mainloop-limit)
+selftest_at = "game_init_data"             # TRACE label: the host --selftest runs at its entry
+wait_loops = [0x0034DFD8]                  # pure DMA wait loop of the render driver: time jumps to the next event
+cfg = "poc6.cfg"                           # the PSP run options file next to the EBOOT
+# host runs: the cfg keys with these prefixes are exported as HLE_<KEY> environment variables (the modules' host readers)
+cfg_env_prefixes = ["tune_", "postfx", "water", "sky", "ab_", "bc_", "idle_view", "hitch_", "im2d_guest"]
+psp_module = "PS2RC_POC6"
+zones = [["xworld", "x.world", 0, 1]]      # extra HLE profiler zones of the pack's modules (id, name, flags, rate)
+
+[boot.crt0]                                # the ELF entry's start-up facts (hle/core/hle_crt0.c, profile public)
+entry = 0x00100008
+bss = [0x0066BA00, 0x008A5D80]             # cleared (incl. the overlay window)
+gp = 0x0066B970
+stack = -1                                 # SetupThread: the kernel places the stack
+stack_size = 0x4000
+args = 0x0066D640                          # argument block: argc, argv[]
+thread_exit = 0x00100220
+heap = 0x008A5D80
+heap_size = -1
+init = [0x00546318, 0x001001F0]            # (function, return address of the guest's call): the libraries' start-up
+flush = [0x0053C220, 0x001001F8]           # FlushCache(0)
+main = [0x00245770, 0x00100210]
+exit = 0x0054C1D0
+
+[symbols]                                  # guest data the core HLE touches
+initsys_table = 0x00875E08                 # libkernl: 512 bytes the _InitSys tail clears
+initsys_words = 0x0062B370                 # libkernl: 2 words the _InitSys tail clears
+
+[translate]                                # ps2rc/pipeline/translate.py
+variant = "v5s4y3rxm"                      # back-end v5s4 + ufuse + selective vfloc + vcm + return widths (rlive) + argx
+                                           # + VF write-through (vwt) + MMI shuffles / VU0 transfers on locals (mloc)
+unit = "main"
+functions = "{work}/phase3/functions_v2.pkl"   # function discovery (convert/discover.py)
+non_abi = "{work}/phase4/non_abi.json"     # functions kept exact in ABI mode (convert/non_abi.py)
+exempt = true
+overlays = true
+vfloc_skip = "lists/vfloc_skip.txt"
+rlive = true                               # lever rlive: complete returns for hooks, the list below, HLE-named functions
+rlive_lists = ["lists/rlive_keep.txt"]
+stats_header = "main_stats.h"
+stats_prefix = "MAIN"
+
+[build]
+translation = "{work}/phase6psp/trans"       # TRANS default
+patch_dir = "{work}/phase6psp/patch_v4"     # extra units (overlay static constructors)
+trapset = "{work}/phase6psp/trapset.txt"
+textpatch = "textpatch.tsv"
+callflush = ["fn_00556e50:25"]
+hooks = "hooks.def"
+zones = "zones.def"                          # ZONES default
+sites = "sites.def"                          # call sites routed through HLE handlers (the far-entity policy)
+layout = "layout"                            # LAYOUT default
+pkg_out = "{work}/phase6psp"                 # PKG_OUT default
+y_hdr = "mb,be,ca2"                          # Y_HDR default: runtime-header levers (ca2: PSP only)
+y_gen = "-fsched-pressure"                   # Y_GEN default: extra flags of the generated units (PSP)
+sources = ["src", "engine/render", "engine/iop_rpc"]   # the pack's C modules (+ host/ psp/ subdirs)
+audio_sources = ["engine/sound"]             # compiled with AUDIO=1: the sound-driver interface and its outputs
+defines = ["HLE_HAVE_VU0_MICRO"]             # the VU0 micro-program interface (vu0_micro.h)
+# PSP link flags of the pack's modules: the GE back-end records the screen text (pspDebugScreenPrintf) and the
+# profiler zones wrap its draw / flip entry points (hle_ge_prof.c)
+psp_ldflags = ["-Wl,--wrap=pspDebugScreenPrintf", "-Wl,--wrap=hle_ge_flip", "-Wl,--wrap=hle_ge_im2d",
+               "-Wl,--wrap=hle_ge_rbuf", "-Wl,--wrap=hle_ge_clear", "-Wl,--wrap=hle_ge_camera_begin"]
+
+[run]
+discmap = "{work}/poc6/discmap.txt"
+out = "{work}/phase6psp"                     # host run logs (run_host.sh)
+disc_override = ["STREAM.INI={work}/phase6psp/stream.ini"]
+
+# ---- the PC converter's recipe (ps2rc.convert): [convert], [convert.build], [stage], [stage.cfg], [disc].
+# Placeholders here: {work} (the conversion's work dir), {repo}, {disc}, {pack}, {analysis} (the conversion's analysis
+# dir), {translation} ([build] translation). Commands are Python scripts run with the converter's Python, cwd = {repo}.
+# ps2rc/pipeline/stage.py reads [stage] / [stage.cfg] too.
+
+[convert]
+# analysis: function discovery, the functions the ABI-mode back-end keeps exact
+analysis = [
+    ["{pack}/convert/discover.py"],
+    ["{pack}/convert/non_abi.py"],
+]
+analysis_outputs = ["{work}/phase3/functions_v2.pkl", "{work}/phase4/non_abi.json"]
+# translation: the generic driver with this pack's [translate] table
+translate = ["{repo}/ps2rc/pipeline/translate.py", "--pack", "{pack}", "--out", "{translation}"]
+# overlay static constructors (-> [build] patch_dir) and the trap set (-> [build] trapset)
+extras = [
+    ["{pack}/convert/overlay_ctors.py"],
+    ["{pack}/convert/trapset.py"],
+]
+extras_outputs = ["{work}/phase6psp/patch_v4/report.txt", "{work}/phase6psp/trapset.txt"]
+# files the commands read from the analysis dir (relative to this folder; the converter copies them into the
+# conversion's analysis dir): the Sony library functions found in the boot program (addresses and library names,
+# made with tools/ps2elf/sce_sigscan.py)
+analysis_files = ["analysis/sce_matches_v201.json"]
+# game-derived modules made by generators on the player's PC: see [profile.public]
+generators = []
+# the converter's default build profile: "public" = nothing hand-translated from the game's code in the build (the
+# modules that are game code come from generators on the player's PC or are left out); "full" = every module of the
+# checkout (developer builds)
+profile = "public"
+
+[profile.public]
+title = "PS2RC SLES-52541"   # XMB title of a public-profile build: no game name (the player may set his own)
+# far_ai / far_freeze / far_collision work through the far-entity policy (src/hle_far.c + sites.def); the core's
+# hle_crt0.c runs [boot.crt0]. A developer checkout may add a pack.private.toml next to this file (merged over it by
+# ps2rc.pack, never published).
+exclude_hooks = ["world_process", "scan_sector_list", "entity_visibility", "vis_set_camera"]
+natives = ""
+defines = ["HLE_CRT0_DATA"]
+extra_sources = ["vu/vu0_gen_glue.c"]
+audio_extra_sources = ["iop/snd_unit.c"]                      # with the sound model only (not with --audio none)
+audio_include_sources = ["iop/snd_glue.c", "{repo}/ps2rc/iop/rt"]
+
+[[profile.public.generators]]
+name = "snddrv"
+kind = "iop"
+input = "SYSTEM/IOPAUDIO.IRX"
+sym = "sndd_irx"
+out = "snddrv_gen.c"
+include_only = true
+audio = true                 # not run with --audio none
+
+[[profile.public.generators]]
+name = "vu0prog0"
+kind = "python"
+module = "ps2rc.vu.micro_gen:generate"
+input = "SLES_525.41"
+out = "vu0_prog0_gen.c"
+include_only = true
+args = { chain = 0x005A2A00, entries = [0x020, 0x068, 0x3A0], sym = "vu0p", mode = "memory", code_fnv64 = "56ED8DEBD7AFAE57" }
+
+[convert.build]
+audio_model = true           # the pack's audio_sources are compiled in (AUDIO=1)
+psp_gcc = "15.2.0"           # the compiler the pack's code was tuned and checked with
+
+[stage]
+folder = "PS2RC_POC6"        # the folder under PSP/GAME/
+include = ["DATA/*", "*.PM", "MODELS/*", "TEXT/*"]
+exclude = ["MODELS/*.IMG"]
+# disc files the runtime reads beyond the rules above
+files = ["ANIM/CUTS.IMG", "ANIM/PED.IFP", "AUDIO/CONFIG/EVENTVOL.DAT", "MODELS/CUTSCENE.IMG", "MODELS/PLAYER.IMG",
+         "MODELS/GTA3.IMG", "MODELS/GTA_INT.IMG",
+         "STREAM.INI"]
+audio_all = ["AUDIO/CONFIG/*.DAT", "AUDIO/SFX/*01.PAK", "AUDIO/STREAMS/*.PAK"]
+audio_min = ["AUDIO/CONFIG/*.DAT", "AUDIO/SFX/GENRL01.PAK", "AUDIO/SFX/FEET01.PAK", "AUDIO/SFX/PAIN_A01.PAK",
+             "AUDIO/STREAMS/AMBIENCE.PAK", "AUDIO/STREAMS/CUTSCENE.PAK"]
+# same-size replacements: the streaming budget for the 20.0 MB heap
+replace = [{ file = "STREAM.INI", find = "memory\t\t13550\r\n", with = "memory\t\t\t9000\r\n" }]
+movies = ["MOVIES/VCPAL.PSS", "MOVIES/OPEN1PAL.PSS"]
+# files the runtime writes into the folder (saves, logs, overclock state): never touched by an update, not "extra"
+# files for the folder check
+runtime_files = ["memcard/*", "session*.log", "io.log", "prof*.bin", "run_counter.txt", "oc_state.txt",
+                 "results_*.txt", "*.bmp", "az_preclock.txt", "audio_dump.wav", "splash_test_home"]
+
+[cfg]                        # the run options files the converter writes next to the EBOOT
+# the player's settings file ([runtime] cfg): commented template per language (the comments differ, the values are
+# the same); the developer / run options file <cfg>_dev<.ext> is read FIRST by the runtime (a key in both: the
+# player's file wins)
+player = { en = "cfg/player_en.cfg", ru = "cfg/player_ru.cfg" }
+dev = "cfg/dev.cfg"
+default_lang = "en"
+# the converter's decisions on internal keys, written as the player's friendly names (hle_settings.c)
+aliases = { movies = "intro_movies", audio = "sound" }
+
+[disc]
+# a disc FOLDER (instead of the image) has no sector numbers: the converter then needs this layout, made once from
+# the image; an ISO image needs nothing here
+layout = "analysis/iso_layout_v201.txt"

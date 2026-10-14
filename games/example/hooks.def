@@ -1,0 +1,14 @@
+/* hooks.def - the example pack's hook list (see games/_template/hooks.def for the format).
+ *
+ * The core HLE implements write, DelayThread and Exit by name (hle/core/hle_sce.c); this list says where the example
+ * program has them. frame is traced: [runtime] main_loop names it, so every call is one main-loop iteration
+ * (--mainloop-limit, the PSP's result=main_loop). build_elf.sh checks these addresses against the program.
+ */
+
+/* ---- C library / kernel library entry points */
+HOOK(00100f00, write)
+HOOK(00100f08, DelayThread)
+HOOK(00100f10, Exit)
+
+/* ---- the main loop */
+TRACE(00100e00, example_frame, 1)

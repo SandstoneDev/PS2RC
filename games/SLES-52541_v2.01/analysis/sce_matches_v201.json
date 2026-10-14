@@ -1,0 +1,5016 @@
+[
+ {
+  "addr": "0028b5b0",
+  "lib": "mslgcc_ps2",
+  "name": "__dt__Q23std9bad_allocFv",
+  "size": 92,
+  "where": "main",
+  "ambiguous": [
+   "mslgcc_ps2:__dt__Q23std10bad_typeidFv",
+   "mslgcc_ps2:__dt__Q23std13bad_exceptionFv",
+   "mslgcc_ps2:__dt__Q23std8bad_castFv",
+   "mslgcc_ps2:__dt__Q23std9bad_allocFv"
+  ]
+ },
+ {
+  "addr": "0028c250",
+  "lib": "mslgcc_ps2",
+  "name": "__dt__Q23std9exceptionFv",
+  "size": 76,
+  "where": "main"
+ },
+ {
+  "addr": "0028c710",
+  "lib": "mslgcc_ps2",
+  "name": "__dt__Q23std9bad_allocFv",
+  "size": 92,
+  "where": "main",
+  "ambiguous": [
+   "mslgcc_ps2:__dt__Q23std10bad_typeidFv",
+   "mslgcc_ps2:__dt__Q23std13bad_exceptionFv",
+   "mslgcc_ps2:__dt__Q23std8bad_castFv",
+   "mslgcc_ps2:__dt__Q23std9bad_allocFv"
+  ]
+ },
+ {
+  "addr": "0037ff28",
+  "lib": "libgcc",
+  "name": "__get_eh_context",
+  "size": 36,
+  "where": "main",
+  "ambiguous": [
+   "libgcc:__get_eh_context",
+   "libhttps:R_free",
+   "libhttps:R_free_locked",
+   "libhttps:R_malloc",
+   "libhttps:R_malloc_locked",
+   "libhttps:R_realloc"
+  ]
+ },
+ {
+  "addr": "0039be60",
+  "lib": "gcc_wrapper",
+  "name": "_f_ulltof",
+  "size": 68,
+  "where": "main"
+ },
+ {
+  "addr": "0039beb0",
+  "lib": "gcc_wrapper",
+  "name": "_d_utod",
+  "size": 84,
+  "where": "main"
+ },
+ {
+  "addr": "003c13e8",
+  "lib": "libgcc",
+  "name": "__get_eh_context",
+  "size": 36,
+  "where": "main",
+  "ambiguous": [
+   "libgcc:__get_eh_context",
+   "libhttps:R_free",
+   "libhttps:R_free_locked",
+   "libhttps:R_malloc",
+   "libhttps:R_malloc_locked",
+   "libhttps:R_realloc"
+  ]
+ },
+ {
+  "addr": "003d31f0",
+  "lib": "mslgcc_ps2",
+  "name": "__dt__Q23std9exceptionFv",
+  "size": 76,
+  "where": "main"
+ },
+ {
+  "addr": "003d3270",
+  "lib": "mslgcc_ps2",
+  "name": "__dt__Q23std9bad_allocFv",
+  "size": 92,
+  "where": "main",
+  "ambiguous": [
+   "mslgcc_ps2:__dt__Q23std10bad_typeidFv",
+   "mslgcc_ps2:__dt__Q23std13bad_exceptionFv",
+   "mslgcc_ps2:__dt__Q23std8bad_castFv",
+   "mslgcc_ps2:__dt__Q23std9bad_allocFv"
+  ]
+ },
+ {
+  "addr": "003d3830",
+  "lib": "mslgcc_ps2",
+  "name": "__dt__Q23std9bad_allocFv",
+  "size": 92,
+  "where": "main",
+  "ambiguous": [
+   "mslgcc_ps2:__dt__Q23std10bad_typeidFv",
+   "mslgcc_ps2:__dt__Q23std13bad_exceptionFv",
+   "mslgcc_ps2:__dt__Q23std8bad_castFv",
+   "mslgcc_ps2:__dt__Q23std9bad_allocFv"
+  ]
+ },
+ {
+  "addr": "003d3b20",
+  "lib": "mslgcc_ps2",
+  "name": "__dt__Q23std9bad_allocFv",
+  "size": 92,
+  "where": "main",
+  "ambiguous": [
+   "mslgcc_ps2:__dt__Q23std10bad_typeidFv",
+   "mslgcc_ps2:__dt__Q23std13bad_exceptionFv",
+   "mslgcc_ps2:__dt__Q23std8bad_castFv",
+   "mslgcc_ps2:__dt__Q23std9bad_allocFv"
+  ]
+ },
+ {
+  "addr": "003d3e10",
+  "lib": "mslgcc_ps2",
+  "name": "__dt__Q23std9bad_allocFv",
+  "size": 92,
+  "where": "main",
+  "ambiguous": [
+   "mslgcc_ps2:__dt__Q23std10bad_typeidFv",
+   "mslgcc_ps2:__dt__Q23std13bad_exceptionFv",
+   "mslgcc_ps2:__dt__Q23std8bad_castFv",
+   "mslgcc_ps2:__dt__Q23std9bad_allocFv"
+  ]
+ },
+ {
+  "addr": "003de4a0",
+  "lib": "mslgcc_ps2",
+  "name": "__dt__Q23std9exceptionFv",
+  "size": 76,
+  "where": "main"
+ },
+ {
+  "addr": "003fcb80",
+  "lib": "mslgcc_ps2",
+  "name": "__dt__Q23std9exceptionFv",
+  "size": 76,
+  "where": "main"
+ },
+ {
+  "addr": "00490340",
+  "lib": "mslgcc_ps2",
+  "name": "__dt__Q23std9exceptionFv",
+  "size": 76,
+  "where": "main"
+ },
+ {
+  "addr": "0051cb58",
+  "lib": "libcdvd",
+  "name": "sceCdCallback",
+  "size": 104,
+  "where": "main"
+ },
+ {
+  "addr": "0051cbc0",
+  "lib": "libcdvd",
+  "name": "_sceCd_cd_callback",
+  "size": 160,
+  "where": "main",
+  "ambiguous": [
+   "libcdvd:_sceCd_cd_callback",
+   "libcdvd:cd_callback"
+  ]
+ },
+ {
+  "addr": "0051cc60",
+  "lib": "libcdvd",
+  "name": "_Cdvd_cbLoop",
+  "size": 208,
+  "where": "main",
+  "ambiguous": [
+   "libcdvd:_Cdvd_cbLoop",
+   "libcdvd:_sceCd_cbLoop"
+  ]
+ },
+ {
+  "addr": "0051cdd0",
+  "lib": "libcdvd",
+  "name": "_sceCd_cd_read_intr",
+  "size": 184,
+  "where": "main"
+ },
+ {
+  "addr": "0051ce88",
+  "lib": "libcdvd",
+  "name": "cmd_sem_init",
+  "size": 228,
+  "where": "main"
+ },
+ {
+  "addr": "0051cf70",
+  "lib": "libcdvd",
+  "name": "cdvd_exit",
+  "size": 160,
+  "where": "main"
+ },
+ {
+  "addr": "0051d010",
+  "lib": "libcdvd",
+  "name": "sceCdPOffCallback",
+  "size": 128,
+  "where": "main"
+ },
+ {
+  "addr": "0051d090",
+  "lib": "libcdvd",
+  "name": "_sceCd_Poff_Intr",
+  "size": 84,
+  "where": "main"
+ },
+ {
+  "addr": "0051d0e8",
+  "lib": "libcdvd",
+  "name": "PowerOffCB",
+  "size": 120,
+  "where": "main"
+ },
+ {
+  "addr": "0051d160",
+  "lib": "libcdvd",
+  "name": "sceCdLayerSearchFile",
+  "size": 764,
+  "where": "main"
+ },
+ {
+  "addr": "0051d480",
+  "lib": "libcdvd",
+  "name": "_sceCd_ncmd_prechk",
+  "size": 344,
+  "where": "main"
+ },
+ {
+  "addr": "0051d5d8",
+  "lib": "libcdvd",
+  "name": "sceCdNcmdDiskReady",
+  "size": 152,
+  "where": "main"
+ },
+ {
+  "addr": "0051d670",
+  "lib": "libcdvd",
+  "name": "sceCdSync",
+  "size": 160,
+  "where": "main"
+ },
+ {
+  "addr": "0051d710",
+  "lib": "libcdvd",
+  "name": "sceCdSyncS",
+  "size": 108,
+  "where": "main"
+ },
+ {
+  "addr": "0051d780",
+  "lib": "libcdvd",
+  "name": "_sceCd_scmd_prechk",
+  "size": 344,
+  "where": "main"
+ },
+ {
+  "addr": "0051d8d8",
+  "lib": "libcdvd",
+  "name": "_sceCdSC",
+  "size": 176,
+  "where": "main"
+ },
+ {
+  "addr": "0051d988",
+  "lib": "libcdvd",
+  "name": "sceCdInit",
+  "size": 744,
+  "where": "main"
+ },
+ {
+  "addr": "0051dc70",
+  "lib": "libcdvd",
+  "name": "sceCdDiskReady_old",
+  "size": 536,
+  "where": "main"
+ },
+ {
+  "addr": "0051de88",
+  "lib": "libcdvd",
+  "name": "sceCdDiskReady",
+  "size": 544,
+  "where": "main"
+ },
+ {
+  "addr": "0051e0a8",
+  "lib": "libcdvd",
+  "name": "sceCdStandby",
+  "size": 172,
+  "where": "main"
+ },
+ {
+  "addr": "0051e158",
+  "lib": "libcdvd",
+  "name": "sceCdBreak",
+  "size": 184,
+  "where": "main"
+ },
+ {
+  "addr": "0051e210",
+  "lib": "libcdvd",
+  "name": "_sceCdSetTimeout",
+  "size": 212,
+  "where": "main"
+ },
+ {
+  "addr": "0051e2e8",
+  "lib": "libcdvd",
+  "name": "sceCdReadDvdDualInfo",
+  "size": 208,
+  "where": "main"
+ },
+ {
+  "addr": "0051e3b8",
+  "lib": "libcdvd",
+  "name": "sceCdPowerOff",
+  "size": 180,
+  "where": "main"
+ },
+ {
+  "addr": "0051e470",
+  "lib": "libcdvd",
+  "name": "sceCdMmode",
+  "size": 208,
+  "where": "main"
+ },
+ {
+  "addr": "0051e568",
+  "lib": "libcdvd",
+  "name": "sceCdReadClock",
+  "size": 188,
+  "where": "main"
+ },
+ {
+  "addr": "0052fb18",
+  "lib": "libgcc",
+  "name": "__muldi3",
+  "size": 116,
+  "where": "main"
+ },
+ {
+  "addr": "0052fb90",
+  "lib": "libgcc",
+  "name": "__divdi3",
+  "size": 1684,
+  "where": "main"
+ },
+ {
+  "addr": "00530228",
+  "lib": "libgcc",
+  "name": "__moddi3",
+  "size": 1680,
+  "where": "main"
+ },
+ {
+  "addr": "005308b8",
+  "lib": "libgcc",
+  "name": "__udivdi3",
+  "size": 1404,
+  "where": "main"
+ },
+ {
+  "addr": "00530e38",
+  "lib": "libgcc",
+  "name": "__umoddi3",
+  "size": 1384,
+  "where": "main"
+ },
+ {
+  "addr": "005313a0",
+  "lib": "libgcc",
+  "name": "__floatdidf",
+  "size": 168,
+  "where": "main"
+ },
+ {
+  "addr": "00531448",
+  "lib": "libgcc",
+  "name": "__floatdisf",
+  "size": 232,
+  "where": "main"
+ },
+ {
+  "addr": "00531530",
+  "lib": "libgcc",
+  "name": "__fixunsdfdi",
+  "size": 280,
+  "where": "main"
+ },
+ {
+  "addr": "00531648",
+  "lib": "libgcc",
+  "name": "__fixdfdi",
+  "size": 120,
+  "where": "main"
+ },
+ {
+  "addr": "005316c0",
+  "lib": "libgcc",
+  "name": "__fixunssfdi",
+  "size": 296,
+  "where": "main"
+ },
+ {
+  "addr": "005317e8",
+  "lib": "libgcc",
+  "name": "__pack_f",
+  "size": 180,
+  "where": "main"
+ },
+ {
+  "addr": "005318a0",
+  "lib": "libgcc",
+  "name": "__unpack_f",
+  "size": 92,
+  "where": "main"
+ },
+ {
+  "addr": "00531900",
+  "lib": "libgcc",
+  "name": "__make_fp",
+  "size": 44,
+  "where": "main"
+ },
+ {
+  "addr": "00531930",
+  "lib": "libgcc",
+  "name": "fptodp",
+  "size": 60,
+  "where": "main"
+ },
+ {
+  "addr": "00531970",
+  "lib": "libgcc",
+  "name": "fptoui",
+  "size": 128,
+  "where": "main"
+ },
+ {
+  "addr": "005319f0",
+  "lib": "libgcc",
+  "name": "__pack_d",
+  "size": 216,
+  "where": "main"
+ },
+ {
+  "addr": "00531ac8",
+  "lib": "libgcc",
+  "name": "__unpack_d",
+  "size": 188,
+  "where": "main"
+ },
+ {
+  "addr": "00531b88",
+  "lib": "libgcc",
+  "name": "_fpadd_parts",
+  "size": 604,
+  "where": "main"
+ },
+ {
+  "addr": "00531de8",
+  "lib": "libgcc",
+  "name": "dpadd",
+  "size": 88,
+  "where": "main"
+ },
+ {
+  "addr": "00531e40",
+  "lib": "libgcc",
+  "name": "dpsub",
+  "size": 100,
+  "where": "main"
+ },
+ {
+  "addr": "00531ea8",
+  "lib": "libgcc",
+  "name": "dpmul",
+  "size": 644,
+  "where": "main"
+ },
+ {
+  "addr": "00532130",
+  "lib": "libgcc",
+  "name": "dpdiv",
+  "size": 320,
+  "where": "main"
+ },
+ {
+  "addr": "00532270",
+  "lib": "libgcc",
+  "name": "__fpcmp_parts_d",
+  "size": 288,
+  "where": "main"
+ },
+ {
+  "addr": "00532390",
+  "lib": "libgcc",
+  "name": "dpcmp",
+  "size": 76,
+  "where": "main"
+ },
+ {
+  "addr": "005323e0",
+  "lib": "libgcc",
+  "name": "litodp",
+  "size": 184,
+  "where": "main"
+ },
+ {
+  "addr": "00532498",
+  "lib": "libgcc",
+  "name": "dptoli",
+  "size": 156,
+  "where": "main"
+ },
+ {
+  "addr": "00532538",
+  "lib": "libgcc",
+  "name": "__make_dp",
+  "size": 44,
+  "where": "main"
+ },
+ {
+  "addr": "00532568",
+  "lib": "libgcc",
+  "name": "dptofp",
+  "size": 84,
+  "where": "main"
+ },
+ {
+  "addr": "005325c0",
+  "lib": "libgcc",
+  "name": "dptoul",
+  "size": 160,
+  "where": "main"
+ },
+ {
+  "addr": "00532660",
+  "lib": "libpad",
+  "name": "scePadInit",
+  "size": 320,
+  "where": "main"
+ },
+ {
+  "addr": "005327a0",
+  "lib": "libpad",
+  "name": "_pad_intr_hdr",
+  "size": 72,
+  "where": "main"
+ },
+ {
+  "addr": "005327e8",
+  "lib": "libpad",
+  "name": "scePadInit2",
+  "size": 224,
+  "where": "main"
+ },
+ {
+  "addr": "005328c8",
+  "lib": "libpad",
+  "name": "scePadEnd",
+  "size": 136,
+  "where": "main"
+ },
+ {
+  "addr": "00532950",
+  "lib": "libpad",
+  "name": "_send_to_iop",
+  "size": 276,
+  "where": "main"
+ },
+ {
+  "addr": "00532a68",
+  "lib": "libpad",
+  "name": "scePadPortOpen",
+  "size": 484,
+  "where": "main"
+ },
+ {
+  "addr": "00532c50",
+  "lib": "libpad",
+  "name": "scePadPortClose",
+  "size": 184,
+  "where": "main"
+ },
+ {
+  "addr": "00532d08",
+  "lib": "libpad",
+  "name": "scePadGetDmaStr",
+  "size": 96,
+  "where": "main"
+ },
+ {
+  "addr": "00532d68",
+  "lib": "libpad",
+  "name": "scePadGetFrameCount",
+  "size": 80,
+  "where": "main"
+ },
+ {
+  "addr": "00532db8",
+  "lib": "libpad",
+  "name": "scePadRead",
+  "size": 180,
+  "where": "main"
+ },
+ {
+  "addr": "00532e70",
+  "lib": "libpad",
+  "name": "scePadGetState",
+  "size": 200,
+  "where": "main"
+ },
+ {
+  "addr": "00532f38",
+  "lib": "libpad",
+  "name": "scePadStateIntToStr",
+  "size": 52,
+  "where": "main"
+ },
+ {
+  "addr": "00532f70",
+  "lib": "libpad",
+  "name": "scePadSetReqState",
+  "size": 164,
+  "where": "main"
+ },
+ {
+  "addr": "00533018",
+  "lib": "libpad",
+  "name": "scePadGetReqState",
+  "size": 80,
+  "where": "main"
+ },
+ {
+  "addr": "00533068",
+  "lib": "libpad",
+  "name": "scePadReqIntToStr",
+  "size": 52,
+  "where": "main",
+  "ambiguous": [
+   "libpad2:scePad2StateIntToStr",
+   "libpad:scePadReqIntToStr"
+  ]
+ },
+ {
+  "addr": "005330a0",
+  "lib": "libpad",
+  "name": "scePadInfoAct",
+  "size": 288,
+  "where": "main"
+ },
+ {
+  "addr": "005331c0",
+  "lib": "libpad",
+  "name": "scePadInfoComb",
+  "size": 284,
+  "where": "main"
+ },
+ {
+  "addr": "005332e0",
+  "lib": "libpad",
+  "name": "scePadInfoMode",
+  "size": 312,
+  "where": "main"
+ },
+ {
+  "addr": "00533418",
+  "lib": "libpad",
+  "name": "scePadSetMainMode",
+  "size": 180,
+  "where": "main"
+ },
+ {
+  "addr": "005334d0",
+  "lib": "libpad",
+  "name": "scePadSetActDirect",
+  "size": 192,
+  "where": "main"
+ },
+ {
+  "addr": "00533590",
+  "lib": "libpad",
+  "name": "scePadSetActAlign",
+  "size": 216,
+  "where": "main"
+ },
+ {
+  "addr": "00533668",
+  "lib": "libpad",
+  "name": "scePadGetButtonMask",
+  "size": 180,
+  "where": "main"
+ },
+ {
+  "addr": "00533720",
+  "lib": "libpad",
+  "name": "scePadSetButtonInfo",
+  "size": 176,
+  "where": "main"
+ },
+ {
+  "addr": "005337d0",
+  "lib": "libpad",
+  "name": "scePadInfoPressMode",
+  "size": 92,
+  "where": "main"
+ },
+ {
+  "addr": "00533830",
+  "lib": "libpad",
+  "name": "scePadEnterPressMode",
+  "size": 84,
+  "where": "main"
+ },
+ {
+  "addr": "00533888",
+  "lib": "libpad",
+  "name": "scePadExitPressMode",
+  "size": 84,
+  "where": "main"
+ },
+ {
+  "addr": "005338e0",
+  "lib": "libpad",
+  "name": "scePadSetVrefParam",
+  "size": 204,
+  "where": "main"
+ },
+ {
+  "addr": "005339b0",
+  "lib": "libpad",
+  "name": "scePadGetPortMax",
+  "size": 100,
+  "where": "main"
+ },
+ {
+  "addr": "00533a18",
+  "lib": "libpad",
+  "name": "scePadGetSlotMax",
+  "size": 104,
+  "where": "main"
+ },
+ {
+  "addr": "00533a80",
+  "lib": "libpad",
+  "name": "scePadGetModVersion",
+  "size": 100,
+  "where": "main"
+ },
+ {
+  "addr": "00533ae8",
+  "lib": "libpad",
+  "name": "scePadSetWarningLevel",
+  "size": 104,
+  "where": "main"
+ },
+ {
+  "addr": "00533b50",
+  "lib": "libpad",
+  "name": "scePadSetDmaCallback",
+  "size": 292,
+  "where": "main"
+ },
+ {
+  "addr": "00533c78",
+  "lib": "libscf",
+  "name": "GetRomName",
+  "size": 112,
+  "where": "main"
+ },
+ {
+  "addr": "00533ce8",
+  "lib": "libscf",
+  "name": "IsT10K",
+  "size": 64,
+  "where": "main"
+ },
+ {
+  "addr": "00533d28",
+  "lib": "libscf",
+  "name": "sceScfGetLanguage",
+  "size": 96,
+  "where": "main"
+ },
+ {
+  "addr": "00533da8",
+  "lib": "libscf",
+  "name": "sceScfGetAspect",
+  "size": 64,
+  "where": "main"
+ },
+ {
+  "addr": "00533de8",
+  "lib": "libscf",
+  "name": "sceScfGetSpdif",
+  "size": 60,
+  "where": "main"
+ },
+ {
+  "addr": "00533e28",
+  "lib": "libscf",
+  "name": "sceScfGetTimeZone",
+  "size": 76,
+  "where": "main"
+ },
+ {
+  "addr": "00533e78",
+  "lib": "libscf",
+  "name": "sceScfGetDateNotation",
+  "size": 100,
+  "where": "main"
+ },
+ {
+  "addr": "00533ee0",
+  "lib": "libscf",
+  "name": "sceScfGetSummerTime",
+  "size": 104,
+  "where": "main"
+ },
+ {
+  "addr": "00533f48",
+  "lib": "libscf",
+  "name": "sceScfGetTimeNotation",
+  "size": 104,
+  "where": "main"
+ },
+ {
+  "addr": "00533fb0",
+  "lib": "libscf",
+  "name": "tobcd",
+  "size": 44,
+  "where": "main"
+ },
+ {
+  "addr": "00533fe0",
+  "lib": "libscf",
+  "name": "frombcd",
+  "size": 32,
+  "where": "main"
+ },
+ {
+  "addr": "00534000",
+  "lib": "libscf",
+  "name": "convertfrombcd",
+  "size": 104,
+  "where": "main",
+  "ambiguous": [
+   "libscf:convertfrombcd",
+   "libscf:converttobcd"
+  ]
+ },
+ {
+  "addr": "00534068",
+  "lib": "libscf",
+  "name": "convertfrombcd",
+  "size": 104,
+  "where": "main",
+  "ambiguous": [
+   "libscf:convertfrombcd",
+   "libscf:converttobcd"
+  ]
+ },
+ {
+  "addr": "005340d0",
+  "lib": "libscf",
+  "name": "adddate",
+  "size": 180,
+  "where": "main"
+ },
+ {
+  "addr": "00534188",
+  "lib": "libscf",
+  "name": "subdate",
+  "size": 164,
+  "where": "main"
+ },
+ {
+  "addr": "00534230",
+  "lib": "libscf",
+  "name": "addhour",
+  "size": 48,
+  "where": "main"
+ },
+ {
+  "addr": "00534260",
+  "lib": "libscf",
+  "name": "subhour",
+  "size": 36,
+  "where": "main"
+ },
+ {
+  "addr": "00534288",
+  "lib": "libscf",
+  "name": "AdjustTime",
+  "size": 140,
+  "where": "main"
+ },
+ {
+  "addr": "00534368",
+  "lib": "libmc",
+  "name": "sceMcInit",
+  "size": 552,
+  "where": "main"
+ },
+ {
+  "addr": "00534590",
+  "lib": "libmc",
+  "name": "sceMcEnd",
+  "size": 88,
+  "where": "main"
+ },
+ {
+  "addr": "005346b8",
+  "lib": "libmc",
+  "name": "sceMcGetSlotMax",
+  "size": 192,
+  "where": "main"
+ },
+ {
+  "addr": "00534778",
+  "lib": "libmc",
+  "name": "sceMcOpen",
+  "size": 296,
+  "where": "main"
+ },
+ {
+  "addr": "005348a0",
+  "lib": "libmc",
+  "name": "sceMcMkdir",
+  "size": 52,
+  "where": "main"
+ },
+ {
+  "addr": "005348d8",
+  "lib": "libmc",
+  "name": "sceMcClose",
+  "size": 188,
+  "where": "main"
+ },
+ {
+  "addr": "00534998",
+  "lib": "libmc",
+  "name": "sceMcSeek",
+  "size": 224,
+  "where": "main"
+ },
+ {
+  "addr": "00534a78",
+  "lib": "libmc",
+  "name": "mceIntrReadFixAlign",
+  "size": 176,
+  "where": "main"
+ },
+ {
+  "addr": "00534b28",
+  "lib": "libmc",
+  "name": "sceMcRead",
+  "size": 276,
+  "where": "main"
+ },
+ {
+  "addr": "00534c40",
+  "lib": "libmc",
+  "name": "sceMcWrite",
+  "size": 376,
+  "where": "main"
+ },
+ {
+  "addr": "00534db8",
+  "lib": "libmc",
+  "name": "sceMcSync",
+  "size": 196,
+  "where": "main"
+ },
+ {
+  "addr": "00534e80",
+  "lib": "libmc",
+  "name": "mceGetInfoApdx",
+  "size": 88,
+  "where": "main"
+ },
+ {
+  "addr": "00534ed8",
+  "lib": "libmc",
+  "name": "sceMcGetInfo",
+  "size": 380,
+  "where": "main"
+ },
+ {
+  "addr": "00535058",
+  "lib": "libmc",
+  "name": "sceMcUdCheckNewCard",
+  "size": 112,
+  "where": "main"
+ },
+ {
+  "addr": "005350c8",
+  "lib": "libmc",
+  "name": "sceMcGetDir",
+  "size": 332,
+  "where": "main"
+ },
+ {
+  "addr": "00535218",
+  "lib": "libmc",
+  "name": "mceStorePwd",
+  "size": 140,
+  "where": "main"
+ },
+ {
+  "addr": "005352a8",
+  "lib": "libmc",
+  "name": "sceMcChdir",
+  "size": 320,
+  "where": "main"
+ },
+ {
+  "addr": "005353e8",
+  "lib": "libmc",
+  "name": "sceMcFormat",
+  "size": 204,
+  "where": "main"
+ },
+ {
+  "addr": "005354b8",
+  "lib": "libmc",
+  "name": "sceMcDelete",
+  "size": 284,
+  "where": "main"
+ },
+ {
+  "addr": "005355d8",
+  "lib": "libmc",
+  "name": "sceMcFlush",
+  "size": 188,
+  "where": "main"
+ },
+ {
+  "addr": "00535698",
+  "lib": "libmc",
+  "name": "sceMcSetFileInfo",
+  "size": 460,
+  "where": "main"
+ },
+ {
+  "addr": "00535868",
+  "lib": "libmc",
+  "name": "sceMcRename",
+  "size": 348,
+  "where": "main"
+ },
+ {
+  "addr": "005359c8",
+  "lib": "libmc",
+  "name": "sceMcUnformat",
+  "size": 204,
+  "where": "main"
+ },
+ {
+  "addr": "00535a98",
+  "lib": "libmc",
+  "name": "sceMcGetEntSpace",
+  "size": 268,
+  "where": "main"
+ },
+ {
+  "addr": "00535ba8",
+  "lib": "libm",
+  "name": "__ieee754_acos",
+  "size": 1828,
+  "where": "main"
+ },
+ {
+  "addr": "005362d0",
+  "lib": "libm",
+  "name": "__ieee754_atan2",
+  "size": 828,
+  "where": "main"
+ },
+ {
+  "addr": "00536610",
+  "lib": "libm",
+  "name": "__ieee754_rem_pio2",
+  "size": 1464,
+  "where": "main"
+ },
+ {
+  "addr": "00536bc8",
+  "lib": "libm",
+  "name": "__ieee754_sqrt",
+  "size": 796,
+  "where": "main"
+ },
+ {
+  "addr": "00536ee8",
+  "lib": "libm",
+  "name": "__ieee754_acosf",
+  "size": 1060,
+  "where": "main"
+ },
+ {
+  "addr": "00537310",
+  "lib": "libm",
+  "name": "__ieee754_asinf",
+  "size": 928,
+  "where": "main"
+ },
+ {
+  "addr": "005376b0",
+  "lib": "libm",
+  "name": "__ieee754_atan2f",
+  "size": 480,
+  "where": "main"
+ },
+ {
+  "addr": "00537890",
+  "lib": "libm",
+  "name": "__ieee754_logf",
+  "size": 736,
+  "where": "main"
+ },
+ {
+  "addr": "00537b70",
+  "lib": "libm",
+  "name": "__ieee754_log10f",
+  "size": 228,
+  "where": "main"
+ },
+ {
+  "addr": "00537c58",
+  "lib": "libm",
+  "name": "__ieee754_powf",
+  "size": 2016,
+  "where": "main"
+ },
+ {
+  "addr": "00538438",
+  "lib": "libm",
+  "name": "__ieee754_rem_pio2f",
+  "size": 944,
+  "where": "main"
+ },
+ {
+  "addr": "005387e8",
+  "lib": "libm",
+  "name": "__ieee754_sqrtf",
+  "size": 204,
+  "where": "main"
+ },
+ {
+  "addr": "005388b8",
+  "lib": "libm",
+  "name": "__kernel_cos",
+  "size": 724,
+  "where": "main"
+ },
+ {
+  "addr": "00538b90",
+  "lib": "libm",
+  "name": "__kernel_rem_pio2",
+  "size": 2892,
+  "where": "main"
+ },
+ {
+  "addr": "005396e0",
+  "lib": "libm",
+  "name": "__kernel_sin",
+  "size": 568,
+  "where": "main"
+ },
+ {
+  "addr": "00539918",
+  "lib": "libm",
+  "name": "__kernel_cosf",
+  "size": 336,
+  "where": "main"
+ },
+ {
+  "addr": "00539a68",
+  "lib": "libm",
+  "name": "__kernel_rem_pio2f",
+  "size": 2148,
+  "where": "main"
+ },
+ {
+  "addr": "0053a2d0",
+  "lib": "libm",
+  "name": "__kernel_sinf",
+  "size": 260,
+  "where": "main"
+ },
+ {
+  "addr": "0053a3d8",
+  "lib": "libm",
+  "name": "__kernel_tanf",
+  "size": 644,
+  "where": "main"
+ },
+ {
+  "addr": "0053a660",
+  "lib": "libm",
+  "name": "atan",
+  "size": 1224,
+  "where": "main"
+ },
+ {
+  "addr": "0053ab28",
+  "lib": "libm",
+  "name": "copysign",
+  "size": 68,
+  "where": "main",
+  "ambiguous": [
+   "libc:copysign",
+   "libm:copysign"
+  ]
+ },
+ {
+  "addr": "0053ab70",
+  "lib": "libm",
+  "name": "cos",
+  "size": 292,
+  "where": "main"
+ },
+ {
+  "addr": "0053ac98",
+  "lib": "libm",
+  "name": "fabs",
+  "size": 52,
+  "where": "main"
+ },
+ {
+  "addr": "0053acd0",
+  "lib": "libm",
+  "name": "floor",
+  "size": 532,
+  "where": "main"
+ },
+ {
+  "addr": "0053aee8",
+  "lib": "libm",
+  "name": "isinf",
+  "size": 72,
+  "where": "main",
+  "ambiguous": [
+   "libc:isinf",
+   "libm:isinf"
+  ]
+ },
+ {
+  "addr": "0053af30",
+  "lib": "libm",
+  "name": "isnan",
+  "size": 60,
+  "where": "main",
+  "ambiguous": [
+   "libc:isnan",
+   "libm:isnan"
+  ]
+ },
+ {
+  "addr": "0053af70",
+  "lib": "libm",
+  "name": "scalbn",
+  "size": 484,
+  "where": "main",
+  "ambiguous": [
+   "libc:scalbn",
+   "libm:scalbn"
+  ]
+ },
+ {
+  "addr": "0053b158",
+  "lib": "libm",
+  "name": "sin",
+  "size": 308,
+  "where": "main"
+ },
+ {
+  "addr": "0053b290",
+  "lib": "libm",
+  "name": "atanf",
+  "size": 652,
+  "where": "main"
+ },
+ {
+  "addr": "0053b520",
+  "lib": "libm",
+  "name": "ceilf",
+  "size": 216,
+  "where": "main"
+ },
+ {
+  "addr": "0053b5f8",
+  "lib": "libm",
+  "name": "copysignf",
+  "size": 60,
+  "where": "main",
+  "ambiguous": [
+   "libc:copysignf",
+   "libm:copysignf"
+  ]
+ },
+ {
+  "addr": "0053b638",
+  "lib": "libm",
+  "name": "cosf",
+  "size": 212,
+  "where": "main"
+ },
+ {
+  "addr": "0053b710",
+  "lib": "libm",
+  "name": "fabsf",
+  "size": 40,
+  "where": "main"
+ },
+ {
+  "addr": "0053b738",
+  "lib": "libm",
+  "name": "floorf",
+  "size": 216,
+  "where": "main"
+ },
+ {
+  "addr": "0053b810",
+  "lib": "libm",
+  "name": "modff",
+  "size": 140,
+  "where": "main",
+  "ambiguous": [
+   "libc:modff",
+   "libm:modff"
+  ]
+ },
+ {
+  "addr": "0053b8a0",
+  "lib": "libm",
+  "name": "scalbnf",
+  "size": 200,
+  "where": "main",
+  "ambiguous": [
+   "libc:scalbnf",
+   "libm:scalbnf"
+  ]
+ },
+ {
+  "addr": "0053b968",
+  "lib": "libm",
+  "name": "sinf",
+  "size": 232,
+  "where": "main"
+ },
+ {
+  "addr": "0053ba50",
+  "lib": "libm",
+  "name": "tanf",
+  "size": 120,
+  "where": "main"
+ },
+ {
+  "addr": "0053c430",
+  "lib": "libkernl",
+  "name": "VSync",
+  "size": 144,
+  "where": "main"
+ },
+ {
+  "addr": "0053c4c0",
+  "lib": "libkernl",
+  "name": "VSync2",
+  "size": 164,
+  "where": "main"
+ },
+ {
+  "addr": "0053c568",
+  "lib": "libkernl",
+  "name": "write",
+  "size": 124,
+  "where": "main"
+ },
+ {
+  "addr": "0053c5e8",
+  "lib": "libkernl",
+  "name": "read",
+  "size": 116,
+  "where": "main"
+ },
+ {
+  "addr": "0053c660",
+  "lib": "libkernl",
+  "name": "open",
+  "size": 40,
+  "where": "main",
+  "ambiguous": [
+   "libkernl:open",
+   "libkernl:stat",
+   "libkernl:unlink"
+  ]
+ },
+ {
+  "addr": "0053c6a0",
+  "lib": "libkernl",
+  "name": "sbrk",
+  "size": 172,
+  "where": "main"
+ },
+ {
+  "addr": "0053c778",
+  "lib": "libkernl",
+  "name": "kill",
+  "size": 40,
+  "where": "main"
+ },
+ {
+  "addr": "0053c7a0",
+  "lib": "libkernl",
+  "name": "open",
+  "size": 40,
+  "where": "main",
+  "ambiguous": [
+   "libkernl:open",
+   "libkernl:stat",
+   "libkernl:unlink"
+  ]
+ },
+ {
+  "addr": "0053c7c8",
+  "lib": "libkernl",
+  "name": "open",
+  "size": 40,
+  "where": "main",
+  "ambiguous": [
+   "libkernl:open",
+   "libkernl:stat",
+   "libkernl:unlink"
+  ]
+ },
+ {
+  "addr": "0053c7f0",
+  "lib": "libkernl",
+  "name": "_sceSDC",
+  "size": 164,
+  "where": "main"
+ },
+ {
+  "addr": "0053c898",
+  "lib": "libkernl",
+  "name": "SyncDCache",
+  "size": 124,
+  "where": "main",
+  "ambiguous": [
+   "libkernl:InvalidDCache",
+   "libkernl:SyncDCache"
+  ]
+ },
+ {
+  "addr": "0053c930",
+  "lib": "libkernl",
+  "name": "_sceIDC",
+  "size": 164,
+  "where": "main"
+ },
+ {
+  "addr": "0053c9d8",
+  "lib": "libkernl",
+  "name": "SyncDCache",
+  "size": 124,
+  "where": "main",
+  "ambiguous": [
+   "libkernl:InvalidDCache",
+   "libkernl:SyncDCache"
+  ]
+ },
+ {
+  "addr": "0053ca80",
+  "lib": "libkernl",
+  "name": "ReleaseAlarm",
+  "size": 104,
+  "where": "main",
+  "ambiguous": [
+   "libkernl:DisableDmac",
+   "libkernl:DisableIntc",
+   "libkernl:EnableDmac",
+   "libkernl:EnableIntc",
+   "libkernl:ReleaseAlarm"
+  ]
+ },
+ {
+  "addr": "0053cae8",
+  "lib": "libkernl",
+  "name": "ReleaseAlarm",
+  "size": 104,
+  "where": "main",
+  "ambiguous": [
+   "libkernl:DisableDmac",
+   "libkernl:DisableIntc",
+   "libkernl:EnableDmac",
+   "libkernl:EnableIntc",
+   "libkernl:ReleaseAlarm"
+  ]
+ },
+ {
+  "addr": "0053cb50",
+  "lib": "libkernl",
+  "name": "ReleaseAlarm",
+  "size": 104,
+  "where": "main",
+  "ambiguous": [
+   "libkernl:DisableDmac",
+   "libkernl:DisableIntc",
+   "libkernl:EnableDmac",
+   "libkernl:EnableIntc",
+   "libkernl:ReleaseAlarm"
+  ]
+ },
+ {
+  "addr": "0053cbb8",
+  "lib": "libkernl",
+  "name": "ReleaseAlarm",
+  "size": 104,
+  "where": "main",
+  "ambiguous": [
+   "libkernl:DisableDmac",
+   "libkernl:DisableIntc",
+   "libkernl:EnableDmac",
+   "libkernl:EnableIntc",
+   "libkernl:ReleaseAlarm"
+  ]
+ },
+ {
+  "addr": "0053cca0",
+  "lib": "libkernl",
+  "name": "topThread",
+  "size": 216,
+  "where": "main"
+ },
+ {
+  "addr": "0053cd78",
+  "lib": "libkernl",
+  "name": "InitThread",
+  "size": 236,
+  "where": "main"
+ },
+ {
+  "addr": "0053ce68",
+  "lib": "libkernl",
+  "name": "iWakeupThread",
+  "size": 148,
+  "where": "main"
+ },
+ {
+  "addr": "0053cf00",
+  "lib": "libkernl",
+  "name": "iRotateThreadReadyQueue",
+  "size": 124,
+  "where": "main"
+ },
+ {
+  "addr": "0053cf80",
+  "lib": "libkernl",
+  "name": "iSuspendThread",
+  "size": 152,
+  "where": "main"
+ },
+ {
+  "addr": "0053d018",
+  "lib": "libkernl",
+  "name": "DelayThread",
+  "size": 200,
+  "where": "main"
+ },
+ {
+  "addr": "0053d0e0",
+  "lib": "libkernl",
+  "name": "StartThread",
+  "size": 376,
+  "where": "main"
+ },
+ {
+  "addr": "0053d258",
+  "lib": "libkernl",
+  "name": "_DelayThreadHandler",
+  "size": 40,
+  "where": "main"
+ },
+ {
+  "addr": "0053d280",
+  "lib": "libkernl",
+  "name": "sceDeci2Open",
+  "size": 68,
+  "where": "main"
+ },
+ {
+  "addr": "0053d2c8",
+  "lib": "libkernl",
+  "name": "sceDeci2Close",
+  "size": 36,
+  "where": "main"
+ },
+ {
+  "addr": "0053d2f0",
+  "lib": "libkernl",
+  "name": "sceDeci2ReqSend",
+  "size": 48,
+  "where": "main"
+ },
+ {
+  "addr": "0053d320",
+  "lib": "libkernl",
+  "name": "sceDeci2Poll",
+  "size": 36,
+  "where": "main"
+ },
+ {
+  "addr": "0053d348",
+  "lib": "libkernl",
+  "name": "sceDeci2GrpOpen",
+  "size": 48,
+  "where": "main"
+ },
+ {
+  "addr": "0053d378",
+  "lib": "libkernl",
+  "name": "sceDeci2GrpClose",
+  "size": 36,
+  "where": "main"
+ },
+ {
+  "addr": "0053d3a0",
+  "lib": "libkernl",
+  "name": "sceDeci2ExRecv",
+  "size": 52,
+  "where": "main"
+ },
+ {
+  "addr": "0053d3d8",
+  "lib": "libkernl",
+  "name": "sceDeci2ExSend",
+  "size": 52,
+  "where": "main"
+ },
+ {
+  "addr": "0053d410",
+  "lib": "libkernl",
+  "name": "sceDeci2ExReqSend",
+  "size": 48,
+  "where": "main"
+ },
+ {
+  "addr": "0053d440",
+  "lib": "libkernl",
+  "name": "sceDeci2ExLock",
+  "size": 36,
+  "where": "main"
+ },
+ {
+  "addr": "0053d468",
+  "lib": "libkernl",
+  "name": "sceDeci2ExUnLock",
+  "size": 36,
+  "where": "main"
+ },
+ {
+  "addr": "0053d490",
+  "lib": "libkernl",
+  "name": "kputs",
+  "size": 36,
+  "where": "main"
+ },
+ {
+  "addr": "0053d4e0",
+  "lib": "libkernl",
+  "name": "QueuePeekWriteDone",
+  "size": 60,
+  "where": "main"
+ },
+ {
+  "addr": "0053d520",
+  "lib": "libkernl",
+  "name": "QueuePeekReadDone",
+  "size": 60,
+  "where": "main"
+ },
+ {
+  "addr": "0053d560",
+  "lib": "libkernl",
+  "name": "sceTtyHandler",
+  "size": 404,
+  "where": "main"
+ },
+ {
+  "addr": "0053d6f8",
+  "lib": "libkernl",
+  "name": "sceTtyWrite",
+  "size": 372,
+  "where": "main"
+ },
+ {
+  "addr": "0053d870",
+  "lib": "libkernl",
+  "name": "sceTtyRead",
+  "size": 208,
+  "where": "main"
+ },
+ {
+  "addr": "0053d940",
+  "lib": "libkernl",
+  "name": "sceTtyInit",
+  "size": 188,
+  "where": "main"
+ },
+ {
+  "addr": "0053da00",
+  "lib": "libkernl",
+  "name": "kputchar",
+  "size": 56,
+  "where": "main"
+ },
+ {
+  "addr": "0053da38",
+  "lib": "libkernl",
+  "name": "deci2Putchar",
+  "size": 176,
+  "where": "main"
+ },
+ {
+  "addr": "0053dae8",
+  "lib": "libkernl",
+  "name": "serialPutchar",
+  "size": 52,
+  "where": "main"
+ },
+ {
+  "addr": "0053db20",
+  "lib": "libkernl",
+  "name": "ftoi",
+  "size": 144,
+  "where": "main"
+ },
+ {
+  "addr": "0053dbb0",
+  "lib": "libkernl",
+  "name": "printfloat",
+  "size": 472,
+  "where": "main"
+ },
+ {
+  "addr": "0053dd88",
+  "lib": "libkernl",
+  "name": "_sceSnprintf",
+  "size": 3348,
+  "where": "main"
+ },
+ {
+  "addr": "0053eaa0",
+  "lib": "libkernl",
+  "name": "snprintf_char",
+  "size": 88,
+  "where": "main"
+ },
+ {
+  "addr": "0053eaf8",
+  "lib": "libkernl",
+  "name": "printf_char",
+  "size": 40,
+  "where": "main",
+  "ambiguous": [
+   "libkernl:kprintf_char",
+   "libkernl:printf_char"
+  ]
+ },
+ {
+  "addr": "0053eb20",
+  "lib": "libkernl",
+  "name": "printf_char",
+  "size": 40,
+  "where": "main",
+  "ambiguous": [
+   "libkernl:kprintf_char",
+   "libkernl:printf_char"
+  ]
+ },
+ {
+  "addr": "0053eb48",
+  "lib": "libkernl",
+  "name": "_sceSnprintf_pf",
+  "size": 76,
+  "where": "main"
+ },
+ {
+  "addr": "0053eb98",
+  "lib": "libkernl",
+  "name": "sceVsnprintf",
+  "size": 56,
+  "where": "main"
+ },
+ {
+  "addr": "0053ebd0",
+  "lib": "libkernl",
+  "name": "sceSnprintf",
+  "size": 72,
+  "where": "main"
+ },
+ {
+  "addr": "0053ec18",
+  "lib": "libkernl",
+  "name": "sceVprintf",
+  "size": 112,
+  "where": "main"
+ },
+ {
+  "addr": "0053ec88",
+  "lib": "libkernl",
+  "name": "kprintf",
+  "size": 128,
+  "where": "main",
+  "ambiguous": [
+   "libkernl:kprintf",
+   "libkernl:scePrintf"
+  ]
+ },
+ {
+  "addr": "0053ed08",
+  "lib": "libkernl",
+  "name": "kprintf",
+  "size": 128,
+  "where": "main",
+  "ambiguous": [
+   "libkernl:kprintf",
+   "libkernl:scePrintf"
+  ]
+ },
+ {
+  "addr": "0053ee00",
+  "lib": "libkernl",
+  "name": "sceSifInitCmd",
+  "size": 640,
+  "where": "main"
+ },
+ {
+  "addr": "0053f080",
+  "lib": "libkernl",
+  "name": "sceSifExitCmd",
+  "size": 52,
+  "where": "main"
+ },
+ {
+  "addr": "0053f0e8",
+  "lib": "libkernl",
+  "name": "sceSifAddCmdHandler",
+  "size": 120,
+  "where": "main"
+ },
+ {
+  "addr": "0053f160",
+  "lib": "libkernl",
+  "name": "sceSifRemoveCmdHandler",
+  "size": 76,
+  "where": "main"
+ },
+ {
+  "addr": "0053f1b0",
+  "lib": "libkernl",
+  "name": "_sceSifSendCmd",
+  "size": 308,
+  "where": "main"
+ },
+ {
+  "addr": "0053f2e8",
+  "lib": "libkernl",
+  "name": "sceSifSendCmd",
+  "size": 60,
+  "where": "main"
+ },
+ {
+  "addr": "0053f328",
+  "lib": "libkernl",
+  "name": "isceSifSendCmd",
+  "size": 60,
+  "where": "main"
+ },
+ {
+  "addr": "0053f368",
+  "lib": "libkernl",
+  "name": "_sceSifCmdIntrHdlr",
+  "size": 328,
+  "where": "main"
+ },
+ {
+  "addr": "0053f4b0",
+  "lib": "libkernl",
+  "name": "sceSifWriteBackDCache",
+  "size": 176,
+  "where": "main"
+ },
+ {
+  "addr": "0053f560",
+  "lib": "libkernl",
+  "name": "sceSifInitRpc",
+  "size": 412,
+  "where": "main"
+ },
+ {
+  "addr": "0053f728",
+  "lib": "libkernl",
+  "name": "_sceRpcGetPacket",
+  "size": 168,
+  "where": "main",
+  "ambiguous": [
+   "libkernl:_sceRpcGetPacket",
+   "libmrpc:_sceRpcGetPacket"
+  ]
+ },
+ {
+  "addr": "0053f7f0",
+  "lib": "libkernl",
+  "name": "_sceRpcGetFPacket",
+  "size": 48,
+  "where": "main"
+ },
+ {
+  "addr": "0053f820",
+  "lib": "libkernl",
+  "name": "_sceRpcGetFPacket2",
+  "size": 64,
+  "where": "main"
+ },
+ {
+  "addr": "0053f860",
+  "lib": "libkernl",
+  "name": "_request_end",
+  "size": 204,
+  "where": "main"
+ },
+ {
+  "addr": "0053f930",
+  "lib": "libkernl",
+  "name": "_alarm_rdata",
+  "size": 64,
+  "where": "main"
+ },
+ {
+  "addr": "0053f970",
+  "lib": "libkernl",
+  "name": "_request_rdata",
+  "size": 208,
+  "where": "main"
+ },
+ {
+  "addr": "0053fa40",
+  "lib": "libkernl",
+  "name": "sceSifGetOtherData",
+  "size": 356,
+  "where": "main"
+ },
+ {
+  "addr": "0053fba8",
+  "lib": "libkernl",
+  "name": "_search_svdata",
+  "size": 76,
+  "where": "main"
+ },
+ {
+  "addr": "0053fbf8",
+  "lib": "libkernl",
+  "name": "_alarm_bind",
+  "size": 64,
+  "where": "main"
+ },
+ {
+  "addr": "0053fc38",
+  "lib": "libkernl",
+  "name": "_request_bind",
+  "size": 204,
+  "where": "main"
+ },
+ {
+  "addr": "0053fd08",
+  "lib": "libkernl",
+  "name": "sceSifBindRpc",
+  "size": 332,
+  "where": "main"
+ },
+ {
+  "addr": "0053fe58",
+  "lib": "libkernl",
+  "name": "_request_call",
+  "size": 140,
+  "where": "main"
+ },
+ {
+  "addr": "0053fee8",
+  "lib": "libkernl",
+  "name": "sceSifCallRpc",
+  "size": 512,
+  "where": "main"
+ },
+ {
+  "addr": "005400e8",
+  "lib": "libkernl",
+  "name": "sceSifCheckStatRpc",
+  "size": 60,
+  "where": "main"
+ },
+ {
+  "addr": "00540128",
+  "lib": "libkernl",
+  "name": "sceSifSetRpcQueue",
+  "size": 148,
+  "where": "main"
+ },
+ {
+  "addr": "00540328",
+  "lib": "libkernl",
+  "name": "sceSifRemoveRpcQueue",
+  "size": 144,
+  "where": "main"
+ },
+ {
+  "addr": "005403b8",
+  "lib": "libkernl",
+  "name": "sceSifGetNextRequest",
+  "size": 88,
+  "where": "main"
+ },
+ {
+  "addr": "00540410",
+  "lib": "libkernl",
+  "name": "sceSifExecRequest",
+  "size": 452,
+  "where": "main"
+ },
+ {
+  "addr": "005405d8",
+  "lib": "libkernl",
+  "name": "sceSifRpcLoop",
+  "size": 64,
+  "where": "main"
+ },
+ {
+  "addr": "00540618",
+  "lib": "libkernl",
+  "name": "_sceFsIobSemaMK",
+  "size": 112,
+  "where": "main"
+ },
+ {
+  "addr": "00540688",
+  "lib": "libkernl",
+  "name": "use_iob_cnt",
+  "size": 124,
+  "where": "main"
+ },
+ {
+  "addr": "00540708",
+  "lib": "libkernl",
+  "name": "new_iob",
+  "size": 136,
+  "where": "main"
+ },
+ {
+  "addr": "00540790",
+  "lib": "libkernl",
+  "name": "sceFsSifCallRpc",
+  "size": 236,
+  "where": "main"
+ },
+ {
+  "addr": "00540880",
+  "lib": "libkernl",
+  "name": "get_iob",
+  "size": 108,
+  "where": "main"
+ },
+ {
+  "addr": "005408f0",
+  "lib": "libkernl",
+  "name": "_sceFs_Rcv_Intr",
+  "size": 948,
+  "where": "main"
+ },
+ {
+  "addr": "00540ca8",
+  "lib": "libkernl",
+  "name": "_sceFsSemInit",
+  "size": 84,
+  "where": "main"
+ },
+ {
+  "addr": "00540d00",
+  "lib": "libkernl",
+  "name": "_sceFsWaitS",
+  "size": 44,
+  "where": "main"
+ },
+ {
+  "addr": "00540de0",
+  "lib": "libkernl",
+  "name": "_sceFs_Poff_Intr",
+  "size": 68,
+  "where": "main"
+ },
+ {
+  "addr": "00540e28",
+  "lib": "libkernl",
+  "name": "sceFsInit",
+  "size": 520,
+  "where": "main"
+ },
+ {
+  "addr": "00541030",
+  "lib": "libkernl",
+  "name": "_fs_version",
+  "size": 140,
+  "where": "main",
+  "ambiguous": [
+   "libkernl:_fs_version",
+   "libkernl:_lf_version"
+  ]
+ },
+ {
+  "addr": "005410c0",
+  "lib": "libkernl",
+  "name": "sceFsReset",
+  "size": 52,
+  "where": "main"
+ },
+ {
+  "addr": "005410f8",
+  "lib": "libkernl",
+  "name": "sceFsSetIopBuf",
+  "size": 320,
+  "where": "main"
+ },
+ {
+  "addr": "00541238",
+  "lib": "libkernl",
+  "name": "sceFsSetIopPrio",
+  "size": 240,
+  "where": "main"
+ },
+ {
+  "addr": "00541328",
+  "lib": "libkernl",
+  "name": "sceOpen",
+  "size": 656,
+  "where": "main"
+ },
+ {
+  "addr": "005415b8",
+  "lib": "libkernl",
+  "name": "sceClose",
+  "size": 376,
+  "where": "main"
+ },
+ {
+  "addr": "00541730",
+  "lib": "libkernl",
+  "name": "sceLseek",
+  "size": 572,
+  "where": "main"
+ },
+ {
+  "addr": "00541970",
+  "lib": "libkernl",
+  "name": "sceRead",
+  "size": 620,
+  "where": "main"
+ },
+ {
+  "addr": "00541be0",
+  "lib": "libkernl",
+  "name": "sceWrite",
+  "size": 704,
+  "where": "main"
+ },
+ {
+  "addr": "00541ea0",
+  "lib": "libkernl",
+  "name": "sceIoctl",
+  "size": 904,
+  "where": "main"
+ },
+ {
+  "addr": "00542228",
+  "lib": "libkernl",
+  "name": "sceIoctl2",
+  "size": 488,
+  "where": "main"
+ },
+ {
+  "addr": "00542410",
+  "lib": "libkernl",
+  "name": "_sceCallCode",
+  "size": 432,
+  "where": "main"
+ },
+ {
+  "addr": "005425e0",
+  "lib": "libkernl",
+  "name": "sceMkdir",
+  "size": 440,
+  "where": "main"
+ },
+ {
+  "addr": "005427b8",
+  "lib": "libkernl",
+  "name": "sceFormat",
+  "size": 640,
+  "where": "main"
+ },
+ {
+  "addr": "00542a38",
+  "lib": "libkernl",
+  "name": "sceAddDrv",
+  "size": 300,
+  "where": "main"
+ },
+ {
+  "addr": "00542b88",
+  "lib": "libkernl",
+  "name": "sceDopen",
+  "size": 200,
+  "where": "main"
+ },
+ {
+  "addr": "00542c50",
+  "lib": "libkernl",
+  "name": "sceDclose",
+  "size": 356,
+  "where": "main"
+ },
+ {
+  "addr": "00542db8",
+  "lib": "libkernl",
+  "name": "sceDread",
+  "size": 340,
+  "where": "main"
+ },
+ {
+  "addr": "00542f10",
+  "lib": "libkernl",
+  "name": "sceGetstat",
+  "size": 436,
+  "where": "main"
+ },
+ {
+  "addr": "005430c8",
+  "lib": "libkernl",
+  "name": "sceChstat",
+  "size": 588,
+  "where": "main"
+ },
+ {
+  "addr": "00543318",
+  "lib": "libkernl",
+  "name": "sceRename",
+  "size": 520,
+  "where": "main"
+ },
+ {
+  "addr": "00543540",
+  "lib": "libkernl",
+  "name": "sceSync",
+  "size": 428,
+  "where": "main"
+ },
+ {
+  "addr": "005436f0",
+  "lib": "libkernl",
+  "name": "sceMount",
+  "size": 640,
+  "where": "main"
+ },
+ {
+  "addr": "00543990",
+  "lib": "libkernl",
+  "name": "sceLseek64",
+  "size": 572,
+  "where": "main"
+ },
+ {
+  "addr": "00543bd0",
+  "lib": "libkernl",
+  "name": "sceDevctl",
+  "size": 680,
+  "where": "main"
+ },
+ {
+  "addr": "00543e78",
+  "lib": "libkernl",
+  "name": "sceSymlink",
+  "size": 504,
+  "where": "main"
+ },
+ {
+  "addr": "00544070",
+  "lib": "libkernl",
+  "name": "sceReadlink",
+  "size": 480,
+  "where": "main"
+ },
+ {
+  "addr": "00544250",
+  "lib": "libkernl",
+  "name": "sceSifInitIopHeap",
+  "size": 136,
+  "where": "main"
+ },
+ {
+  "addr": "005442d8",
+  "lib": "libkernl",
+  "name": "sceSifAllocIopHeap",
+  "size": 112,
+  "where": "main"
+ },
+ {
+  "addr": "00544348",
+  "lib": "libkernl",
+  "name": "sceSifAllocSysMemory",
+  "size": 128,
+  "where": "main"
+ },
+ {
+  "addr": "005443c8",
+  "lib": "libkernl",
+  "name": "sceSifFreeSysMemory",
+  "size": 120,
+  "where": "main",
+  "ambiguous": [
+   "libkernl:sceSifFreeIopHeap",
+   "libkernl:sceSifFreeSysMemory"
+  ]
+ },
+ {
+  "addr": "00544460",
+  "lib": "libkernl",
+  "name": "sceSifLoadIopHeap",
+  "size": 240,
+  "where": "main"
+ },
+ {
+  "addr": "00544550",
+  "lib": "libkernl",
+  "name": "sceSifQueryMemSize",
+  "size": 112,
+  "where": "main"
+ },
+ {
+  "addr": "005445c0",
+  "lib": "libkernl",
+  "name": "sceSifQueryMaxFreeMemSize",
+  "size": 112,
+  "where": "main"
+ },
+ {
+  "addr": "00544630",
+  "lib": "libkernl",
+  "name": "sceSifQueryTotalFreeMemSize",
+  "size": 112,
+  "where": "main"
+ },
+ {
+  "addr": "005446a0",
+  "lib": "libkernl",
+  "name": "sceSifQueryBlockTopAddress",
+  "size": 124,
+  "where": "main"
+ },
+ {
+  "addr": "00544720",
+  "lib": "libkernl",
+  "name": "sceSifQueryBlockSize",
+  "size": 124,
+  "where": "main"
+ },
+ {
+  "addr": "005447a0",
+  "lib": "libkernl",
+  "name": "_lf_bind",
+  "size": 256,
+  "where": "main"
+ },
+ {
+  "addr": "005448a0",
+  "lib": "libkernl",
+  "name": "_fs_version",
+  "size": 140,
+  "where": "main",
+  "ambiguous": [
+   "libkernl:_fs_version",
+   "libkernl:_lf_version"
+  ]
+ },
+ {
+  "addr": "00544930",
+  "lib": "libkernl",
+  "name": "sceSifLoadFileReset",
+  "size": 56,
+  "where": "main"
+ },
+ {
+  "addr": "00544968",
+  "lib": "libkernl",
+  "name": "_sceSifLoadModuleBuffer",
+  "size": 520,
+  "where": "main"
+ },
+ {
+  "addr": "00544b70",
+  "lib": "libkernl",
+  "name": "sceSifStopModule",
+  "size": 520,
+  "where": "main"
+ },
+ {
+  "addr": "00544d78",
+  "lib": "libkernl",
+  "name": "sceSifUnloadModule",
+  "size": 144,
+  "where": "main"
+ },
+ {
+  "addr": "00544e08",
+  "lib": "libkernl",
+  "name": "sceSifSearchModuleByName",
+  "size": 160,
+  "where": "main"
+ },
+ {
+  "addr": "00544ea8",
+  "lib": "libkernl",
+  "name": "sceSifSearchModuleByAddress",
+  "size": 144,
+  "where": "main"
+ },
+ {
+  "addr": "00544f78",
+  "lib": "libkernl",
+  "name": "_sceSifLoadModule",
+  "size": 548,
+  "where": "main"
+ },
+ {
+  "addr": "005451e0",
+  "lib": "libkernl",
+  "name": "_sceSifLoadElfPart",
+  "size": 260,
+  "where": "main"
+ },
+ {
+  "addr": "00545308",
+  "lib": "libkernl",
+  "name": "sceSifLoadElf",
+  "size": 40,
+  "where": "main"
+ },
+ {
+  "addr": "00545330",
+  "lib": "libkernl",
+  "name": "sceSifGetIopAddr",
+  "size": 236,
+  "where": "main"
+ },
+ {
+  "addr": "00545420",
+  "lib": "libkernl",
+  "name": "sceSifSetIopAddr",
+  "size": 220,
+  "where": "main"
+ },
+ {
+  "addr": "00545500",
+  "lib": "libkernl",
+  "name": "sceSifResetIop",
+  "size": 340,
+  "where": "main"
+ },
+ {
+  "addr": "00545658",
+  "lib": "libkernl",
+  "name": "sceSifIsAliveIop",
+  "size": 40,
+  "where": "main"
+ },
+ {
+  "addr": "00545680",
+  "lib": "libkernl",
+  "name": "sceSifSyncIop",
+  "size": 80,
+  "where": "main"
+ },
+ {
+  "addr": "005456d0",
+  "lib": "libkernl",
+  "name": "sceSifRebootIop",
+  "size": 272,
+  "where": "main"
+ },
+ {
+  "addr": "005457e0",
+  "lib": "libkernl",
+  "name": "SetTLBHandler",
+  "size": 96,
+  "where": "main"
+ },
+ {
+  "addr": "00545840",
+  "lib": "libkernl",
+  "name": "SetDebugHandler",
+  "size": 132,
+  "where": "main"
+ },
+ {
+  "addr": "005458d8",
+  "lib": "libkernl",
+  "name": "kCopy",
+  "size": 56,
+  "where": "main"
+ },
+ {
+  "addr": "00545930",
+  "lib": "libkernl",
+  "name": "InitTLBFunctions",
+  "size": 196,
+  "where": "main"
+ },
+ {
+  "addr": "00545a28",
+  "lib": "libkernl",
+  "name": "SetTLBEntry",
+  "size": 48,
+  "where": "main"
+ },
+ {
+  "addr": "00545ab8",
+  "lib": "libkernl",
+  "name": "InitTLB",
+  "size": 64,
+  "where": "main"
+ },
+ {
+  "addr": "00545af8",
+  "lib": "libkernl",
+  "name": "InitTLB32MB",
+  "size": 500,
+  "where": "main"
+ },
+ {
+  "addr": "00545d00",
+  "lib": "libkernl",
+  "name": "_kTLBException",
+  "size": 284,
+  "where": "main"
+ },
+ {
+  "addr": "00546060",
+  "lib": "libkernl",
+  "name": "DIntr",
+  "size": 80,
+  "where": "main"
+ },
+ {
+  "addr": "005460c8",
+  "lib": "libkernl",
+  "name": "supplement_crt0",
+  "size": 96,
+  "where": "main"
+ },
+ {
+  "addr": "00546148",
+  "lib": "libkernl",
+  "name": "kCopy",
+  "size": 56,
+  "where": "main"
+ },
+ {
+  "addr": "00546180",
+  "lib": "libkernl",
+  "name": "kFindAddress",
+  "size": 64,
+  "where": "main"
+ },
+ {
+  "addr": "005461d0",
+  "lib": "libkernl",
+  "name": "GetSystemCallEntry",
+  "size": 52,
+  "where": "main"
+ },
+ {
+  "addr": "00546208",
+  "lib": "libkernl",
+  "name": "InitSystemCallTableAddress",
+  "size": 252,
+  "where": "main"
+ },
+ {
+  "addr": "00546318",
+  "lib": "libkernl",
+  "name": "_InitSys",
+  "size": 84,
+  "where": "main"
+ },
+ {
+  "addr": "00546390",
+  "lib": "libkernl",
+  "name": "kCopy",
+  "size": 56,
+  "where": "main"
+ },
+ {
+  "addr": "005463d8",
+  "lib": "libkernl",
+  "name": "PatchIsNeeded",
+  "size": 104,
+  "where": "main"
+ },
+ {
+  "addr": "00546440",
+  "lib": "libkernl",
+  "name": "InitExecPS2",
+  "size": 172,
+  "where": "main"
+ },
+ {
+  "addr": "00546500",
+  "lib": "libkernl",
+  "name": "kCopy",
+  "size": 48,
+  "where": "main"
+ },
+ {
+  "addr": "00546540",
+  "lib": "libkernl",
+  "name": "SetArg",
+  "size": 280,
+  "where": "main"
+ },
+ {
+  "addr": "005466d0",
+  "lib": "libkernl",
+  "name": "LoadExecPS2",
+  "size": 72,
+  "where": "main"
+ },
+ {
+  "addr": "00546718",
+  "lib": "libkernl",
+  "name": "Exit",
+  "size": 40,
+  "where": "main",
+  "ambiguous": [
+   "libeenet:wait_delete_semafore",
+   "libhttps:sk_pop_free",
+   "libkernl:Exit"
+  ]
+ },
+ {
+  "addr": "005467b0",
+  "lib": "libkernl",
+  "name": "kCopy",
+  "size": 56,
+  "where": "main"
+ },
+ {
+  "addr": "005467f8",
+  "lib": "libkernl",
+  "name": "InitAlarm",
+  "size": 212,
+  "where": "main"
+ },
+ {
+  "addr": "005468d0",
+  "lib": "libkernl",
+  "name": "SetT2",
+  "size": 112,
+  "where": "main"
+ },
+ {
+  "addr": "00546970",
+  "lib": "libkernl",
+  "name": "InitTimer",
+  "size": 340,
+  "where": "main"
+ },
+ {
+  "addr": "00546ac8",
+  "lib": "libkernl",
+  "name": "EndTimer",
+  "size": 184,
+  "where": "main"
+ },
+ {
+  "addr": "00546b80",
+  "lib": "libkernl",
+  "name": "GetTimerPreScaleFactor",
+  "size": 44,
+  "where": "main"
+ },
+ {
+  "addr": "00546bb0",
+  "lib": "libkernl",
+  "name": "StartTimerSystemTime",
+  "size": 144,
+  "where": "main"
+ },
+ {
+  "addr": "00546c40",
+  "lib": "libkernl",
+  "name": "StopTimerSystemTime",
+  "size": 124,
+  "where": "main"
+ },
+ {
+  "addr": "00546cc0",
+  "lib": "libkernl",
+  "name": "SetNextComp",
+  "size": 400,
+  "where": "main"
+ },
+ {
+  "addr": "00546e50",
+  "lib": "libkernl",
+  "name": "InsertAlarm",
+  "size": 132,
+  "where": "main"
+ },
+ {
+  "addr": "00546ed8",
+  "lib": "libkernl",
+  "name": "UnlinkAlarm",
+  "size": 56,
+  "where": "main"
+ },
+ {
+  "addr": "00546f10",
+  "lib": "libkernl",
+  "name": "cbTimerHandler",
+  "size": 676,
+  "where": "main"
+ },
+ {
+  "addr": "005471b8",
+  "lib": "libkernl",
+  "name": "iGetTimerSystemTime",
+  "size": 76,
+  "where": "main"
+ },
+ {
+  "addr": "00547208",
+  "lib": "libkernl",
+  "name": "GetTimerSystemTime",
+  "size": 124,
+  "where": "main"
+ },
+ {
+  "addr": "00547288",
+  "lib": "libkernl",
+  "name": "iAllocTimerCounter",
+  "size": 112,
+  "where": "main"
+ },
+ {
+  "addr": "005472f8",
+  "lib": "libkernl",
+  "name": "AllocTimerCounter",
+  "size": 72,
+  "where": "main"
+ },
+ {
+  "addr": "00547340",
+  "lib": "libkernl",
+  "name": "iFreeTimerCounter",
+  "size": 160,
+  "where": "main"
+ },
+ {
+  "addr": "005473e0",
+  "lib": "libkernl",
+  "name": "FreeTimerCounter",
+  "size": 76,
+  "where": "main",
+  "ambiguous": [
+   "libkernl:FreeTimerCounter",
+   "libkernl:GetTimerBaseTime",
+   "libkernl:GetTimerCount",
+   "libkernl:StartTimerCounter",
+   "libkernl:StopTimerCounter"
+  ]
+ },
+ {
+  "addr": "00547430",
+  "lib": "libkernl",
+  "name": "iGetTimerUsedUnusedCounters",
+  "size": 80,
+  "where": "main"
+ },
+ {
+  "addr": "00547480",
+  "lib": "libkernl",
+  "name": "GetTimerUsedUnusedCounters",
+  "size": 92,
+  "where": "main"
+ },
+ {
+  "addr": "005474e0",
+  "lib": "libkernl",
+  "name": "iStartTimerCounter",
+  "size": 172,
+  "where": "main"
+ },
+ {
+  "addr": "00547590",
+  "lib": "libkernl",
+  "name": "FreeTimerCounter",
+  "size": 76,
+  "where": "main",
+  "ambiguous": [
+   "libkernl:FreeTimerCounter",
+   "libkernl:GetTimerBaseTime",
+   "libkernl:GetTimerCount",
+   "libkernl:StartTimerCounter",
+   "libkernl:StopTimerCounter"
+  ]
+ },
+ {
+  "addr": "005475e0",
+  "lib": "libkernl",
+  "name": "iStopTimerCounter",
+  "size": 196,
+  "where": "main"
+ },
+ {
+  "addr": "005476a8",
+  "lib": "libkernl",
+  "name": "FreeTimerCounter",
+  "size": 76,
+  "where": "main",
+  "ambiguous": [
+   "libkernl:FreeTimerCounter",
+   "libkernl:GetTimerBaseTime",
+   "libkernl:GetTimerCount",
+   "libkernl:StartTimerCounter",
+   "libkernl:StopTimerCounter"
+  ]
+ },
+ {
+  "addr": "005476f8",
+  "lib": "libkernl",
+  "name": "SetTimerCount",
+  "size": 204,
+  "where": "main"
+ },
+ {
+  "addr": "005477c8",
+  "lib": "libkernl",
+  "name": "iGetTimerBaseTime",
+  "size": 72,
+  "where": "main",
+  "ambiguous": [
+   "libkernl:iGetTimerBaseTime",
+   "libtimer:isceTimerGetBaseTime"
+  ]
+ },
+ {
+  "addr": "00547810",
+  "lib": "libkernl",
+  "name": "FreeTimerCounter",
+  "size": 76,
+  "where": "main",
+  "ambiguous": [
+   "libkernl:FreeTimerCounter",
+   "libkernl:GetTimerBaseTime",
+   "libkernl:GetTimerCount",
+   "libkernl:StartTimerCounter",
+   "libkernl:StopTimerCounter"
+  ]
+ },
+ {
+  "addr": "00547860",
+  "lib": "libkernl",
+  "name": "iGetTimerCount",
+  "size": 108,
+  "where": "main"
+ },
+ {
+  "addr": "005478d0",
+  "lib": "libkernl",
+  "name": "FreeTimerCounter",
+  "size": 76,
+  "where": "main",
+  "ambiguous": [
+   "libkernl:FreeTimerCounter",
+   "libkernl:GetTimerBaseTime",
+   "libkernl:GetTimerCount",
+   "libkernl:StartTimerCounter",
+   "libkernl:StopTimerCounter"
+  ]
+ },
+ {
+  "addr": "00547920",
+  "lib": "libkernl",
+  "name": "iSetTimerHandler",
+  "size": 244,
+  "where": "main"
+ },
+ {
+  "addr": "00547a18",
+  "lib": "libkernl",
+  "name": "SetTimerHandler",
+  "size": 124,
+  "where": "main"
+ },
+ {
+  "addr": "00547a98",
+  "lib": "libkernl",
+  "name": "TimerBusClock2USec",
+  "size": 168,
+  "where": "main",
+  "ambiguous": [
+   "libkernl:TimerBusClock2USec",
+   "libtimer:sceTimerBusClock2USec"
+  ]
+ },
+ {
+  "addr": "00547b40",
+  "lib": "libkernl",
+  "name": "TimerUSec2BusClock",
+  "size": 112,
+  "where": "main",
+  "ambiguous": [
+   "libkernl:TimerUSec2BusClock",
+   "libtimer:sceTimerUSec2BusClock"
+  ]
+ },
+ {
+  "addr": "00547bb0",
+  "lib": "libkernl",
+  "name": "TimerBusClock2Freq",
+  "size": 84,
+  "where": "main",
+  "ambiguous": [
+   "libkernl:TimerBusClock2Freq",
+   "libtimer:sceTimerBusClock2Freq"
+  ]
+ },
+ {
+  "addr": "00547c08",
+  "lib": "libkernl",
+  "name": "TimerFreq2BusClock",
+  "size": 52,
+  "where": "main",
+  "ambiguous": [
+   "libkernl:TimerFreq2BusClock",
+   "libtimer:sceTimerFreq2BusClock"
+  ]
+ },
+ {
+  "addr": "00547c40",
+  "lib": "libkernl",
+  "name": "_InitAlarm",
+  "size": 76,
+  "where": "main",
+  "ambiguous": [
+   "libkernl:_InitAlarm",
+   "libtimer:_sceTimerAlarmInit"
+  ]
+ },
+ {
+  "addr": "00547c90",
+  "lib": "libkernl",
+  "name": "AlarmHandler",
+  "size": 92,
+  "where": "main",
+  "ambiguous": [
+   "libkernl:AlarmHandler",
+   "libtimer:AlarmHandler"
+  ]
+ },
+ {
+  "addr": "00547cf0",
+  "lib": "libkernl",
+  "name": "SetTimerAlarm",
+  "size": 300,
+  "where": "main"
+ },
+ {
+  "addr": "00547e20",
+  "lib": "libkernl",
+  "name": "iSetTimerAlarm",
+  "size": 240,
+  "where": "main"
+ },
+ {
+  "addr": "00547f10",
+  "lib": "libkernl",
+  "name": "ReleaseTimerAlarm",
+  "size": 168,
+  "where": "main"
+ },
+ {
+  "addr": "00547fb8",
+  "lib": "libkernl",
+  "name": "iReleaseTimerAlarm",
+  "size": 120,
+  "where": "main"
+ },
+ {
+  "addr": "005480d8",
+  "lib": "libkernl",
+  "name": "sceSifAddRebootNotifyHandler",
+  "size": 184,
+  "where": "main"
+ },
+ {
+  "addr": "00548190",
+  "lib": "libkernl",
+  "name": "sceSifRemoveRebootNotifyHandler",
+  "size": 84,
+  "where": "main"
+ },
+ {
+  "addr": "005481e8",
+  "lib": "libkernl",
+  "name": "sceSifExecNotifyHandler",
+  "size": 168,
+  "where": "main"
+ },
+ {
+  "addr": "00548290",
+  "lib": "libgraph",
+  "name": "sceGsResetGraph",
+  "size": 400,
+  "where": "main"
+ },
+ {
+  "addr": "00548430",
+  "lib": "libgraph",
+  "name": "sceGsResetPath",
+  "size": 104,
+  "where": "main"
+ },
+ {
+  "addr": "00548498",
+  "lib": "libgraph",
+  "name": "checkModelVersion",
+  "size": 160,
+  "where": "main"
+ },
+ {
+  "addr": "00548548",
+  "lib": "libgraph",
+  "name": "sceGsSetDefDispEnv",
+  "size": 884,
+  "where": "main"
+ },
+ {
+  "addr": "005488c0",
+  "lib": "libgraph",
+  "name": "sceGsPutDispEnv",
+  "size": 188,
+  "where": "main"
+ },
+ {
+  "addr": "00548980",
+  "lib": "libgraph",
+  "name": "sceGszbufaddr",
+  "size": 200,
+  "where": "main"
+ },
+ {
+  "addr": "00548a48",
+  "lib": "libgraph",
+  "name": "sceGsSetDefDrawEnv",
+  "size": 484,
+  "where": "main"
+ },
+ {
+  "addr": "00548c30",
+  "lib": "libgraph",
+  "name": "sceGsSetDefClear",
+  "size": 260,
+  "where": "main"
+ },
+ {
+  "addr": "00548d38",
+  "lib": "libgraph",
+  "name": "sceGsPutDrawEnv",
+  "size": 232,
+  "where": "main"
+ },
+ {
+  "addr": "00548e20",
+  "lib": "libgraph",
+  "name": "sceGsSetDefDBuff",
+  "size": 664,
+  "where": "main"
+ },
+ {
+  "addr": "005490b8",
+  "lib": "libgraph",
+  "name": "sceGsSwapDBuff",
+  "size": 92,
+  "where": "main"
+ },
+ {
+  "addr": "00549118",
+  "lib": "libgraph",
+  "name": "sceGsSyncV",
+  "size": 148,
+  "where": "main"
+ },
+ {
+  "addr": "005491b0",
+  "lib": "libgraph",
+  "name": "sceGsSyncPath",
+  "size": 788,
+  "where": "main"
+ },
+ {
+  "addr": "005494c8",
+  "lib": "libgraph",
+  "name": "sceGsSetDefLoadImage",
+  "size": 484,
+  "where": "main"
+ },
+ {
+  "addr": "005496b0",
+  "lib": "libgraph",
+  "name": "sceGsSetDefStoreImage",
+  "size": 320,
+  "where": "main"
+ },
+ {
+  "addr": "005497f0",
+  "lib": "libgraph",
+  "name": "sceGsExecLoadImage",
+  "size": 380,
+  "where": "main"
+ },
+ {
+  "addr": "00549970",
+  "lib": "libgraph",
+  "name": "sceGsExecStoreImage",
+  "size": 1676,
+  "where": "main"
+ },
+ {
+  "addr": "0054a000",
+  "lib": "libgraph",
+  "name": "sceGsSetHalfOffset",
+  "size": 136,
+  "where": "main",
+  "ambiguous": [
+   "libgraph:sceGsSetHalfOffset",
+   "libgraph:sceGsSetHalfOffset2"
+  ]
+ },
+ {
+  "addr": "0054a088",
+  "lib": "libgraph",
+  "name": "sceGsSetDefDrawEnv2",
+  "size": 480,
+  "where": "main"
+ },
+ {
+  "addr": "0054a268",
+  "lib": "libgraph",
+  "name": "sceGsSwapDBuffDc",
+  "size": 92,
+  "where": "main"
+ },
+ {
+  "addr": "0054a2c8",
+  "lib": "libdma",
+  "name": "WaitDma",
+  "size": 112,
+  "where": "main"
+ },
+ {
+  "addr": "0054a338",
+  "lib": "libdma",
+  "name": "WatchDma",
+  "size": 132,
+  "where": "main"
+ },
+ {
+  "addr": "0054a3c0",
+  "lib": "libdma",
+  "name": "CheckAddress",
+  "size": 40,
+  "where": "main"
+ },
+ {
+  "addr": "0054a3e8",
+  "lib": "libdma",
+  "name": "memclr",
+  "size": 52,
+  "where": "main"
+ },
+ {
+  "addr": "0054a420",
+  "lib": "libdma",
+  "name": "sceDmaGetChan",
+  "size": 40,
+  "where": "main"
+ },
+ {
+  "addr": "0054a448",
+  "lib": "libdma",
+  "name": "sceDmaReset",
+  "size": 220,
+  "where": "main"
+ },
+ {
+  "addr": "0054a528",
+  "lib": "libdma",
+  "name": "sceDmaPutEnv",
+  "size": 472,
+  "where": "main"
+ },
+ {
+  "addr": "0054a700",
+  "lib": "libdma",
+  "name": "sceDmaGetEnv",
+  "size": 56,
+  "where": "main"
+ },
+ {
+  "addr": "0054a750",
+  "lib": "libdma",
+  "name": "sceDmaSend",
+  "size": 104,
+  "where": "main"
+ },
+ {
+  "addr": "0054a7b8",
+  "lib": "libdma",
+  "name": "sceDmaSendN",
+  "size": 116,
+  "where": "main"
+ },
+ {
+  "addr": "0054a830",
+  "lib": "libdma",
+  "name": "sceDmaSendI",
+  "size": 116,
+  "where": "main"
+ },
+ {
+  "addr": "0054a8a8",
+  "lib": "libdma",
+  "name": "sceDmaRecv",
+  "size": 72,
+  "where": "main"
+ },
+ {
+  "addr": "0054a8f0",
+  "lib": "libdma",
+  "name": "sceDmaRecvN",
+  "size": 124,
+  "where": "main"
+ },
+ {
+  "addr": "0054a970",
+  "lib": "libdma",
+  "name": "sceDmaRecvI",
+  "size": 128,
+  "where": "main"
+ },
+ {
+  "addr": "0054a9f0",
+  "lib": "libdma",
+  "name": "sceDmaSync",
+  "size": 56,
+  "where": "main"
+ },
+ {
+  "addr": "0054aa28",
+  "lib": "libdma",
+  "name": "sceDmaWatch",
+  "size": 52,
+  "where": "main"
+ },
+ {
+  "addr": "0054aa60",
+  "lib": "libdma",
+  "name": "sceDmaPause",
+  "size": 152,
+  "where": "main"
+ },
+ {
+  "addr": "0054ab58",
+  "lib": "libc",
+  "name": "atoi",
+  "size": 40,
+  "where": "main"
+ },
+ {
+  "addr": "0054aba0",
+  "lib": "libc",
+  "name": "calloc",
+  "size": 100,
+  "where": "main",
+  "ambiguous": [
+   "libc:calloc",
+   "libc:memalign",
+   "libc:realloc"
+  ]
+ },
+ {
+  "addr": "0054ac08",
+  "lib": "libc",
+  "name": "_calloc_r",
+  "size": 180,
+  "where": "main"
+ },
+ {
+  "addr": "0054acc0",
+  "lib": "libc",
+  "name": "_close_r",
+  "size": 88,
+  "where": "main",
+  "ambiguous": [
+   "libc:_close_r",
+   "libc:_sbrk_r"
+  ]
+ },
+ {
+  "addr": "0054ad18",
+  "lib": "libc",
+  "name": "quorem",
+  "size": 556,
+  "where": "main"
+ },
+ {
+  "addr": "0054af48",
+  "lib": "libc",
+  "name": "_dtoa_r",
+  "size": 4708,
+  "where": "main"
+ },
+ {
+  "addr": "0054c1d0",
+  "lib": "libc",
+  "name": "exit",
+  "size": 172,
+  "where": "main"
+ },
+ {
+  "addr": "0054c390",
+  "lib": "libc",
+  "name": "fflush",
+  "size": 276,
+  "where": "main"
+ },
+ {
+  "addr": "0054c4a8",
+  "lib": "libc",
+  "name": "fgets",
+  "size": 312,
+  "where": "main"
+ },
+ {
+  "addr": "0054c5e0",
+  "lib": "libc",
+  "name": "std",
+  "size": 92,
+  "where": "main"
+ },
+ {
+  "addr": "0054c640",
+  "lib": "libc",
+  "name": "__sfmoreglue",
+  "size": 120,
+  "where": "main"
+ },
+ {
+  "addr": "0054c6b8",
+  "lib": "libc",
+  "name": "__sfp",
+  "size": 248,
+  "where": "main"
+ },
+ {
+  "addr": "0054c7f0",
+  "lib": "libc",
+  "name": "__sinit",
+  "size": 140,
+  "where": "main"
+ },
+ {
+  "addr": "0054c880",
+  "lib": "libc",
+  "name": "__sflags",
+  "size": 184,
+  "where": "main"
+ },
+ {
+  "addr": "0054c938",
+  "lib": "libc",
+  "name": "_fopen_r",
+  "size": 220,
+  "where": "main"
+ },
+ {
+  "addr": "0054ca40",
+  "lib": "libc",
+  "name": "fprintf",
+  "size": 84,
+  "where": "main",
+  "ambiguous": [
+   "libc:fiprintf",
+   "libc:fprintf"
+  ]
+ },
+ {
+  "addr": "0054ca98",
+  "lib": "libc",
+  "name": "fputs",
+  "size": 76,
+  "where": "main"
+ },
+ {
+  "addr": "0054cae8",
+  "lib": "libc",
+  "name": "fread",
+  "size": 284,
+  "where": "main"
+ },
+ {
+  "addr": "0054cc08",
+  "lib": "libc",
+  "name": "_free_r",
+  "size": 756,
+  "where": "main"
+ },
+ {
+  "addr": "0054cf00",
+  "lib": "libc",
+  "name": "_malloc_trim_r",
+  "size": 364,
+  "where": "main"
+ },
+ {
+  "addr": "0054d070",
+  "lib": "libc",
+  "name": "fseek",
+  "size": 1196,
+  "where": "main"
+ },
+ {
+  "addr": "0054d520",
+  "lib": "libc",
+  "name": "_fstat_r",
+  "size": 92,
+  "where": "main",
+  "ambiguous": [
+   "libc:_fstat_r",
+   "libc:_kill_r"
+  ]
+ },
+ {
+  "addr": "0054d580",
+  "lib": "libc",
+  "name": "ftell",
+  "size": 260,
+  "where": "main"
+ },
+ {
+  "addr": "0054d688",
+  "lib": "libc",
+  "name": "__sfvwrite",
+  "size": 992,
+  "where": "main"
+ },
+ {
+  "addr": "0054da68",
+  "lib": "libc",
+  "name": "_fwalk",
+  "size": 148,
+  "where": "main"
+ },
+ {
+  "addr": "0054db00",
+  "lib": "libc",
+  "name": "fwrite",
+  "size": 132,
+  "where": "main"
+ },
+ {
+  "addr": "0054dbd8",
+  "lib": "libc",
+  "name": "_findenv_r",
+  "size": 328,
+  "where": "main"
+ },
+ {
+  "addr": "0054dd40",
+  "lib": "libc",
+  "name": "_setlocale_r",
+  "size": 140,
+  "where": "main"
+ },
+ {
+  "addr": "0054de28",
+  "lib": "libc",
+  "name": "_lseek_r",
+  "size": 96,
+  "where": "main",
+  "ambiguous": [
+   "libc:_lseek_r",
+   "libc:_open_r"
+  ]
+ },
+ {
+  "addr": "0054de88",
+  "lib": "libc",
+  "name": "__smakebuf",
+  "size": 340,
+  "where": "main"
+ },
+ {
+  "addr": "0054dfe0",
+  "lib": "libc",
+  "name": "malloc",
+  "size": 84,
+  "where": "main"
+ },
+ {
+  "addr": "0054e038",
+  "lib": "libc",
+  "name": "free",
+  "size": 72,
+  "where": "main"
+ },
+ {
+  "addr": "0054e080",
+  "lib": "libc",
+  "name": "malloc_extend_top",
+  "size": 600,
+  "where": "main"
+ },
+ {
+  "addr": "0054e2d8",
+  "lib": "libc",
+  "name": "_malloc_r",
+  "size": 1832,
+  "where": "main"
+ },
+ {
+  "addr": "0054ea00",
+  "lib": "libc",
+  "name": "_mbtowc_r",
+  "size": 52,
+  "where": "main"
+ },
+ {
+  "addr": "0054ea38",
+  "lib": "libc",
+  "name": "memchr",
+  "size": 224,
+  "where": "main"
+ },
+ {
+  "addr": "0054eb18",
+  "lib": "libc",
+  "name": "memcmp",
+  "size": 148,
+  "where": "main"
+ },
+ {
+  "addr": "0054ebb0",
+  "lib": "libc",
+  "name": "memcpy",
+  "size": 176,
+  "where": "main"
+ },
+ {
+  "addr": "0054ec60",
+  "lib": "libc",
+  "name": "memmove",
+  "size": 260,
+  "where": "main"
+ },
+ {
+  "addr": "0054ed68",
+  "lib": "libc",
+  "name": "memset",
+  "size": 192,
+  "where": "main"
+ },
+ {
+  "addr": "0054ee28",
+  "lib": "libc",
+  "name": "__malloc_lock",
+  "size": 124,
+  "where": "main"
+ },
+ {
+  "addr": "0054eea8",
+  "lib": "libc",
+  "name": "__malloc_unlock",
+  "size": 76,
+  "where": "main"
+ },
+ {
+  "addr": "0054eef8",
+  "lib": "libc",
+  "name": "_Balloc",
+  "size": 164,
+  "where": "main"
+ },
+ {
+  "addr": "0054efa0",
+  "lib": "libc",
+  "name": "_Bfree",
+  "size": 44,
+  "where": "main"
+ },
+ {
+  "addr": "0054efd0",
+  "lib": "libc",
+  "name": "_multadd",
+  "size": 264,
+  "where": "main"
+ },
+ {
+  "addr": "0054f0d8",
+  "lib": "libc",
+  "name": "_s2b",
+  "size": 304,
+  "where": "main"
+ },
+ {
+  "addr": "0054f208",
+  "lib": "libc",
+  "name": "_hi0bits",
+  "size": 128,
+  "where": "main"
+ },
+ {
+  "addr": "0054f288",
+  "lib": "libc",
+  "name": "_lo0bits",
+  "size": 188,
+  "where": "main"
+ },
+ {
+  "addr": "0054f348",
+  "lib": "libc",
+  "name": "_i2b",
+  "size": 56,
+  "where": "main"
+ },
+ {
+  "addr": "0054f380",
+  "lib": "libc",
+  "name": "_multiply",
+  "size": 524,
+  "where": "main"
+ },
+ {
+  "addr": "0054f590",
+  "lib": "libc",
+  "name": "_pow5mult",
+  "size": 252,
+  "where": "main"
+ },
+ {
+  "addr": "0054f690",
+  "lib": "libc",
+  "name": "_lshift",
+  "size": 344,
+  "where": "main"
+ },
+ {
+  "addr": "0054f7e8",
+  "lib": "libc",
+  "name": "__mcmp",
+  "size": 104,
+  "where": "main"
+ },
+ {
+  "addr": "0054f850",
+  "lib": "libc",
+  "name": "__mdiff",
+  "size": 400,
+  "where": "main"
+ },
+ {
+  "addr": "0054f9e0",
+  "lib": "libc",
+  "name": "_ulp",
+  "size": 208,
+  "where": "main"
+ },
+ {
+  "addr": "0054fab0",
+  "lib": "libc",
+  "name": "_b2d",
+  "size": 408,
+  "where": "main"
+ },
+ {
+  "addr": "0054fc48",
+  "lib": "libc",
+  "name": "_d2b",
+  "size": 388,
+  "where": "main"
+ },
+ {
+  "addr": "0054fdd0",
+  "lib": "libc",
+  "name": "_ratio",
+  "size": 204,
+  "where": "main"
+ },
+ {
+  "addr": "0054fea0",
+  "lib": "libc",
+  "name": "_mprec_log10",
+  "size": 112,
+  "where": "main"
+ },
+ {
+  "addr": "0054ff10",
+  "lib": "libc",
+  "name": "_lseek_r",
+  "size": 96,
+  "where": "main",
+  "ambiguous": [
+   "libc:_lseek_r",
+   "libc:_open_r"
+  ]
+ },
+ {
+  "addr": "0054ff70",
+  "lib": "libc",
+  "name": "_printf_r",
+  "size": 92,
+  "where": "main"
+ },
+ {
+  "addr": "0054ffd0",
+  "lib": "libc",
+  "name": "printf",
+  "size": 112,
+  "where": "main"
+ },
+ {
+  "addr": "00550040",
+  "lib": "libc",
+  "name": "qsort",
+  "size": 2540,
+  "where": "main"
+ },
+ {
+  "addr": "00550a48",
+  "lib": "libc",
+  "name": "rand",
+  "size": 100,
+  "where": "main"
+ },
+ {
+  "addr": "00550ab0",
+  "lib": "libc",
+  "name": "_read_r",
+  "size": 96,
+  "where": "main",
+  "ambiguous": [
+   "libc:_read_r",
+   "libc:_write_r"
+  ]
+ },
+ {
+  "addr": "00550b10",
+  "lib": "libc",
+  "name": "calloc",
+  "size": 100,
+  "where": "main",
+  "ambiguous": [
+   "libc:calloc",
+   "libc:memalign",
+   "libc:realloc"
+  ]
+ },
+ {
+  "addr": "00550b78",
+  "lib": "libc",
+  "name": "_realloc_r",
+  "size": 1440,
+  "where": "main"
+ },
+ {
+  "addr": "00551118",
+  "lib": "libc",
+  "name": "lflush",
+  "size": 52,
+  "where": "main"
+ },
+ {
+  "addr": "00551150",
+  "lib": "libc",
+  "name": "__srefill",
+  "size": 380,
+  "where": "main"
+ },
+ {
+  "addr": "005512d0",
+  "lib": "libc",
+  "name": "_close_r",
+  "size": 88,
+  "where": "main",
+  "ambiguous": [
+   "libc:_close_r",
+   "libc:_sbrk_r"
+  ]
+ },
+ {
+  "addr": "00551328",
+  "lib": "libc",
+  "name": "_init_signal_r",
+  "size": 112,
+  "where": "main"
+ },
+ {
+  "addr": "00551398",
+  "lib": "libc",
+  "name": "_signal_r",
+  "size": 128,
+  "where": "main"
+ },
+ {
+  "addr": "00551418",
+  "lib": "libc",
+  "name": "_raise_r",
+  "size": 216,
+  "where": "main"
+ },
+ {
+  "addr": "005514f0",
+  "lib": "libc",
+  "name": "__sigtramp_r",
+  "size": 152,
+  "where": "main"
+ },
+ {
+  "addr": "00551710",
+  "lib": "libc",
+  "name": "sprintf",
+  "size": 144,
+  "where": "main",
+  "ambiguous": [
+   "libc:siprintf",
+   "libc:sprintf"
+  ]
+ },
+ {
+  "addr": "005517a8",
+  "lib": "libc",
+  "name": "sscanf",
+  "size": 168,
+  "where": "main"
+ },
+ {
+  "addr": "00551850",
+  "lib": "libc",
+  "name": "__sread",
+  "size": 100,
+  "where": "main"
+ },
+ {
+  "addr": "005518b8",
+  "lib": "libc",
+  "name": "__swrite",
+  "size": 128,
+  "where": "main"
+ },
+ {
+  "addr": "00551938",
+  "lib": "libc",
+  "name": "__sseek",
+  "size": 100,
+  "where": "main"
+ },
+ {
+  "addr": "005519c0",
+  "lib": "libc",
+  "name": "strcasecmp",
+  "size": 216,
+  "where": "main"
+ },
+ {
+  "addr": "00551a98",
+  "lib": "libc",
+  "name": "strcat",
+  "size": 300,
+  "where": "main"
+ },
+ {
+  "addr": "00551bc8",
+  "lib": "libc",
+  "name": "strchr",
+  "size": 400,
+  "where": "main"
+ },
+ {
+  "addr": "00551d58",
+  "lib": "libc",
+  "name": "strcmp",
+  "size": 324,
+  "where": "main"
+ },
+ {
+  "addr": "00551ea0",
+  "lib": "libc",
+  "name": "strcpy",
+  "size": 276,
+  "where": "main"
+ },
+ {
+  "addr": "00551fb8",
+  "lib": "libc",
+  "name": "strlen",
+  "size": 312,
+  "where": "main"
+ },
+ {
+  "addr": "005520f0",
+  "lib": "libc",
+  "name": "strlwr",
+  "size": 76,
+  "where": "main"
+ },
+ {
+  "addr": "00552140",
+  "lib": "libc",
+  "name": "strncasecmp",
+  "size": 216,
+  "where": "main"
+ },
+ {
+  "addr": "00552218",
+  "lib": "libc",
+  "name": "strncat",
+  "size": 428,
+  "where": "main"
+ },
+ {
+  "addr": "005523c8",
+  "lib": "libc",
+  "name": "strncmp",
+  "size": 440,
+  "where": "main"
+ },
+ {
+  "addr": "00552580",
+  "lib": "libc",
+  "name": "strncpy",
+  "size": 444,
+  "where": "main"
+ },
+ {
+  "addr": "00552740",
+  "lib": "libc",
+  "name": "strrchr",
+  "size": 80,
+  "where": "main"
+ },
+ {
+  "addr": "00552790",
+  "lib": "libc",
+  "name": "strstr",
+  "size": 132,
+  "where": "main"
+ },
+ {
+  "addr": "00552818",
+  "lib": "libc",
+  "name": "_strtod_r",
+  "size": 3860,
+  "where": "main"
+ },
+ {
+  "addr": "00553868",
+  "lib": "libc",
+  "name": "_strtol_r",
+  "size": 568,
+  "where": "main"
+ },
+ {
+  "addr": "00553aa0",
+  "lib": "libc",
+  "name": "strtol",
+  "size": 44,
+  "where": "main",
+  "ambiguous": [
+   "libc:strtol",
+   "libc:strtoul"
+  ]
+ },
+ {
+  "addr": "00553d00",
+  "lib": "libc",
+  "name": "strtol",
+  "size": 44,
+  "where": "main",
+  "ambiguous": [
+   "libc:strtol",
+   "libc:strtoul"
+  ]
+ },
+ {
+  "addr": "00553d30",
+  "lib": "libc",
+  "name": "strupr",
+  "size": 76,
+  "where": "main"
+ },
+ {
+  "addr": "00553da0",
+  "lib": "libc",
+  "name": "__submore",
+  "size": 232,
+  "where": "main"
+ },
+ {
+  "addr": "00553e88",
+  "lib": "libc",
+  "name": "ungetc",
+  "size": 392,
+  "where": "main"
+ },
+ {
+  "addr": "00554010",
+  "lib": "libc",
+  "name": "__sprint",
+  "size": 72,
+  "where": "main"
+ },
+ {
+  "addr": "00554058",
+  "lib": "libc",
+  "name": "__sbprintf",
+  "size": 180,
+  "where": "main"
+ },
+ {
+  "addr": "00554110",
+  "lib": "libc",
+  "name": "vfprintf",
+  "size": 116,
+  "where": "main",
+  "ambiguous": [
+   "libc:vfiprintf",
+   "libc:vfprintf"
+  ]
+ },
+ {
+  "addr": "00554188",
+  "lib": "libc",
+  "name": "_vfprintf_r",
+  "size": 5744,
+  "where": "main"
+ },
+ {
+  "addr": "005557f8",
+  "lib": "libc",
+  "name": "cvt",
+  "size": 448,
+  "where": "main"
+ },
+ {
+  "addr": "005559b8",
+  "lib": "libc",
+  "name": "exponent",
+  "size": 220,
+  "where": "main"
+ },
+ {
+  "addr": "00555a98",
+  "lib": "libc",
+  "name": "__svfscanf",
+  "size": 3212,
+  "where": "main"
+ },
+ {
+  "addr": "00556728",
+  "lib": "libc",
+  "name": "__sccl",
+  "size": 256,
+  "where": "main"
+ },
+ {
+  "addr": "00556828",
+  "lib": "libc",
+  "name": "vsprintf",
+  "size": 84,
+  "where": "main"
+ },
+ {
+  "addr": "00556880",
+  "lib": "libc",
+  "name": "vsprintf_r",
+  "size": 84,
+  "where": "main"
+ },
+ {
+  "addr": "005568d8",
+  "lib": "libc",
+  "name": "_read_r",
+  "size": 96,
+  "where": "main",
+  "ambiguous": [
+   "libc:_read_r",
+   "libc:_write_r"
+  ]
+ },
+ {
+  "addr": "00556938",
+  "lib": "libc",
+  "name": "__swsetup",
+  "size": 268,
+  "where": "main"
+ },
+ {
+  "addr": "00556a50",
+  "lib": "mslgcc_ps2",
+  "name": "__destroy_new_array",
+  "size": 156,
+  "where": "main"
+ },
+ {
+  "addr": "00556af0",
+  "lib": "mslgcc_ps2",
+  "name": "__destroy_arr",
+  "size": 108,
+  "where": "main"
+ },
+ {
+  "addr": "00556b60",
+  "lib": "mslgcc_ps2",
+  "name": "__construct_array",
+  "size": 300,
+  "where": "main"
+ },
+ {
+  "addr": "00556c90",
+  "lib": "mslgcc_ps2",
+  "name": "__construct_new_array",
+  "size": 340,
+  "where": "main"
+ },
+ {
+  "addr": "00556df0",
+  "lib": "mslgcc_ps2",
+  "name": "__initialize_cpp_rts",
+  "size": 84,
+  "where": "main"
+ },
+ {
+  "addr": "00556e50",
+  "lib": "mslgcc_ps2",
+  "name": "__ptmf_scall",
+  "size": 52,
+  "where": "main"
+ },
+ {
+  "addr": "0088e5a0",
+  "lib": "libpkt",
+  "name": "sceGifPkTerminate",
+  "size": 88,
+  "where": "mpeg.pm",
+  "ambiguous": [
+   "libpkt:sceDmaPkTerminate",
+   "libpkt:sceGifPkTerminate",
+   "libpkt:sceVif0PkTerminate",
+   "libpkt:sceVif1PkTerminate"
+  ]
+ },
+ {
+  "addr": "0088e5f8",
+  "lib": "libpkt",
+  "name": "sceGifPkCnt",
+  "size": 116,
+  "where": "mpeg.pm",
+  "ambiguous": [
+   "libpkt:sceDmaPkCnt",
+   "libpkt:sceGifPkCnt"
+  ]
+ },
+ {
+  "addr": "0088e670",
+  "lib": "libpkt",
+  "name": "sceGifPkRef",
+  "size": 152,
+  "where": "mpeg.pm",
+  "ambiguous": [
+   "libpkt:sceGifPkRef",
+   "libpkt:sceVif0PkRef",
+   "libpkt:sceVif1PkRef"
+  ]
+ },
+ {
+  "addr": "0088e708",
+  "lib": "libpkt",
+  "name": "sceGifPkEnd",
+  "size": 116,
+  "where": "mpeg.pm",
+  "ambiguous": [
+   "libpkt:sceDmaPkEnd",
+   "libpkt:sceGifPkEnd"
+  ]
+ },
+ {
+  "addr": "0088e7b0",
+  "lib": "libpkt",
+  "name": "sceGifPkCloseGifTag",
+  "size": 164,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "0088e858",
+  "lib": "libpkt",
+  "name": "sceGifPkAddGsAD",
+  "size": 36,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "0088e880",
+  "lib": "libsdr",
+  "name": "sceSdRemoteInit",
+  "size": 176,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "0088e930",
+  "lib": "libsdr",
+  "name": "sceSdTransToIOP",
+  "size": 132,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "0088e9d8",
+  "lib": "libsdr",
+  "name": "sceSdRemote",
+  "size": 904,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "0088ed60",
+  "lib": "libipu",
+  "name": "setD3_CHCR",
+  "size": 116,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "0088edd8",
+  "lib": "libipu",
+  "name": "setD4_CHCR",
+  "size": 116,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "0088ee50",
+  "lib": "libipu",
+  "name": "sceIpuStopDMA",
+  "size": 228,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "0088ef38",
+  "lib": "libipu",
+  "name": "sceIpuRestartDMA",
+  "size": 336,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "0088f088",
+  "lib": "libipu",
+  "name": "sceIpuSync",
+  "size": 104,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "0088f0f0",
+  "lib": "libipu",
+  "name": "setD4_CHCR",
+  "size": 116,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "0088f168",
+  "lib": "libipu",
+  "name": "sceIpuInit",
+  "size": 568,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "0088f3a0",
+  "lib": "libmpeg",
+  "name": "_dualPrimeVector",
+  "size": 388,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "0088f528",
+  "lib": "libmpeg",
+  "name": "_getAllRefs",
+  "size": 1796,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "0088fc30",
+  "lib": "libmpeg",
+  "name": "_motionComp0",
+  "size": 592,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "0088fe80",
+  "lib": "libmpeg",
+  "name": "_getRef0",
+  "size": 1160,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00890308",
+  "lib": "libmpeg",
+  "name": "_doMC",
+  "size": 540,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00890528",
+  "lib": "libmpeg",
+  "name": "_sceMpegPictureData0",
+  "size": 576,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00890768",
+  "lib": "libmpeg",
+  "name": "_slice0",
+  "size": 812,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00890a98",
+  "lib": "libmpeg",
+  "name": "_motionVector",
+  "size": 1064,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00890ec0",
+  "lib": "libmpeg",
+  "name": "_motionVectors",
+  "size": 412,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00891060",
+  "lib": "libmpeg",
+  "name": "_decMB0",
+  "size": 1368,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "008915b8",
+  "lib": "libmpeg",
+  "name": "_sceMpegMbAddressIncrement",
+  "size": 376,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00891730",
+  "lib": "libmpeg",
+  "name": "_sceMpegWaitIpuIdle",
+  "size": 360,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00891898",
+  "lib": "libmpeg",
+  "name": "_sceMpegWaitIpuIdle64",
+  "size": 384,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00891a18",
+  "lib": "libmpeg",
+  "name": "_sceMpegNextBit",
+  "size": 232,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00891b00",
+  "lib": "libmpeg",
+  "name": "_sceMpegPeepBit",
+  "size": 140,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00891b90",
+  "lib": "libmpeg",
+  "name": "_sceMpegFlushBuf",
+  "size": 148,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00891c28",
+  "lib": "libmpeg",
+  "name": "_waitIpuIdle",
+  "size": 52,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00891c68",
+  "lib": "libmpeg",
+  "name": "_skipMB0",
+  "size": 188,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00891d28",
+  "lib": "libmpeg",
+  "name": "_copyAddRefImage",
+  "size": 236,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00891e18",
+  "lib": "libmpeg",
+  "name": "_copyRefImage",
+  "size": 192,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00891ed8",
+  "lib": "libmpeg",
+  "name": "dmaRefImage",
+  "size": 380,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00892058",
+  "lib": "libmpeg",
+  "name": "_rix_000",
+  "size": 116,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "008920d0",
+  "lib": "libmpeg",
+  "name": "_ri0_000",
+  "size": 148,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00892168",
+  "lib": "libmpeg",
+  "name": "_rix_001",
+  "size": 180,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00892220",
+  "lib": "libmpeg",
+  "name": "_ri0_001",
+  "size": 204,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "008922f0",
+  "lib": "libmpeg",
+  "name": "_rix_010",
+  "size": 172,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "008923a0",
+  "lib": "libmpeg",
+  "name": "_ri0_010",
+  "size": 184,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00892458",
+  "lib": "libmpeg",
+  "name": "_rix_011",
+  "size": 248,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00892550",
+  "lib": "libmpeg",
+  "name": "_ri0_011",
+  "size": 252,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00892650",
+  "lib": "libmpeg",
+  "name": "_rix_100",
+  "size": 156,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "008926f0",
+  "lib": "libmpeg",
+  "name": "_ri0_100",
+  "size": 172,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "008927a0",
+  "lib": "libmpeg",
+  "name": "_rix_101",
+  "size": 220,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00892880",
+  "lib": "libmpeg",
+  "name": "_ri0_101",
+  "size": 228,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00892968",
+  "lib": "libmpeg",
+  "name": "_rix_110",
+  "size": 212,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00892a40",
+  "lib": "libmpeg",
+  "name": "_ri0_110",
+  "size": 208,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00892b10",
+  "lib": "libmpeg",
+  "name": "_rix_111",
+  "size": 288,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00892c30",
+  "lib": "libmpeg",
+  "name": "_ri0_111",
+  "size": 276,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00892d48",
+  "lib": "libmpeg",
+  "name": "receiveDataFromIPU",
+  "size": 160,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00892de8",
+  "lib": "libmpeg",
+  "name": "_sceMpegSliceA0",
+  "size": 416,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00892f88",
+  "lib": "libmpeg",
+  "name": "_initSeq",
+  "size": 788,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "008932a0",
+  "lib": "libmpeg",
+  "name": "_sequenceHeader",
+  "size": 684,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00893550",
+  "lib": "libmpeg",
+  "name": "_groupOfPicturesHeader",
+  "size": 160,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "008935f0",
+  "lib": "libmpeg",
+  "name": "_pictureHeader",
+  "size": 324,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00893738",
+  "lib": "libmpeg",
+  "name": "_sequenceExtension",
+  "size": 320,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00893878",
+  "lib": "libmpeg",
+  "name": "_quantMatrixExtension",
+  "size": 232,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00893b88",
+  "lib": "libmpeg",
+  "name": "_extensionAndUserData",
+  "size": 460,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00893d58",
+  "lib": "libmpeg",
+  "name": "_waitIpuIdle",
+  "size": 52,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00893d98",
+  "lib": "libmpeg",
+  "name": "_sceMpegNextHeader",
+  "size": 340,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00893ef8",
+  "lib": "libmpeg",
+  "name": "flushByteBoundary",
+  "size": 80,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00893f48",
+  "lib": "libmpeg",
+  "name": "_sequenceDisplayExtension",
+  "size": 140,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00893fd8",
+  "lib": "libmpeg",
+  "name": "_copyrightExtension",
+  "size": 148,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00894070",
+  "lib": "libmpeg",
+  "name": "_pictureDisplayExtension",
+  "size": 244,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00894168",
+  "lib": "libmpeg",
+  "name": "_clearOnce",
+  "size": 204,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00894238",
+  "lib": "libmpeg",
+  "name": "sceMpegCreate",
+  "size": 568,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00894470",
+  "lib": "libmpeg",
+  "name": "_sendDataToIPU",
+  "size": 256,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00894570",
+  "lib": "libmpeg",
+  "name": "_clearEach",
+  "size": 200,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00894638",
+  "lib": "libmpeg",
+  "name": "_getpic",
+  "size": 436,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "008947f0",
+  "lib": "libmpeg",
+  "name": "_updateRefImage",
+  "size": 692,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00894aa8",
+  "lib": "libmpeg",
+  "name": "_decodeOrSkipFrame",
+  "size": 368,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00894c18",
+  "lib": "libmpeg",
+  "name": "_decodeOrSkipField",
+  "size": 452,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00894de0",
+  "lib": "libmpeg",
+  "name": "sceMpegInit",
+  "size": 176,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00894e98",
+  "lib": "libmpeg",
+  "name": "sceMpegAddBs",
+  "size": 60,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00894ed8",
+  "lib": "libmpeg",
+  "name": "sceMpegGetPicture",
+  "size": 72,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00894f20",
+  "lib": "libmpeg",
+  "name": "sceMpegGetPictureRAW8",
+  "size": 68,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00894f78",
+  "lib": "libmpeg",
+  "name": "sceMpegReset",
+  "size": 124,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00895030",
+  "lib": "libmpeg",
+  "name": "sceMpegGetDecodeMode",
+  "size": 32,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00895050",
+  "lib": "libmpeg",
+  "name": "sceMpegAddCallback",
+  "size": 52,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00895088",
+  "lib": "libmpeg",
+  "name": "sceMpegSetBuffType",
+  "size": 52,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "008950d0",
+  "lib": "libmpeg",
+  "name": "_sceMpegDispatchMpegCallback",
+  "size": 120,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00895148",
+  "lib": "libmpeg",
+  "name": "_sceMpegDispatchMpegCbNodata",
+  "size": 116,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "008951c0",
+  "lib": "libmpeg",
+  "name": "_decodeOrSkip",
+  "size": 68,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00895208",
+  "lib": "libmpeg",
+  "name": "sceMpegClearRefBuff",
+  "size": 84,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00895260",
+  "lib": "libmpeg",
+  "name": "sceMpegGetPictureRAW8xy",
+  "size": 80,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00895358",
+  "lib": "libmpeg",
+  "name": "_decPicture",
+  "size": 204,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00895460",
+  "lib": "libmpeg",
+  "name": "_alalcAlloc",
+  "size": 108,
+  "where": "mpeg.pm",
+  "ambiguous": [
+   "libmpeg:_alalcAlloc",
+   "libmpeg:_sceMpegAlalcAlloc"
+  ]
+ },
+ {
+  "addr": "008954e8",
+  "lib": "libmpeg",
+  "name": "_defStopDMA",
+  "size": 36,
+  "where": "mpeg.pm",
+  "ambiguous": [
+   "libmpeg:_defRestartDMA",
+   "libmpeg:_defStopDMA",
+   "libmpeg:_sceMpegDefaultRestartDMA",
+   "libmpeg:_sceMpegDefaultStopDMA"
+  ]
+ },
+ {
+  "addr": "00895510",
+  "lib": "libmpeg",
+  "name": "_defStopDMA",
+  "size": 36,
+  "where": "mpeg.pm",
+  "ambiguous": [
+   "libmpeg:_defRestartDMA",
+   "libmpeg:_defStopDMA",
+   "libmpeg:_sceMpegDefaultRestartDMA",
+   "libmpeg:_sceMpegDefaultStopDMA"
+  ]
+ },
+ {
+  "addr": "00895538",
+  "lib": "libmpeg",
+  "name": "_cpr8",
+  "size": 656,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "008957c8",
+  "lib": "libmpeg",
+  "name": "_dispRefImage",
+  "size": 704,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00895a88",
+  "lib": "libmpeg",
+  "name": "_dispRefImageField",
+  "size": 1056,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00895ea8",
+  "lib": "libmpeg",
+  "name": "_sceMpegFlush",
+  "size": 192,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00895f68",
+  "lib": "libmpeg",
+  "name": "_sceMpegOutputFrame",
+  "size": 144,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00895ff8",
+  "lib": "libmpeg",
+  "name": "_doCSC2",
+  "size": 448,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "008961b8",
+  "lib": "libmpeg",
+  "name": "_sceMpegCscStoreRefImage",
+  "size": 1240,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00896690",
+  "lib": "libmpeg",
+  "name": "_ch3dmaCSC",
+  "size": 328,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "008967d8",
+  "lib": "libmpeg",
+  "name": "_ch4dma",
+  "size": 212,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "008968b0",
+  "lib": "libmpeg",
+  "name": "_id2type",
+  "size": 508,
+  "where": "mpeg.pm",
+  "ambiguous": [
+   "libmpeg:_id2type",
+   "libmpeg:_sceMpegId2type"
+  ]
+ },
+ {
+  "addr": "00896ab0",
+  "lib": "libmpeg",
+  "name": "_system_header",
+  "size": 464,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00896c80",
+  "lib": "libmpeg",
+  "name": "_pack_header",
+  "size": 1704,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00897328",
+  "lib": "libmpeg",
+  "name": "_PES_packet",
+  "size": 7592,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "008990d0",
+  "lib": "libmpeg",
+  "name": "sceMpegDemuxPssRing",
+  "size": 992,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "008994d0",
+  "lib": "libmpeg",
+  "name": "sceMpegAddStrCallback",
+  "size": 304,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00899600",
+  "lib": "libmpeg",
+  "name": "_sceMpegType2id",
+  "size": 168,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "008996b8",
+  "lib": "libmpeg",
+  "name": "_sceMpegStopIpuDma",
+  "size": 160,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00899758",
+  "lib": "libmpeg",
+  "name": "_sceMpegErrorBdec",
+  "size": 200,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00899820",
+  "lib": "libmpeg",
+  "name": "_sceMpegError",
+  "size": 84,
+  "where": "mpeg.pm"
+ },
+ {
+  "addr": "00899878",
+  "lib": "libmpeg",
+  "name": "_sceMpegError1",
+  "size": 64,
+  "where": "mpeg.pm"
+ }
+]

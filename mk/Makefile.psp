@@ -1,0 +1,56 @@
+# Makefile.psp - the PSP EBOOT of a translated program + the HLE runtime. Run from the build dir by mk/build.sh:
+#   make -f <this> -j6 gen_objs   (all generated units, parallel)   then   make -f <this>   (HLE, link, EBOOT.PBP)
+# gen/ = the generated units (hooks, trap set, patches applied)     hle/ = the HLE sources (+ rt/: the runtime header)
+TARGET   = poc6
+GEN_C   := $(sort $(wildcard gen/*.c))
+GEN_O   := $(patsubst gen/%.c,obj/gen/%.o,$(GEN_C))
+HLE_C   := $(sort $(wildcard hle/*.c))
+HLE_O   := $(patsubst hle/%.c,obj/hle/%.o,$(HLE_C))
+HLE_S   := $(sort $(wildcard hle/*.S))
+OBJS     = $(GEN_O) $(HLE_O) $(patsubst hle/%.S,obj/hle/%.o,$(HLE_S))
+INCDIR   = hle/rt hle gen
+FPFLAGS  = -fno-fast-math -fno-math-errno -frounding-math -ffp-contract=off
+CFLAGS   = -O2 -G0 -std=gnu11 $(FPFLAGS)
+# (-Wno-format: uint32_t is `long` in newlib/MIPS32 - same size as int, the %x/%u formats are right at run time)
+HLEFLAGS = -DHLE_PSP -Wall -Wno-unused-function -Wno-unused-variable -Wno-format -fno-strict-aliasing $(HLE_DEFS)
+ASFLAGS  = $(CFLAGS)
+# libpspgu: the GE (a pack's render back-end, the splash). The CFW's kuKernelCall: hle/psp/ps2rc_kcall.S (own import)
+LIBS     = -lpspgu -lpsppower -lpsprtc
+# the movie player (hle/psp/hle_movie.c): sceMpeg, sceAudio. NOT -lpsputility here: the toolchain links it after libc
+# already (sceUtilityGetSystemParamInt); a second, earlier copy splits the sceUtility stubs ("stubs out of order")
+LIBS    += -lpspmpeg -lpspaudio
+# the game pack's link flags ([build] psp_ldflags, passed by build.sh as PACK_LDFLAGS): e.g. the --wrap of its GE
+# back-end's screen text and the profiler zones around it
+PACK_LDFLAGS ?=
+LDFLAGS  = $(PACK_LDFLAGS)
+# a code layout (build.sh): GEN_EXTRA / HLE_EXTRA = -ffunction-sections and LAYOUT_ORDER = order.ld (the main-loop
+# functions first in .text)
+GEN_EXTRA    ?=
+HLE_EXTRA    ?=
+LAYOUT_ORDER ?=
+ifneq ($(LAYOUT_ORDER),)
+LDFLAGS += -Wl,--section-ordering-file=$(LAYOUT_ORDER)
+endif
+HLE_BUILD ?= 21
+EXTRA_TARGETS    = EBOOT.PBP
+# PSP_TITLE: the game pack's [id] psp_title (build.sh passes it)
+PSP_TITLE       ?= PS2RC
+PSP_EBOOT_TITLE  = $(PSP_TITLE) (build $(HLE_BUILD))
+PSP_LARGE_MEMORY = 1
+
+PSPSDK = $(shell psp-config --pspsdk-path)
+include $(PSPSDK)/lib/build.mak
+
+gen_objs: $(GEN_O)
+
+obj/gen/%.o: gen/%.c hle/rt/r5900_rt.h
+	@mkdir -p obj/gen
+	@t0=$$(date +%s); $(CC) $(CFLAGS) $(GEN_EXTRA) -w -c $< -o $@ && echo "psp-gcc -c $< $$(( $$(date +%s) - t0 )) s"
+
+obj/hle/%.o: hle/%.c $(wildcard hle/*.h) hle/hooks.def hle/rt/r5900_rt.h
+	@mkdir -p obj/hle
+	$(CC) $(CFLAGS) $(HLEFLAGS) $(HLE_EXTRA) -c $< -o $@
+
+obj/hle/%.o: hle/%.S
+	@mkdir -p obj/hle
+	$(CC) $(CFLAGS) -c $< -o $@

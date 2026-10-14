@@ -1,0 +1,57 @@
+# toolchain.lock.toml - the PSP toolchain the converter is built and checked with (pinned, reproducible).
+# Source commits = the `build.txt` of the pspdev install the project's builds use (psp-gcc 15.2.0, GNU ld 2.44).
+# fetch_sources.py downloads exactly these commits (GitHub source archives) and checks the sha256 values below;
+# an empty sha256 means "not recorded yet": the first fetch prints it and --record writes it here.
+
+[toolchain]
+gcc_version = "15.2.0"
+binutils_version = "2.44"
+target = "psp"                    # --target of binutils and gcc (config.sub: mipsallegrexel-psp-elf)
+
+# the prebuilt Linux / macOS release with the same commits (WSL / Linux players, CI); which release tag carries
+# exactly these commits: v20260901 (inferred from the release notes, not stated by pspdev)
+[release]
+tag = "v20260901"
+url = "https://github.com/pspdev/pspdev/releases"
+asset_debian = "pspdev-debian-latest.tar.gz"
+asset_debian_sha256 = ""
+
+[sources.binutils]
+repo = "pspdev/binutils-gdb"
+commit = "a8b53fe2b5825fa86337623c743d21a19aeb0daf"
+sha256 = "98867e0fa2471a06c8ea2ae0ac138a847e4ea910f7f49102b77eaf8d7e86f2f3"
+
+[sources.gcc]
+repo = "pspdev/gcc"
+commit = "1a33997924916ff5a6f61b64179ff9c8921f46c6"
+sha256 = "75dfa598fe54f934d783f02ecdb5bd6f35d04d43e1eb583993e69eed170877b6"
+
+[sources.newlib]
+repo = "pspdev/newlib"
+commit = "9e0a073634ad73e8e088f2e071c55a9fe5d39709"
+sha256 = "d3fa54b832f75dbab8b07f4dfc23acab96a5795a10692571c0bb134c3063ae37"
+
+[sources.pthread-embedded]
+repo = "pspdev/pthread-embedded"
+commit = "97fe4ce006b420894f2bcaeb530d1f1f53111fc2"
+sha256 = "09d99c99388d3f5afc5120dbdc5e4d519f070a50cebf7f0eada9033de4099708"
+
+[sources.pspsdk]
+repo = "pspdev/pspsdk"
+commit = "09f02b88b9f30055bea916c5ddbdbddcdef9e31f"
+sha256 = "0ab64234771cf6202b957532a18f3ef04a0215ffb2b372be0ff72b9e671e66da"
+
+[sources.psptoolchain-allegrex]
+repo = "pspdev/psptoolchain-allegrex"
+commit = "a95b7da838d9f506656092c3e0232dcf50389d89"
+sha256 = "527d2210a4e4fae9e700be9e6c33efe46d30311bd253342c26eedd3c2890fc38"
+
+[sources.psptoolchain-extra]
+repo = "pspdev/psptoolchain-extra"
+commit = "b5f01b00e428a604832e0dfb4bfbb991d1397e3f"
+sha256 = "c597ac4612dc44615319178a3b692f67a1a90f895ed90a1b0155aa6797b131bd"
+
+[sources.pspdev]
+repo = "pspdev/pspdev"
+commit = "8d581609506117f6c8fa77893a2f38e4ad4b39fe"
+sha256 = "c8eebb1aa705b232ce24eb7d2735cc76a05153c9e8408f515045cf7d2fb078ef"

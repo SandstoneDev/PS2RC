@@ -1,0 +1,22 @@
+/* hooks.def - the guest functions this pack hooks or traces.
+ *
+ *   HOOK(addr, name)                 the translated function at addr is renamed fn_<addr>__guest; every call reaches
+ *                                    the HLE function of that name (hle/core: Sony library functions such as
+ *                                    sceSifCallRpc, scePadRead, sceMcOpen, write, DelayThread; or a function of the
+ *                                    pack's own modules, HLE_FN(name)), which may call the original (GUEST_FN(name))
+ *   TRACE(addr, name, flags)         the original runs inside a call-log wrapper; flags 1 = milestone on the first
+ *                                    call and return, 8 = 64-bit a0 / a1 / v0 / f0 of the first calls; other bits go
+ *                                    to the pack's hle_pack_trace
+ *   HOOK_OV(ov, addr, name)          the same for a function of code overlay ov
+ *   TRACE_OV(ov, addr, name, flags)
+ * Addresses: 8 lowercase hex digits. Names are C identifiers, unique in the file. Translate again after a change:
+ * hooked functions get different argument rules (ps2rc/pipeline/translate.py psp_rules).
+ * The names the core implements are the HLE_SCE(...) definitions in hle/core/*.c; a name it uses that this list
+ * does not bind is simply not hooked.
+ */
+
+/* ---- examples
+HOOK(00100f00, write)
+HOOK(00100f08, DelayThread)
+TRACE(00100e00, my_main_loop, 1)
+*/

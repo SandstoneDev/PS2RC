@@ -1,0 +1,9 @@
+/* sites.def - calls inside translated functions routed through an HLE handler (ps2rc/pipeline/prepare_gen.py --sites).
+ *   SITE(function, return address, handler): the call of `function` whose return address (call address + 8) is
+ *   given calls handler(c, target) instead of its target. Addresses: 8 lowercase hex digits (facts of the boot
+ *   program: where the world update calls what). Handlers: src/hle_far.c (the far-entity policy).
+ */
+SITE(00283900, 00283a98, far_site_frame)        /* world update: the call before the moving-entity passes */
+SITE(00283900, 00283b18, far_site_control)      /* world update: per-entity control call (vtable +48) */
+SITE(00283900, 00283c38, far_site_coll_begin)   /* world update: opens the collision section (0x595C20) */
+SITE(00283900, 00283fe0, far_site_coll_end)     /* world update: closes the collision section (0x595C60) */

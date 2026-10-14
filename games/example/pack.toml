@@ -1,0 +1,41 @@
+# The example game pack: a small PS2 program written for this repository (src/example.S), taken through the whole
+# pipeline - translation, the host harness, the PSP EBOOT. README.md lists the commands; games/_template/pack.toml
+# documents every key. Paths: {work}/ = the work dir (local.toml [paths] work), plain = relative to this folder.
+format = 1
+
+[id]
+serial = "EXAMPLE"
+version = "1.00"
+region = "any"
+boot_elf = "EXAMPLE.ELF"
+psp_title = "PS2RC example"
+
+[memory]
+code = [0x00100000, 0x00108000]            # .text, padded (src/example.ld)
+data_end = 0x00109000                      # end of the file data
+bss_end = 0x0010A000
+ram_end_psp = 0x01000000                   # 16 MB of guest RAM on the PSP
+
+[runtime]
+main_loop = "example_frame"                # hooks.def TRACE label: one call = one main-loop iteration
+cfg = "ps2rc.cfg"
+psp_module = "PS2RC_EXAMPLE"
+
+[translate]
+variant = "v0"                             # exact everywhere: every register in the context
+unit = "main"                              # no function set given: discovery runs from the entry point
+
+[build]
+translation = "{work}/example/trans"
+hooks = "hooks.def"
+pkg_out = "{work}/example/psp"
+y_hdr = ""
+y_gen = ""
+
+[run]
+disc = "{work}/example/disc"               # build_elf.sh writes the program there (a real game: local.toml)
+discmap = "{work}/example/discmap.txt"
+out = "{work}/example/runs"
+
+[stage]
+files = ["EXAMPLE.ELF"]                    # disc files the PSP needs (paths in the disc folder)

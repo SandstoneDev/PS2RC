@@ -1,0 +1,4 @@
+# Text patches applied by ps2rc/pipeline/prepare_gen.py --textpatch (function<TAB>old<TAB>new, exactly once per function).
+# fn_00100250 (the game heap set-up) computes the heap size from the RAM end constant (lui v0,0x200 at 0x100274):
+# it must see the RAM the platform has (host 32 MB, PSP 0x1BC0000 = 20.0 MB heap). A recipe, not copied code.
+fn_00100250	SX32(0x2000000u)	SX32(hle_ram_end)

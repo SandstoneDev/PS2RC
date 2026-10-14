@@ -1,0 +1,145 @@
+PS2RC License, version 1.0
+
+Copyright (c) 2026 SandstoneDev. All rights reserved, except as granted below.
+
+This is a source-available licence, not an open-source one. It lets you study PS2RC,
+use it to recompile PS2 games you own, fork it to support other games, and share your
+work, as long as everything stays free of charge, you credit the original recompiler,
+and the PS2RC code in your work stays under this licence. PS2RC contains no game data,
+and no game data may ever be distributed with it.
+
+0. DEFINITIONS
+
+   "PS2RC" is the recompiler, runtime, tools, tests and documentation in this
+   repository, and any part of them.
+   "A Derived Work" is any software or source tree that contains PS2RC or code derived
+   from it, modified or not: for example a fork, a game pack, a port of a game made with
+   PS2RC, or a program built from any of these.
+   "Distribute" means to give a copy to anyone else in any way, including publishing it,
+   uploading it, or offering it for download.
+   "Game Data" is any material taken or produced from a game's disc or files: its program
+   code, in its original form or translated, recompiled or generated from it by a tool
+   or by hand (including the C source PS2RC generates from a game and any program built
+   from that source), its assets (graphics, models, sound, music, video, text, scripts,
+   maps) and its data tables, in any form or encoding. Facts needed to work with a game,
+   such as the addresses, sizes and names of the functions a game pack hooks, or the
+   checksums that identify a disc, are not Game Data under this licence; whether you may
+   publish them is your responsibility (section 2(f)).
+   "A Reserved Game" is a game, identified by its disc serial, that SandstoneDev has
+   declared reserved in a RESERVED.md notice published by SandstoneDev in a SandstoneDev
+   repository on GitHub, or on the community server named in section 2(b).
+
+1. WHAT YOU MAY DO
+
+   Free of charge, and as long as you follow section 2, you may:
+   (a) read, study and build PS2RC, and run the result;
+   (b) modify PS2RC;
+   (c) use PS2RC, modified or not, to recompile a game from a copy you legally own, and
+       run the result yourself;
+   (d) make Derived Works, including support for games that PS2RC does not support yet;
+   (e) Distribute Derived Works, as source code and as programs, provided they contain
+       no Game Data (section 2(d)).
+
+2. CONDITIONS
+
+   (a) Free of charge. Every Derived Work must be Distributed for free. You may not sell
+       it, rent it, charge for it or for access to it, or put it or any part or early
+       version of it behind a paywall or subscription. You may accept voluntary
+       donations only if they gate nothing: no feature, build, download, early access,
+       support priority or anything else may be tied to a donation, and no donation
+       may be a condition of getting or using anything.
+   (b) Credit the original recompiler. The documentation of every Derived Work (its
+       README or equivalent), and every page where you publish or release it, must carry
+       this credit:
+           Based on PS2RC by SandstoneDev
+           https://github.com/SandstoneDev/PS2RC
+           Community: https://discord.gg/wV8x46ZTDu
+       You may not remove or hide this credit, claim that you wrote PS2RC, or suggest
+       that SandstoneDev endorses your work. A credit inside the program is welcome but
+       not required: the start-up credit screen PS2RC ships with may be kept, changed or
+       removed.
+   (c) Same licence for PS2RC's code. If you Distribute the source code of a Derived
+       Work, include this LICENSE file and NOTICE.md unchanged. The parts that come from
+       PS2RC, and your changes to them, stay under this licence. Your own new code (for
+       example a new game pack or a new module) may be under any licence that does not
+       conflict with this one.
+   (d) No Game Data. A Derived Work must not contain Game Data, and you must not
+       Distribute Game Data with it, alongside it, or as an add-on to it: not as files,
+       disc images or patches that contain it, not embedded in source code (as arrays,
+       strings or encoded blobs), and not as links to copies of it. Every user supplies a
+       game from a copy they legally own; translating and building a game happens on the
+       user's own machine, for the user's own use.
+   (e) Not a Reserved Game. You may not Distribute PS2RC, a program built with it, or any
+       Derived Work that runs a Reserved Game in whole or in part, or that is made to work
+       with a Reserved Game's files (for example a game pack or a modified game pack, a
+       patch, a build or a conversion tool for it). This applies to every Derived Work
+       Distributed after the notice that declares the game reserved. One exception: you
+       may keep a fork of a SandstoneDev repository on GitHub, and change it there, only
+       to prepare contributions (pull requests) to that repository; you may not publish
+       releases or builds from such a fork. A Derived Work made for another game, or for
+       software of your own, is not affected. Only SandstoneDev distributes work for a
+       Reserved Game.
+   (f) Your responsibility. This licence gives no rights to any game, to any trademark,
+       or to third-party code beyond what that code's own licence gives. You are
+       responsible for complying with the laws that apply to you, including those on
+       copies of software you own.
+
+3. CONTRIBUTIONS
+
+   By submitting a contribution to this repository (a pull request, a patch, or code in
+   an issue or comment), you:
+   (a) confirm that the contribution is your own original work, or that you have the
+       right to submit it under these terms;
+   (b) confirm that it contains no code or material you are not entitled to submit, in
+       particular no source code obtained without its owner's permission, no code or
+       material taken from a proprietary SDK or from confidential documentation, no
+       output of a tool that turns compiled programs back into source code, and no Game
+       Data;
+   (c) grant SandstoneDev a perpetual, worldwide, non-exclusive, royalty-free,
+       irrevocable licence to use, copy, modify, sublicense and distribute the
+       contribution, as part of the PS2RC project, under any licence terms, including in
+       source and binary releases.
+
+4. NO AFFILIATION, TRADEMARKS
+
+   PS2RC is an independent project. It is not affiliated with, authorised or endorsed by
+   Sony Interactive Entertainment or by any game developer or publisher. "PlayStation",
+   "PS2" and "PSP" are trademarks of Sony Interactive Entertainment Inc.; all other
+   trademarks belong to their respective owners and are used only to describe what
+   PS2RC works with. This licence grants no right to use any trademark, including the
+   name of a game, in a way that suggests endorsement.
+
+5. END OF PERMISSION
+
+   If you break these terms, your permission to use PS2RC ends automatically, and you
+   must stop Distributing every Derived Work. SandstoneDev may restore it in writing.
+
+6. NO WARRANTY
+
+   PS2RC IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+   INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+   PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+   HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+   CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH PS2RC OR THE
+   USE OR OTHER DEALINGS IN PS2RC.
+
+7. THIRD-PARTY CODE
+
+   Files from third parties keep their own licences, listed in NOTICE.md. These terms do
+   not restrict what those licences allow.
+
+---
+
+NOTE ON GAME CONTENT
+
+This repository contains only original source code and documentation. It contains no
+game data and grants no rights to any.
+
+PS2RC is provided for interoperability, preservation and homebrew use with a copy of a
+game that you legally own. It ships no game code or assets: it works only on a disc
+image that the user supplies, on the user's own machine. All trademarks and copyrighted
+game content remain the property of their respective owners.
+
+Rightsholders with concerns are welcome to contact the maintainer before filing a
+formal notice: through the repository's issue tracker, the community server
+(https://discord.gg/wV8x46ZTDu), or by e-mail to sandstonedevpsp@gmail.com.

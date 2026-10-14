@@ -1,0 +1,13 @@
+# exports.exp - the exports of ps2rc_exc.prx. module_stop must be listed: the kernel finds a module's stop entry
+# only through its exports (PSPSDK's default export object lists module_start and module_info, so without this
+# file module_stop never ran: sceKernelStopModule returned 0 and the unload freed the default exception handler and the
+# Media Engine sysevent handler while the kernel still pointed at them).
+PSP_BEGIN_EXPORTS
+
+PSP_EXPORT_START(syslib, 0, 0x8000)
+PSP_EXPORT_FUNC_HASH(module_start)
+PSP_EXPORT_FUNC_HASH(module_stop)
+PSP_EXPORT_VAR_HASH(module_info)
+PSP_EXPORT_END
+
+PSP_END_EXPORTS
