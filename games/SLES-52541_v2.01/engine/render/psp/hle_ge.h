@@ -7,7 +7,7 @@
  * raster address + an upload version bumped on create / texture read / unlock / destroy). The debug log keeps showing:
  * the screen text is recorded (pspDebugScreenPrintf is wrapped at link time) and drawn over the game picture; the
  * end of the run, a crash and a stall (no flip for 3 s) switch the screen back to the plain text console.
- * poc6.cfg: render=ge|text (default ge), ge_text=N overlay rows (12), ge_tex_kb=N texture arena (2048),
+ * ps2rc.cfg: render=ge|text (default ge), ge_text=N overlay rows (12), ge_tex_kb=N texture arena (2048),
  * im2d_guest=0|1 (1: the translated original 2D draw functions still run), ge_clear=0|1, ge_dump=flip,flip,... (BMPs). */
 #ifndef HLE_GE_H
 #define HLE_GE_H
@@ -79,7 +79,7 @@ void hle_ge_3d_forget(void);
 int hle_ge_movie_begin(void);
 void hle_ge_movie_frame(const void *pic, int rgba8888, uint32_t dump);   /* dump: BMP tag, 0 = none */
 void hle_ge_movie_end(void);
-/* GE serial probe categories (poc6.cfg ge_ser) - the entry points mark what they
+/* GE serial probe categories (ps2rc.cfg ge_ser) - the entry points mark what they
    draw; on a probe frame a change of category cuts the list (sent + waited for: the GE time of that part) */
 enum { GS_OTHER, GS_CLEAR, GS_2D, GS_W3D, GS_W3DM, GS_FX, GS_PFX, GS_FLIP, GS_N };
 void hle_ge_ser_mark(int cat);

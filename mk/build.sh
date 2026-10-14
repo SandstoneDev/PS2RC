@@ -161,13 +161,13 @@ if [ "$TARGET" = host ]; then
   GEN_OPT="-O1"
   [ -n "$MASKBASE" ] && GEN_OPT="$GEN_OPT -DRMB_CHECK"
   echo "$GEN_OPT" > flags.new                              # objects of other flags are rebuilt
-  cmp -s flags.new flags.txt || rm -rf obj/gen poc6_host
+  cmp -s flags.new flags.txt || rm -rf obj/gen ps2rc_host
   mv flags.new flags.txt
-  make -f "$SRC/mk/Makefile.host" -j"$J" poc6_host GEN_OPT="$GEN_OPT" CFLAGS_HLE_EXTRA="$HLE_DEFS" 2>&1 \
+  make -f "$SRC/mk/Makefile.host" -j"$J" ps2rc_host GEN_OPT="$GEN_OPT" CFLAGS_HLE_EXTRA="$HLE_DEFS" 2>&1 \
       | grep -v "^make" | tail -40
   test "${PIPESTATUS[0]}" = 0
   echo "build wall time: $(( $(date +%s) - start )) s"
-  ls -la "$B/poc6_host" | awk '{print "binary:", $5, "bytes"}'
+  ls -la "$B/ps2rc_host" | awk '{print "binary:", $5, "bytes"}'
   exit 0
 fi
 # 4. PSP: all generated units in parallel, then HLE + link + EBOOT
@@ -192,17 +192,17 @@ make -f "$SRC/mk/Makefile.psp" -j"$J" gen_objs GEN_EXTRA="$GEN_EXTRA" HLE_EXTRA=
     LAYOUT_ORDER="$LAYOUT_ORDER" > make_gen.log 2>&1 || { grep -E "error|Error" make_gen.log | head -20; exit 1; }
 echo "generated units compiled: $(grep -c 'psp-gcc -c' make_gen.log) in $(( $(date +%s) - start )) s"
 rm -f PARAM.SFO                                        # build.mak never remakes it (a stale menu title otherwise)
-rm -f poc6.elf                                         # relink: order.ld is not a make dependency
+rm -f ps2rc.elf                                         # relink: order.ld is not a make dependency
 make -f "$SRC/mk/Makefile.psp" HLE_DEFS="$HLE_DEFS" HLE_BUILD="$HLE_BUILD" PSP_TITLE="$PACK_TITLE" PACK_LDFLAGS="$PACK_PSP_LDFLAGS" GEN_EXTRA="$GEN_EXTRA" \
     HLE_EXTRA="$HLE_EXTRA" LAYOUT_ORDER="$LAYOUT_ORDER" 2>&1 | tee make.log | grep -E "error|warning|stubs out of order" | head -40 || true
 if grep -q "stubs out of order" make.log; then echo "BUILD ERROR: stubs out of order"; exit 1; fi
 test -f EBOOT.PBP
 psp-size -t obj/gen/*.o | tail -1 | awk '{print "generated code: text", $1, "data", $2, "bss", $3}'
 psp-size -t obj/hle/*.o | tail -1 | awk '{print "HLE runtime: text", $1, "data", $2, "bss", $3}'
-psp-size poc6.elf
+psp-size ps2rc.elf
 ls -la EBOOT.PBP
 mkdir -p "$PKG_OUT"
 cp EBOOT.PBP "$PKG_OUT/EBOOT.PBP"
-cp poc6.elf "$PKG_OUT/poc6.elf"                        # symbols: maps a crash EPC to its function
-psp-size -A poc6.elf > "$PKG_OUT/poc6_size.txt"
+cp ps2rc.elf "$PKG_OUT/ps2rc.elf"                        # symbols: maps a crash EPC to its function
+psp-size -A ps2rc.elf > "$PKG_OUT/ps2rc_size.txt"
 echo "build wall time: $(( $(date +%s) - start )) s (EBOOT.PBP -> $PKG_OUT)"

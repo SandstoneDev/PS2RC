@@ -8,7 +8,7 @@
  * forward = "the sound on the loading screen is sped up". the x_pace starts at the first main-loop iteration,
  * so it does not cover this phase.
  *
- * poc6.cfg keys (host: environment HLE_X_<KEY>), read at the first time charge; default = as before:
+ * ps2rc.cfg keys (host: environment HLE_X_<KEY>), read at the first time charge; default = as before:
  *   x_bootpace=0|1|2  0 (default): as before. Only before the first main-loop iteration:
  *                     1 = no debt: at idle points lag above x_bootlag ms is forgiven - the loading screens run at 1x
  *                         real time after the slow init (the CPU-bound init itself is unchanged);

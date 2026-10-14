@@ -1,4 +1,4 @@
-/* hle_plat.h - what the PoC-6 HLE core (src/hle/hle_*.c) needs from the platform it runs on.
+/* hle_plat.h - what the HLE core (hle/core/hle_*.c) needs from the platform it runs on.
  *
  * Two implementations of the same interface:
  *   host (x86-64 Linux, WSL): src/hle/hle_host.c - ucontext coroutines on mmap'ed stacks, POSIX files, SIGALRM watchdog

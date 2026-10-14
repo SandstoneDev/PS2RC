@@ -5,7 +5,7 @@
  * frame 2000 = vtime 40 s at real 69.9 s), so in the main loop the pacing never waited again: every iteration faster than the game's
  * 2-VBlank limit (40 ms PAL) ran unpaced and the game clock ran up to 1.3x faster than real time ("time accelerated").
  *
- * poc6.cfg keys (host: environment HLE_X_<KEY>), all read once at the first main-loop iteration; defaults = as before:
+ * ps2rc.cfg keys (host: environment HLE_X_<KEY>), all read once at the first main-loop iteration; defaults = as before:
  *   x_pace=0|1|2    0 (default): as before. 1: no debt - from the first main-loop iteration virtual time may lag the
  *                   real clock by at most x_pacelag ms (the rest is forgiven): the game's own 2-VBlank limit becomes a
  *                   real-time cap (25 fps at 50 Hz, 30 fps at x_pal50=0); below the cap the game runs in slow motion.

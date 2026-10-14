@@ -111,7 +111,7 @@ def is_ps2rc_folder(folder):
     if os.path.isfile(os.path.join(folder, MANIFEST)):
         return True
     return os.path.isfile(os.path.join(folder, "EBOOT.PBP")) and any(
-        os.path.isfile(os.path.join(folder, n)) for n in ("poc6.cfg", "ps2rc.cfg", "iso_meta.bin"))
+        os.path.isfile(os.path.join(folder, n)) for n in ("ps2rc.cfg", "iso_meta.bin"))
 
 
 def game_folders(drive_list):

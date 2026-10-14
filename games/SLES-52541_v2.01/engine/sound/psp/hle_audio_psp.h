@@ -8,7 +8,7 @@
  * Memory: one partition block (~2.7 MB: SPU RAM image 2 MB, the IOP's config tables, the ring, the stream read cache);
  * thread stack 16 KB.
  *
- * poc6.cfg: audio=1|0 (default 1; 0 = the silent responder), audio_vol=0..100 (100), audio_sync=stretch|gap|pitch,
+ * ps2rc.cfg: audio=1|0 (default 1; 0 = the silent responder), audio_vol=0..100 (100), audio_sync=stretch|gap|pitch,
  * audio_latency_ms=N (120), audio_stretch_max=N (4), audio_interp=linear|nearest, audio_voices=N (16: only the N loudest
  * sounding voices are mixed, the others keep their exact IOP-visible state - 0 = all 48), audio_out=1|0 (0: the driver
  * runs, nothing is played - CPU A/B), audio_cache_kb=N (128; stream read cache, 0 = off), audio_prio=N (0x12),
@@ -38,7 +38,7 @@
 #include <stdint.h>
 #include "snd_driver.h"
 
-/* reads poc6.cfg, allocates, binds the driver; 1 = ready, 0 = use the silent responder (audio=0 or a failure) */
+/* reads ps2rc.cfg, allocates, binds the driver; 1 = ready, 0 = use the silent responder (audio=0 or a failure) */
 int hle_audio_psp_init(void (*log)(void *user, int level, const char *fmt, ...));
 /* one SIF RPC to 0x65686580 (fno 0 init, fno 1 frame); now_us = virtual time in microseconds (as audio_host_rpc) */
 int hle_audio_psp_rpc(uint32_t fno, const void *send, uint32_t ssize, void *recv, uint32_t rsize, uint64_t now_us);

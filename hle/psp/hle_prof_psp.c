@@ -87,7 +87,7 @@ int hle_plat_hw_door(uint32_t raw[20])
     return raw[1] != 0 || raw[2] != 0;         /* the reader ran (the clock counters are never 0 while counting) */
 }
 
-/* the capture buffer (poc6.cfg prof_capture=N): a block from the free user memory (~6 MB after the guest window on
+/* the capture buffer (ps2rc.cfg prof_capture=N): a block from the free user memory (~6 MB after the guest window on
    the PSP-3000, build 21), high end; never the 768 KB newlib heap the disc layer allocates its paths from */
 void *hle_plat_prof_alloc(size_t n)
 {

@@ -129,7 +129,7 @@ void w3d_be_prims(uint32_t vtype, const void *verts, int n);
 void w3d_be_end(void);                     /* after an atomic */
 void w3d_be_report(void);
 
-/* configuration (PSP: poc6.cfg keys world3d, mesh_guest, w3d_kb, w3d_cull,
+/* configuration (PSP: ps2rc.cfg keys world3d, mesh_guest, w3d_kb, w3d_cull,
    w3d_fog, w3d_clip, w3d_front, w3d_afail, w3d_light, w3d_gnear, w3d_dnq, w3d_rebake_us, w3d_chunk; host: environment
    HLE_WORLD3D, HLE_MESH_GUEST, HLE_W3D_KB, ... = the key in upper case with HLE_ in front) */
 extern int w3d_opt_on, w3d_opt_guest, w3d_opt_kb, w3d_opt_cull, w3d_opt_fog, w3d_opt_clip, w3d_opt_front, w3d_opt_afail;

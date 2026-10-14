@@ -1,6 +1,6 @@
 /* hle_mcfs_psp.c - PSP file layer of the memory card HLE (hle/core/hle_memcard.c, hle_memcard.h).
  *
- * poc6.cfg (next to the EBOOT):
+ * ps2rc.cfg (next to the EBOOT):
  *   memcard=1|0        1 (default): a PS2 memory card in slot 1, 0: slot 1 empty (the old "not inserted" behaviour)
  *   memcard_dir=<dir>  the card's folder; default <data dir>memcard/slot1/ where <data dir> is disc_dir= when set
  *                      (thin A/B folders share the main folder's card) or the EBOOT's folder. A relative path is
@@ -17,7 +17,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "hle.h"
-#include "hle_cfg.h"                 /* the shared poc6.cfg table */
+#include "hle_cfg.h"                 /* the shared ps2rc.cfg table */
 #include "hle_memcard.h"
 
 /* src/hle/psp/hle_psp.c: closes the disc layer's least recently used file (0 if none); weak so that this file links
@@ -45,7 +45,7 @@ int hle_plat_mc_config(char *root, size_t n)
         if ((x = hle_cfg_get("memcard_dir"))) snprintf(mdir, sizeof mdir, "%s", x);
         if ((x = hle_cfg_get("disc_dir"))) snprintf(ddir, sizeof ddir, "%s", x);
     }
-    if (!on) { LOG("memcard: poc6.cfg memcard=0\n"); return 0; }
+    if (!on) { LOG("memcard: ps2rc.cfg memcard=0\n"); return 0; }
     if (mdir[0]) {
         int abs = strchr(mdir, ':') != NULL;
         snprintf(root, n, "%s%s%s", abs ? "" : hle_plat_disc_root(), mdir, mdir[strlen(mdir) - 1] == '/' ? "" : "/");

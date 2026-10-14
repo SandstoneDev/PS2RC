@@ -33,10 +33,13 @@ files = ["clothes.pm", "credits.pm", "cutscene.pm", "fileload.pm", "init.pm", "j
 main_loop = "main_loop_iteration_2433d0"   # TRACE label: its calls are the main-loop iterations (--mainloop-limit)
 selftest_at = "game_init_data"             # TRACE label: the host --selftest runs at its entry
 wait_loops = [0x0034DFD8]                  # pure DMA wait loop of the render driver: time jumps to the next event
-cfg = "poc6.cfg"                           # the PSP run options file next to the EBOOT
+cfg = "ps2rc.cfg"                          # the PSP run options file next to the EBOOT
+# the settings file's name in folders converted by version 0.1.0 (backward compatibility): the runtime reads it (and
+# its _dev twin) only when the current name is not there; an update carries its values over and keeps it as .old
+cfg_legacy = "poc6.cfg"
 # host runs: the cfg keys with these prefixes are exported as HLE_<KEY> environment variables (the modules' host readers)
 cfg_env_prefixes = ["tune_", "postfx", "water", "sky", "ab_", "bc_", "idle_view", "hitch_", "im2d_guest"]
-psp_module = "PS2RC_POC6"
+psp_module = "PS2RC"
 zones = [["xworld", "x.world", 0, 1]]      # extra HLE profiler zones of the pack's modules (id, name, flags, rate)
 
 [boot.crt0]                                # the ELF entry's start-up facts (hle/core/hle_crt0.c, profile public)
@@ -94,7 +97,7 @@ psp_ldflags = ["-Wl,--wrap=pspDebugScreenPrintf", "-Wl,--wrap=hle_ge_flip", "-Wl
                "-Wl,--wrap=hle_ge_rbuf", "-Wl,--wrap=hle_ge_clear", "-Wl,--wrap=hle_ge_camera_begin"]
 
 [run]
-discmap = "{work}/poc6/discmap.txt"
+discmap = "{work}/discmap.txt"
 out = "{work}/phase6psp"                     # host run logs (run_host.sh)
 disc_override = ["STREAM.INI={work}/phase6psp/stream.ini"]
 
@@ -164,7 +167,6 @@ audio_model = true           # the pack's audio_sources are compiled in (AUDIO=1
 psp_gcc = "15.2.0"           # the compiler the pack's code was tuned and checked with
 
 [stage]
-folder = "PS2RC_POC6"        # the folder under PSP/GAME/
 include = ["DATA/*", "*.PM", "MODELS/*", "TEXT/*"]
 exclude = ["MODELS/*.IMG"]
 # disc files the runtime reads beyond the rules above
@@ -196,3 +198,20 @@ aliases = { movies = "intro_movies", audio = "sound" }
 # a disc FOLDER (instead of the image) has no sector numbers: the converter then needs this layout, made once from
 # the image; an ISO image needs nothing here
 layout = "analysis/iso_layout_v201.txt"
+
+[xmb.music]
+# menu music from the player's own disc (ps2rc/xmb/disc_scan.py, read only when he asks, kept in his cache): the
+# layout of the disc's music tracks (interleaved PS-ADPCM sub-streams)
+names = "AUDIO/CONFIG/STRMPAKS.DAT"    # container names: 16-byte records, the name in the first 12 bytes
+names_record = 16
+names_len = 12
+index = "AUDIO/CONFIG/TRAKLKUP.DAT"    # one record per track: u8 container, 3 pad bytes, u32 offset, u32 size
+index_record = "<B3xII"
+container = "AUDIO/STREAMS/{name}.PAK"
+header = 0x1F84                        # track header size; the audio data follows it
+streams = 0x1F40                       # sub-stream table in the header: {u32 bytes, u32 rate} each
+streams_max = 8
+stream_count = 0x1F80                  # u16: sub-streams in use
+period = 0x21000                       # the sub-streams' data alternate in periods of this many bytes ...
+period_rate = 49500                    # ... each sub-stream's share of a period = rate * period / period_rate bytes
+default_category = "radio"             # containers not named after a category of the window's music list

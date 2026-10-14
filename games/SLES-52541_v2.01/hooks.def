@@ -193,23 +193,23 @@ HOOK(002713b0, entity_visibility)
 HOOK(00291f20, vis_set_camera)
 
 /* ---- 3D world (hle_w3d.c): the mesh node body every one of the game's mesh pipelines runs; building atomics are
-   drawn by the PSP GE (poc6.cfg world3d and the guest-pipeline switch), everything else - and every atomic when
+   drawn by the PSP GE (ps2rc.cfg world3d and the guest-pipeline switch), everything else - and every atomic when
    world3d=0 - runs the translated original unchanged */
 HOOK(00391398, mesh_node_body)
 
-/* ---- water (hle_water.c): the water batch renderer (VU1 water_0..3) - its entries drawn by the GE (poc6.cfg
+/* ---- water (hle_water.c): the water batch renderer (VU1 water_0..3) - its entries drawn by the GE (ps2rc.cfg
    water / water_*); water=0: the translated original as before (nothing drawn) */
 HOOK(00182850, water_render)
 HOOK(003c6950, water_batch)
 
 /* ---- the sky (hle_sky.c): sky_polys only marks its scope; the game's immediate-mode 3D buffer flush
-   (buffer_render), when called inside it, has the HLE draw the sky gradient (poc6.cfg sky / sky_guest); every call
+   (buffer_render), when called inside it, has the HLE draw the sky gradient (ps2rc.cfg sky / sky_guest); every call
    then runs the translated original unchanged (sky_guest=0: the sky's immediate-mode transform / draw is skipped) */
 HOOK(002ede60, sky_polys)
 HOOK(002f5de0, buffer_render)
 
 /* ---- less game work per frame (hle_tune.c): the time-of-day update runs its translated original unchanged; with
-   poc6.cfg tune_* keys the HLE then scales the far clip / fog, the LOD distance scale and the density multipliers
+   ps2rc.cfg tune_* keys the HLE then scales the far clip / fog, the LOD distance scale and the density multipliers
    (all keys default off: nothing written) */
 HOOK(00278320, daycycle_update)
 /* streaming budget (tune_strmem): the memory manager's emergency paths, counted / timed by hle_tune.c (the originals
@@ -218,12 +218,12 @@ HOOK(00244590, heap_defrag)
 HOOK(002c5e40, stream_free_behind)
 
 /* ---- the idle camera (hle_idleview.c): idle_view_due runs its translated original (2700 standing-still FRAMES =
-   108 s on the PAL PS2, ~225 s at the PSP's ~12 fps); with poc6.cfg idle_view=ps2 (PSP default) the answer is the
+   108 s on the PAL PS2, ~225 s at the PSP's ~12 fps); with ps2rc.cfg idle_view=ps2 (PSP default) the answer is the
    same 108 s of real time instead (idle_view=game: the original's) */
 HOOK(00207c60, idle_view_due)
 
 /* ---- the PS2 post-processing colour filter (hle_postfx.c): called once per gameplay frame by the post-effects pass
-   0x514300 with the two time-of-day filter colours; the HLE multiplies the picture by them (poc6.cfg postfx /
+   0x514300 with the two time-of-day filter colours; the HLE multiplies the picture by them (ps2rc.cfg postfx /
    postfx_filter), then runs the translated original (raw GS packets the HLE drops; postfx_guest=0 skips it); the
    glow pass 0x518280 the same way (postfx_radiosity, postfx_rad_guest) */
 HOOK(0051a760, postfx_colour)

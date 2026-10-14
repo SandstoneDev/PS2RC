@@ -6,7 +6,7 @@
  * D_STAT.CIS and raises the DMAC interrupt; it is delivered at the next safe point (not inside the register store).
  * Every register access is a safe point (fixed virtual-time charge), so hardware polling loops always progress.
  *
- * Which accesses get here: the host v0 harness traps every non-RAM address (tests/poc6/patch_rt_header.py "host");
+ * Which accesses get here: the host v0 harness traps every non-RAM address (ps2rc/pipeline/patch_rt_header.py "host");
  * the PSP build traps only in the functions of the trap set (tests/phase6psp/trapset.py: rtx_* / rmx_* accessors) -
  * everywhere else non-RAM addresses are masked into RAM, which is right for the scratchpad (aliased at guest RAM
  * 0x0000-0x3FFF, hle_spr == hle_ram) and the uncached/KSEG mirrors. hle_plat_note_mmio records who accessed hardware
@@ -437,7 +437,7 @@ static void mem_write(R5900Ctx *c, uint32_t a, int size, uint64_t v)
    before the profiler scope and the class counters (build 23 on the PSP-3000: ~2,700 such calls per main-loop
    iteration at ~0.7 us each through PZ_SCOPE + plain()). Same addresses and the same order as plain() (RAM below the
    end, mirrors, scratchpad); everything else - KSEG, VU memory, registers - takes the unchanged slow path below.
-   Build 24 inlined this check into all 5,036 trap-set accessors instead (tests/poc6/patch_rt_header.py --alias
+   Build 24 inlined this check into all 5,036 trap-set accessors instead (ps2rc/pipeline/patch_rt_header.py --alias
    inline): +284 KB of code and every zone slower; `--alias call` keeps one out-of-line call per access and lands here. */
 uint32_t hle_memtrap_fast;              /* accesses served by fast_plain (reported with the classes) */
 static inline uint8_t *fast_plain(uint32_t a, uint32_t size)

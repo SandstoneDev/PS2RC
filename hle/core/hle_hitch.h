@@ -31,7 +31,7 @@ extern int hle_hitch_opt_window;            /* seconds between window lines (0 =
 extern int hle_hitch_opt_logstream;         /* hitch_logstream=N: the pack's streaming hook logs conversions >= N us */
 extern uint64_t hle_hitch_it_n;             /* main-loop iterations seen so far */
 
-void hle_hitch_cfg(const char *k, const char *v);   /* poc6.cfg hitch_* keys */
+void hle_hitch_cfg(const char *k, const char *v);   /* ps2rc.cfg hitch_* keys */
 void hle_hitch_tick(void);                  /* a main-loop iteration starts (hle_mainloop_tick) */
 void hle_hitch_report(void);                /* end of run */
 uint64_t hle_hitch_now_us(void);            /* the clock used by the counters (game thread) */

@@ -45,7 +45,8 @@ def _done(events):
 def test_first_run_then_cached(env):
     iso, repo, out = env
     res, ev = _run(iso, repo, out)
-    work = os.path.join(out, "_ps2rc_work")
+    work = os.path.join(os.environ["LOCALAPPDATA"], "PS2RC", "work")
+    assert not os.path.exists(os.path.join(out, "_ps2rc_work"))      # never inside the output
     done = _done(ev)
     assert done["extract"] is False and done["analysis"] is False and done["translate"] is False
     assert open(os.path.join(work, "trans", "unit_000.c")).read().startswith("int f(void)")
@@ -94,7 +95,7 @@ def test_failing_command_reports_log(tmp_path, monkeypatch):
 def test_estimate_only_and_disk_check(env, monkeypatch):
     iso, repo, out = env
     res, ev = _run(iso, repo, out, estimate_only=True)
-    assert "estimate" in res and not os.path.exists(os.path.join(out, "_ps2rc_work", "disc", "SLES_123.45"))
+    assert "estimate" in res and not os.path.exists(os.path.join(os.environ["LOCALAPPDATA"], "PS2RC", "work", "disc", "SLES_123.45"))
     from ps2rc.convert import estimate as est
     monkeypatch.setattr(est.shutil, "disk_usage", lambda p: type("U", (), {"free": 1000})())
     with pytest.raises(ConvertError) as e:
@@ -162,9 +163,9 @@ def test_full_run_with_fake_build(env, monkeypatch):
 
     def link(self):
         elf = b"\x7fELF" + bytes(60)
-        for n in ("poc6.elf", "poc6_strip.elf"):
+        for n in ("ps2rc.elf", "ps2rc_strip.elf"):
             open(os.path.join(self.bdir, n), "wb").write(elf)
-        return os.path.join(self.bdir, "poc6.elf"), os.path.join(self.bdir, "poc6_strip.elf")
+        return os.path.join(self.bdir, "ps2rc.elf"), os.path.join(self.bdir, "ps2rc_strip.elf")
 
     def prx(self):
         os.makedirs(os.path.join(self.bdir, "prx"), exist_ok=True)
@@ -187,7 +188,7 @@ def test_full_run_with_fake_build(env, monkeypatch):
     res = Conversion(Options(iso, out, repo=repo, title="My PSP title", icon0=icon, audio="all", movies="auto"),
                      prog).run()
     folder = res["folder"]
-    assert os.path.basename(folder) == "PS2RC_TEST"
+    assert os.path.basename(folder) == "PS2RC_SLES12345"          # PS2RC_<serial>, as in the window
     p = Pbp.read(os.path.join(folder, "EBOOT.PBP"))
     sfo = Sfo.parse(p["PARAM.SFO"])
     assert sfo.get("TITLE") == "My PSP title" and sfo.get("DISC_ID") == "PSRC12345" and sfo.get("MEMSIZE") == 1

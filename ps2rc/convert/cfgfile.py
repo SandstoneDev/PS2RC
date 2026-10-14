@@ -9,6 +9,8 @@ value is a comment, keys case-insensitive, a key given twice: the later line win
     merge_player(old, template, old_keys)    an update: the player's values kept, new keys with their defaults,
                                              keys the new template dropped commented out
     player_cfg_template(pack, source, lang)  the template text (the GUI's settings page)
+    cfg_moves(folder, cfg_name, legacy)      a folder's files still under the pack's older cfg name ([runtime]
+                                             cfg_legacy); an update merges them into the new name, keeps <name>.old
 """
 import os
 import re
@@ -122,6 +124,29 @@ def merge_player(old, template, old_template_keys=None, forget=()):
 def dev_name(cfg_name):
     stem, ext = os.path.splitext(cfg_name)
     return stem + "_dev" + ext
+
+
+def cfg_moves(folder, cfg_name, legacy):
+    """[(old name, new name)] of the run options files a folder still has under the pack's older name ([runtime]
+    cfg_legacy: a folder converted by an earlier version) and not yet under the current one: the player's file and its
+    <name>_dev<.ext> twin. The runtime reads the old name only while the new one is missing; an update moves it."""
+    if not legacy or legacy == cfg_name or not os.path.isdir(folder):
+        return []
+    return [(old, new) for old, new in ((legacy, cfg_name), (dev_name(legacy), dev_name(cfg_name)))
+            if os.path.isfile(os.path.join(folder, old)) and not os.path.isfile(os.path.join(folder, new))]
+
+
+KEPT_OLD = ("*.cfg.old", "*.cfg.old.*")      # an old settings file kept by an update (never checked, never touched)
+
+
+def keep_old(folder, name):
+    """Rename folder/name to name.old (name.old.2, .3 ... when taken) -> the new name."""
+    base = name + ".old"
+    cand, n = base, 2
+    while os.path.exists(os.path.join(folder, cand)):
+        cand, n = "%s.%d" % (base, n), n + 1
+    os.replace(os.path.join(folder, name), os.path.join(folder, cand))
+    return cand
 
 
 def pack_templates(pack):

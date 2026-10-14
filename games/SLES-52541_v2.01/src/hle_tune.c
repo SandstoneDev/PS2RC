@@ -8,7 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "hle.h"
-#include "hle_cfg.h"                 /* the shared poc6.cfg table */
+#include "hle_cfg.h"                 /* the shared ps2rc.cfg table */
 #include "hle_tune.h"
 #ifdef HLE_PSP
 #include <pspiofilemgr.h>

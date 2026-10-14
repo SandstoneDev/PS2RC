@@ -155,3 +155,17 @@ def test_music_off_on_windows_without_media_foundation(monkeypatch, tmp_path):
 def test_default_icon_is_the_owners_choice():
     import app_icon
     assert app_icon.DEFAULT == 2                     # variant 2, the "PS2RC" mark
+
+
+def test_python_package_licences_are_copied(tmp_path):
+    site, lic = tmp_path / "site", tmp_path / "licenses"
+    (site / "pillow-12.2.0.dist-info" / "licenses").mkdir(parents=True)
+    (site / "pillow-12.2.0.dist-info" / "licenses" / "LICENSE").write_text("HPND")
+    (site / "pyelftools-0.32.dist-info").mkdir()
+    (site / "pyelftools-0.32.dist-info" / "LICENSE").write_text("public domain")
+    (site / "pyelftools-0.32.dist-info" / "RECORD").write_text("x")
+    (site / "pyside6_essentials-6.11.2.dist-info").mkdir()
+    (site / "pyside6_essentials-6.11.2.dist-info" / "LICENSE").write_text("Qt has its own")
+    assert build_app.package_licences(str(site), str(lic)) == 2
+    assert (lic / "pillow" / "LICENSE").read_text() == "HPND" and (lic / "pyelftools" / "LICENSE").exists()
+    assert not (lic / "pyelftools" / "RECORD").exists() and not (lic / "pyside6_essentials").exists()

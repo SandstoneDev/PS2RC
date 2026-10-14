@@ -1,4 +1,4 @@
-/* hle_ctx.S - coroutine switch for the PoC-6 HLE runtime on the PSP (Allegrex, psp-gcc EABI).
+/* hle_ctx.S - coroutine switch for the HLE runtime on the PSP (Allegrex, psp-gcc EABI).
  *
  * Guest threads are coroutines inside ONE PSP thread (the EE kernel rules are enforced by src/hle/hle_sched.c: a
  * switch only happens at a safe point, by an explicit call). The switch is an ordinary function call, so only the

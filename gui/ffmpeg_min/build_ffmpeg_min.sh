@@ -5,7 +5,7 @@
 #
 # Needs: the ffmpeg release source (unpacked, e.g. ffmpeg-8.0.1 from https://ffmpeg.org/releases/), MSYS2 packages
 # mingw-w64-ucrt-x86_64-gcc, make, pkgconf, mingw-w64-ucrt-x86_64-zlib (PNG), and optionally nasm (without it the
-# decoders, the scaler and x264 are built without SIMD: slower, same results).
+# decoders, the scaler and x264 are built without any assembly (--disable-asm): slower, same results).
 # X264_SRC_DIR (recommended for a shipped build): an unpacked x264 source snapshot
 # (https://code.videolan.org/videolan/x264, a pinned commit); it is built here as a static library and linked in, so
 # the shipped program corresponds exactly to the two source archives. Without it the MSYS2 package
@@ -26,7 +26,10 @@ OUT=$(mkdir -p "$2" && cd "$2" && pwd)
 X264_SRC=${3:+$(cd "$3" && pwd)}
 BUILD=${BUILD:-$OUT/_build}
 mkdir -p "$BUILD"
-ASM=--disable-x86asm
+# without nasm: --disable-asm (inline assembly too). --disable-x86asm alone left swscale's inline MMXEXT set-up on
+# (MMX-layout vertical filter coefficients) without the matching assembly vertical filter: the C filter read them
+# and every planar YUV picture whose height changed came out as garbage
+ASM=--disable-asm
 command -v nasm >/dev/null 2>&1 && ASM=
 X264_CONF="from MSYS2 package mingw-w64-ucrt-x86_64-libx264"
 if [ -n "$X264_SRC" ]; then

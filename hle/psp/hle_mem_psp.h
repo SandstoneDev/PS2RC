@@ -1,9 +1,9 @@
 /* hle_mem_psp.h - the PSP's memory mode and reserves (PSP build only).
  *   - the CFW's SE configuration (SystemControl sctrlSEGetConfig, own import stub in hle_mem_psp.c)
- *   - poc6.cfg mem_volatile=1: the volatile 4 MB partition (sceKernelVolatileMemTryLock + scePowerLock) as a bump
+ *   - ps2rc.cfg mem_volatile=1: the volatile 4 MB partition (sceKernelVolatileMemTryLock + scePowerLock) as a bump
  *     arena for our own big buffers (GE lists + texture arena, MMIO models, the intro movie's buffers), so that the
  *     guest code hole can take the audio block and the user partition can give the guest window (= the game heap)
- *     more memory (poc6.cfg heap_extra_kb=N). Default off: nothing here runs, the memory layout is the old one.
+ *     more memory (ps2rc.cfg heap_extra_kb=N). Default off: nothing here runs, the memory layout is the old one.
  */
 #ifndef HLE_MEM_PSP_H
 #define HLE_MEM_PSP_H
@@ -27,7 +27,7 @@ int hle_mem_vol_unlock(void);                    /* exit: after the GE and the a
 int hle_mem_vol_unlock2(int keep_power);        /* keep_power = 1 keeps the scePowerLock (az_exit=1) */
 int hle_mem_vol_power_unlock_rc(void);           /* its scePowerUnlock result (0x7FFFFFFF = not called) */
 
-/* hle_psp.c: the guest code hole + the reserve policy (poc6.cfg mem_volatile) */
+/* hle_psp.c: the guest code hole + the reserve policy (ps2rc.cfg mem_volatile) */
 int hle_psp_mem_volatile(void);                  /* 1 = mem_volatile=1 AND the partition is locked */
 void *hle_psp_hole_take(size_t size, size_t align);   /* NULL when the hole is full (not zeroed) */
 /* KB that must stay in the hole for allocations still to come (the world3d vertex cache), for hle_audio_psp.c */

@@ -50,7 +50,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "hle.h"
-#include "hle_cfg.h"                 /* the shared poc6.cfg table */
+#include "hle_cfg.h"                 /* the shared ps2rc.cfg table */
 #include "hle_aw_psp.h"
 #include "hle_mem_psp.h"                  /* hle_mem_seconfig (is ARK there?) */
 
@@ -395,7 +395,7 @@ static int ramp_to(unsigned to, unsigned *got_num)
 /* cpu_clock_at=main|thread - ARK's sctrlHENSetSpeed(
    cpu_clock_ark_req, req / 2) at the very first line of main() (before the debug screen, threads, log) or of the game
    thread (after its FCR31 setup, before the log rotation): the bisection between the tiny test EBOOT (342 MHz lived 3
-   of 3) and the game EBOOT (AZD1 died). It reads poc6.cfg itself (the log is not open yet), leaves a breadcrumb file
+   of 3) and the game EBOOT (AZD1 died). It reads ps2rc.cfg itself (the log is not open yet), leaves a breadcrumb file
    az_preclock.txt (open / write / close + sceIoSync) before the call and again after it, measures the spin before /
    after, and the game logs the result later (hle_aw_preclock_report). Emulator: no call. */
 static int pc_stage = -1, pc_req, pc_done, pc_t_call, pc_t_back;
@@ -466,7 +466,7 @@ void hle_aw_preclock_report(void (*logf)(const char *line))
 
 /* ================================================================== cpu_auto
  * "the overclock switches itself on where it can, and off by itself if the game crashes because of it".
- * poc6.cfg:  cpu_auto=0 (off, the default) | 342 | 365;  cpu_auto_reset=N (any number: changing it re-arms after an
+ * ps2rc.cfg:  cpu_auto=0 (off, the default) | 342 | 365;  cpu_auto_reset=N (any number: changing it re-arms after an
  * automatic switch-off).  At the first line of main() (where ARK's call lived in every measured
  * run) and only when ALL hold: not the emulator; ARK present (the sctrlSEGetConfig block's magic); the PLL in
  * family B's shape (09g-like: msb 0x0122, den 2, ratio index 5, 1:1 domains, numerator 73..80) - the only board

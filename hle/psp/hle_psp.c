@@ -36,13 +36,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include "hle.h"
-#include "hle_cfg.h"                 /* the shared poc6.cfg table */
+#include "hle_cfg.h"                 /* the shared ps2rc.cfg table */
 #include "hle_prof.h"                           /* build 22: profiler */
 #include "ps2rc_exc.h"                          /* the crash handler (src/psp_exc, ps2rc_exc.prx next to the EBOOT) */
 #include "hle_hitch.h"                          /* hitch sources (disc, log) */
 #include "hle_mem_psp.h"                        /* memory mode diagnostics, volatile partition, heap_extra_kb */
 #include "hle_aw_psp.h"                         /* results block / results_<seq>.txt / shots, cpu_clock_mhz */
-/* profiler, PSP part (psp/hle_prof_psp.c): hardware counters through ps2rc_exc.prx, off unless poc6.cfg prof_hw >= 1 */
+/* profiler, PSP part (psp/hle_prof_psp.c): hardware counters through ps2rc_exc.prx, off unless ps2rc.cfg prof_hw >= 1 */
 int hle_psp_is_emulator(void);
 Ps2rcPerfBlock *hle_psp_perf_block(void);
 void hle_psp_perf_status(char *out, unsigned n);
@@ -126,7 +126,7 @@ static unsigned heap_extra_kb_got, mem_reserve_kb_used;
 static int vol_lock_rc = 0x7FFFFFFF;
 static unsigned big_in_vol_kb, big_in_part_kb;
 static uint32_t main_sp, main_stack_lo, main_stack_hi;   /* the module's main thread (main()) */
-/* poc6.cfg results=0|1 (default -1 = on for scripted runs, i.e.
+/* ps2rc.cfg results=0|1 (default -1 = on for scripted runs, i.e.
    mainloop_iterations > 0): the end-of-run results block in session.log + results_<seq>.txt + shot_<seq>_results.bmp
    (the final screen) in the EBOOT folder; results_keep=N files of each kind kept (default 20, oldest deleted) */
 static int opt_results = -1, opt_results_keep = 20;
@@ -369,7 +369,7 @@ uint64_t hle_plat_pace_now_us(void)
     return n > 0 ? (uint64_t)n : 0u;
 }
 
-/* poc6.cfg pace_boot=0 - no real-time pacing before the first main-loop
+/* ps2rc.cfg pace_boot=0 - no real-time pacing before the first main-loop
    iteration (test folders). The boot's guest work ends near virtual 34 s on the PSP-3000 and the game's loading screens
    then wait until virtual 40.1 s: 5-6.5 s of the ~40 s boot were idle.pace (hardware logs). Virtual time is
    deterministic, so the guest does the same; only the real wait goes. At the first main-loop pace call the clock is
@@ -852,7 +852,7 @@ void hle_plat_exit(int code)
 
 /* ------------------------------------------------------------------ crash report (ps2rc_exc.prx resumes here)
    User mode, on the faulting thread's own stack 4 KB below the fault sp. Writes the registers (map EPC to a function
-   with the build's poc6.elf: build/phase6psp/b<N>/poc6.elf), the guest state and the trace ring, then waits for X. */
+   with the build's ps2rc.elf: build/phase6psp/b<N>/ps2rc.elf), the guest state and the trace ring, then waits for X. */
 static void crash_report(uint32_t *r)
 {
     az_crashed = 1;                                        /* cpu_auto counts it as a failure */
@@ -984,7 +984,7 @@ static int watchdog(SceSize args, void *argp)
     return 0;
 }
 
-/* ------------------------------------------------------------------ configuration (<EBOOT dir>/poc6.cfg) */
+/* ------------------------------------------------------------------ configuration (<EBOOT dir>/ps2rc.cfg) */
 static void read_config(void)
 {
     if (!hle_cfg_found()) { say("config=none (defaults)\n"); return; }
@@ -1353,11 +1353,11 @@ static int game_main(SceSize args, void *argp)
     free_kb_start = (unsigned)(sceKernelTotalFreeMemSize() >> 10);
     uint32_t fcr31;
     __asm__ volatile("cfc1 %0, $31" : "=r"(fcr31));
-    say("==== ps2rc PoC-6 PSP session ====\n");
+    say("==== PS2RC PSP session ====\n");
     say("build=%d target=psp model=%s fw=%x.%x%x cpu_mhz=%d bus_mhz=%d compiler=gcc-%s\n", HLE_BUILD_NUM,
         free_kb_start > 24576 ? "PSP-2000/3000" : "PSP-1000", (fw >> 24) & 0xFF, (fw >> 16) & 0xFF, (fw >> 8) & 0xFF,
         scePowerGetCpuClockFrequencyInt(), scePowerGetBusClockFrequencyInt(), __VERSION__);
-    say("translation=%s fcr31=%08x log=write-through (every line; poc6.cfg log_sync=0: buffered once the guest runs)\n",
+    say("translation=%s fcr31=%08x log=write-through (every line; ps2rc.cfg log_sync=0: buffered once the guest runs)\n",
         HLE_TRANSLATION, fcr31);
     say("free_kb_start=%u max_free_block_kb=%u window_kb=%u\n", free_kb_start,
         (unsigned)(sceKernelMaxFreeMemSize() >> 10), WINDOW_SIZE >> 10);
@@ -1455,7 +1455,7 @@ static int game_main(SceSize args, void *argp)
         HLE_CODE_HI);
     mem_step("data loaded");
 
-    /* 3. disc map + ISO metadata + the disc files (<dir>disc/; build 25: <disc_dir>disc/ with poc6.cfg disc_dir) */
+    /* 3. disc map + ISO metadata + the disc files (<dir>disc/; build 25: <disc_dir>disc/ with ps2rc.cfg disc_dir) */
     say("step 3: disc map, ISO metadata\n");
     char disc[320], map[320], meta[320];
     snprintf(disc, sizeof disc, "%sdisc", data_dir());
@@ -1468,7 +1468,7 @@ static int game_main(SceSize args, void *argp)
     /* 4. HLE kernel, then run guest thread 1 from the ELF entry */
     say("step 4: HLE kernel (COP0, MMIO model, syscalls, IOP, render hooks, overlays, scheduler)\n");
     hle_set_vcallms_mode(hle_opt_vcallms);
-    hle_pz_init();                                 /* build 22: poc6.cfg prof=1 - zone timing from here */
+    hle_pz_init();                                 /* build 22: ps2rc.cfg prof=1 - zone timing from here */
     hle_boot_init(entry);
     mem_step("HLE kernel ready");
     say("step 5: watchdog thread\n");

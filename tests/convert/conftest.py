@@ -19,3 +19,12 @@ except ImportError:
     if _p not in list(ps2rc.__path__):
         ps2rc.__path__.append(_p)
     import ps2rc.convert  # noqa: F401,E402
+
+
+import pytest  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def _private_work_root(tmp_path, monkeypatch):
+    """The converter's default work folder is %LOCALAPPDATA%/PS2RC/work: the tests' own, never the user's."""
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "localappdata"))

@@ -184,6 +184,25 @@ def copy_qt(site):
             copytree(os.path.join(parent, d), os.path.join(site, d))
 
 
+def package_licences(site, lic):
+    """licenses/<package>/: the licence files of the Python packages shipped (Pillow, pyelftools ...), which
+    otherwise sit only inside their dist-info folders; Qt for Python has its own (qt_licences)"""
+    n = 0
+    for d in sorted(os.listdir(site)) if os.path.isdir(site) else []:
+        if not d.endswith(".dist-info") or d.lower().startswith(("pyside6", "shiboken6")):
+            continue
+        name = d[:-len(".dist-info")].rsplit("-", 1)[0]
+        top = os.path.join(site, d)
+        for dp, _ds, fs in os.walk(top):
+            inside = os.path.relpath(dp, top).lower()
+            for fn in fs:
+                if fn.lower().startswith(LICENCE_NAMES) or "licen" in inside:
+                    os.makedirs(os.path.join(lic, name), exist_ok=True)
+                    shutil.copy2(os.path.join(dp, fn), os.path.join(lic, name, fn))
+                    n += 1
+    return n
+
+
 def qt_licences(lic):
     """licenses/Qt: LGPL-3.0 + GPL-3.0 texts (gui/licenses), the versions and where their source is"""
     import PySide6
@@ -337,6 +356,10 @@ def main(argv=None):
     n, b = copytree(a.source, os.path.join(out, "app"), skip_rel=skip | skip_games, skip_names={"__pycache__"})
     sizes["app"] = b
     print("app: %d files, %.1f MB (packs: %s)" % (n, b / 1e6, ", ".join(packs)))
+    readme = os.path.join(a.source, "docs", "public_ps2rc", "README.md")
+    if os.path.isfile(readme):        # a checkout: its root README is the workshop's, the player gets the public one
+        shutil.copy2(readme, os.path.join(out, "app", "README.md"))
+        print("app/README.md: %s" % readme)
     copy_python(a.python_from, os.path.join(out, "python"), True, a.with_numpy)
     sizes["python"] = du(os.path.join(out, "python"))
     print("python: %.1f MB (from %s, with Pillow%s)" % (sizes["python"] / 1e6, a.python_from,
@@ -374,6 +397,11 @@ def main(argv=None):
             shutil.copy2(src, os.path.join(lic, name))
     qt_licences(lic)
     cc = find_cc(a.cc)
+    for src in (os.path.join(a.source, "NOTICE.md"), os.path.join(a.source, "docs", "public", "NOTICE.md")):
+        if os.path.isfile(src):       # third-party notices and the source offer, next to the licence texts
+            shutil.copy2(src, os.path.join(lic, "NOTICE.md"))
+            break
+    package_licences(os.path.join(out, "python", "Lib", "site-packages"), lic)
     exe = os.path.join(out, "PS2RC Converter.exe")
     ico = make_icon(out)
     if ico:

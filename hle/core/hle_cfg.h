@@ -9,7 +9,9 @@
  *     their range and stored as the internal keys they stand for (tune_far, tune_peds, ...). Friendly name and internal
  *     key are the same setting: whichever line comes LATER in the file wins.
  * PSP: <EBOOT dir><cfg>_dev<.ext> (developer / run options, optional) and then <EBOOT dir> + HLE_PACK_CFG (the
- * player's settings; a key in both: the cfg wins). Host: the files named by HLE_CFG_DEV and HLE_CFG (none = empty table);
+ * player's settings; a key in both: the cfg wins). Each falls back to the older name of the pack's HLE_PACK_CFG_LEGACY
+ * (if it has one) when the current name is not there (a folder converted by an earlier version). Host: the folder
+ * HLE_CFG_DIR (the same names and fallback), then the files named by HLE_CFG_DEV and HLE_CFG (none = empty table);
  * on the host every table key is also exported as the environment variable HLE_<KEY> (upper case) unless
  * that variable is already set, so the host's existing environment readers (HLE_TUNE_PEDS, HLE_X_AGCAM, ...) see the
  * cfg without code changes.

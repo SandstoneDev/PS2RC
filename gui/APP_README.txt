@@ -24,4 +24,8 @@ test; other PSP models are untested - pick Best quality if a PSP stays silent.
 If the window does not open: send %LOCALAPPDATA%\PS2RC\gui_start.log. The log of each conversion is in
 %LOCALAPPDATA%\PS2RC\logs.
 
-Licences of the parts: the licenses folder (Python, Qt for Python / Qt: LGPL-3.0, the toolchain, ffmpeg, atracdenc).
+How to play, the PSP controls and the project: app/README.md. Help > About in the window: version, licence,
+links.
+
+Licences of the parts: the licenses folder (PS2RC, Python, Qt for Python / Qt: LGPL-3.0, Pillow, pyelftools, ffmpeg,
+atracdenc, NOTICE.md with the source offer); the PSP toolchain's own licences: toolchain/licenses.

@@ -29,13 +29,17 @@ from .spec import (PbpError, Issue, ICON1_W, ICON1_H, ICON1_FPS_NUM, ICON1_FPS_D
 
 PACK = 2048
 EP_STRIDE = 10
-FIT_FILTERS = {
-    'cover': 'scale=%d:%d:force_original_aspect_ratio=increase:flags=lanczos,crop=%d:%d' % (
+# accurate_rnd: the scaler's exact C path (an ffmpeg build with inline assembly but without the matching vertical
+# filter wrote garbage pictures without it); the content check below catches any such build
+_FIT = {
+    'cover': 'scale=%d:%d:force_original_aspect_ratio=increase:flags={f},crop=%d:%d' % (
         ICON1_W, ICON1_H, ICON1_W, ICON1_H),
-    'contain': 'scale=%d:%d:force_original_aspect_ratio=decrease:flags=lanczos,pad=%d:%d:(ow-iw)/2:(oh-ih)/2:black' % (
+    'contain': 'scale=%d:%d:force_original_aspect_ratio=decrease:flags={f},pad=%d:%d:(ow-iw)/2:(oh-ih)/2:black' % (
         ICON1_W, ICON1_H, ICON1_W, ICON1_H),
-    'stretch': 'scale=%d:%d:flags=lanczos' % (ICON1_W, ICON1_H),
+    'stretch': 'scale=%d:%d:flags={f}' % (ICON1_W, ICON1_H),
 }
+FIT_FILTERS = {k: v.replace('{f}', 'lanczos+accurate_rnd') for k, v in _FIT.items()}
+FIT_RGB = {k: v.replace('{f}', 'bicubic') for k, v in _FIT.items()}          # the content check's reference
 X264 = ':'.join([
     'ref=1', 'bframes=0', 'weightp=0', 'cabac=1', '8x8dct=0', 'slices=1',
     'keyint=30', 'min-keyint=30', 'scenecut=0',      # an IDR picture every 30 frames
@@ -189,6 +193,23 @@ def _has_x264(ffmpeg):
     return b'libx264' in (r.stdout or b'')
 
 
+def _picture_check(ffmpeg, pmf, work, frames, src, fit, fps, seconds):
+    """decode the made icon and compare it with its input (ps2rc.movies.framecheck): a faulty ffmpeg build fails
+    here instead of putting garbage into the menu"""
+    from ..movies import framecheck
+    path = os.path.join(work, 'icon1_check.pmf')
+    with open(path, 'wb') as f:
+        f.write(pmf)
+    try:
+        if frames is not None:
+            return framecheck.check(ffmpeg, path, ICON1_W, ICON1_H, reference=frames[:5], what='ICON1')
+        ref = framecheck.rgb_reference_filter(FIT_RGB[fit], pre='fps=%s,' % fps)
+        ts = [0.2, round(max(0.2, (seconds or 1.0) * 0.5), 2)]
+        return framecheck.check(ffmpeg, path, ICON1_W, ICON1_H, source=src, ref_vf=ref, times=ts, what='ICON1')
+    except framecheck.FrameCheckError as e:
+        raise PbpError(str(e))
+
+
 # ------------------------------------------------------------------------------------------ making one
 def encode(src=None, frames=None, budget=MEDIA_BUDGET, max_seconds=ICON1_DEFAULT_SECONDS, fit='cover',
            ffmpeg=None, muxer=None, work_dir=None, attempts=6, epmap=False):
@@ -245,7 +266,8 @@ def encode(src=None, frames=None, budget=MEDIA_BUDGET, max_seconds=ICON1_DEFAULT
             bufsize = min(1875, maxrate)
             x264 = X264 + ':vbv-maxrate=%d:vbv-bufsize=%d' % (maxrate, bufsize)
             cmd = ([ffmpeg, '-v', 'error', '-y'] + source +
-                   ['-map', '0:v:0', '-an', '-vf', vf, '-c:v', 'libx264', '-profile:v', 'main', '-level:v', '2.1',
+                   ['-map', '0:v:0', '-an', '-vf', vf, '-sws_flags', 'lanczos+accurate_rnd',   # also the inserted
+                    '-c:v', 'libx264', '-profile:v', 'main', '-level:v', '2.1',                   # rgb24 -> yuv420p
                     '-preset', 'slow', '-b:v', '%dk' % kbps, '-x264-params', x264] + BITEXACT + ['-f', 'h264',
                                                                                               es_path])
             _run(cmd, stdin)
@@ -282,6 +304,7 @@ def encode(src=None, frames=None, budget=MEDIA_BUDGET, max_seconds=ICON1_DEFAULT
         if best is None:
             raise PbpError('ICON1: cannot fit %s into %d bytes (tries kbit/s -> bytes: %s); use a shorter clip '
                            '(--icon1-seconds) or a smaller SND0.AT3' % (src_name, budget, tries))
+        best[1]['picture_check'] = _picture_check(ffmpeg, best[0], work, frames, src, fit, fps, best[1]['seconds'])
         return best
     finally:
         if own_tmp:

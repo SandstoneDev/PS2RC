@@ -1,6 +1,6 @@
 /* hle_bd.c - interiors.
  *
- * x_mirror=0|1 (poc6.cfg; host HLE_X_MIRROR; default 1 = the guest original; run-time switchable, in-run A/B key):
+ * x_mirror=0|1 (ps2rc.cfg; host HLE_X_MIRROR; default 1 = the guest original; run-time switchable, in-run A/B key):
  *   0 skips mirror_pass 0x2FA580 (called with no argument from game_loop 0x246760 right after the entity pre-render;
  *   a void function: its call site flushes no argument). With a mirror in the camera's cull zone (gp+3900, the mirror
  *   type: bathrooms, barber shops, restaurants) it re-aims the scene camera at the 512x256 mirror raster and runs

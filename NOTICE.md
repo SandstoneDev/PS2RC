@@ -205,16 +205,17 @@ in licenses/Qt of the app.
 
 ## Programs the converter app ships next to it (separate programs, not included in the repository)
 
-The window makes the animated menu icon from a clip and the menu music from a song with two programs that run
-as separate processes. The converter app ships them (tools/ffmpeg, tools/atracdenc); each keeps its own
+The window makes the animated menu icon from a clip and the menu music from a song, and the converter makes
+the intro movies, with two programs that run as separate processes. The converter app ships them (tools/ffmpeg, tools/atracdenc); each keeps its own
 licence: its licence text and where to get its source code are in licenses/<name> of the app. PS2RC's own code
 does not link them.
 
 - **atracdenc** ([github.com/dcherednik/atracdenc](https://github.com/dcherednik/atracdenc)), LGPL-2.1, the
-  Windows build of release 0.2.3: encodes the menu music (ATRAC3plus). PS2RC re-wraps its output file in the
+  Windows build of release 0.2.3: encodes the menu music (ATRAC3 by default, ATRAC3plus on request). PS2RC re-wraps its output file in the
   container layout described in `ps2rc/xmb/sound.py`.
-- **FFmpeg** ([ffmpeg.org](https://ffmpeg.org)): reads clips and songs and encodes the animated icon's H.264
-  picture with libx264, so the build the app ships is under the GNU General Public License v3.0 (its
+- **FFmpeg** ([ffmpeg.org](https://ffmpeg.org)): reads clips, songs and the intro movies and encodes their H.264
+  picture with libx264 (GPL-2.0-or-later), so the build the app ships (configured with --enable-gpl, without
+  --enable-version3) is under the GNU General Public License v2.0 or later, text in licenses/ffmpeg (its
   configuration and version are in tools/ffmpeg/README.txt; the source of the FFmpeg release and of the
   libraries named there is offered as licenses/ffmpeg describes).
 

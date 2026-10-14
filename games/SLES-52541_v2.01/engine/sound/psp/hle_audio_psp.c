@@ -20,7 +20,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "hle.h"
-#include "hle_cfg.h"                 /* the shared poc6.cfg table */
+#include "hle_cfg.h"                 /* the shared ps2rc.cfg table */
 #include "hle_audio_psp.h"
 #include "spu2_lite.h"
 #include "audio_stretch.h"
@@ -31,7 +31,7 @@
 
 int hle_psp_is_emulator(void);                   /* psp/hle_prof_psp.c */
 
-/* poc6.cfg audio_me=0|1|2 - 0 = everything on the main core;
+/* ps2rc.cfg audio_me=0|1|2 - 0 = everything on the main core;
  * 1 (default; measured on a PSP: 0 mismatches in shadow mode, -5.8 ms per frame) = LIVE: once the game's main loop
  *     runs (the intro movies' sceMpeg also uses the ME), the Media Engine renders the
  *     samples (engine B replays the commands of the main core's state-only engine A, spu2_split.h), resamples
@@ -50,7 +50,7 @@ enum { ZME_OFF = 0, ZME_ON = 1, ZME_FAILED = -1, ZME_SLEEP = -2, ZME_STOPPED = -
 #define MAX_FILES    48
 #define DUMP_BUF     65536u
 
-/* ------------------------------------------------------------------ options (<EBOOT dir>/poc6.cfg) */
+/* ------------------------------------------------------------------ options (<EBOOT dir>/ps2rc.cfg) */
 static struct {
     int on, vol, sync, latency_ms, smax, interp_nearest, out, cache_kb, prio, stats_s, dump_s, voices, smin_pct, xref;
     int me, me_stall_ms, me_hop_ms, me_regs;         /* audio_me, audio_me_stall_ms, audio_me_hop_ms, _regs */
@@ -455,7 +455,7 @@ static void me_demote(const char *why, int state)
     zma_jobs_unbind(A.mctl, state == ZME_FAILED);   /* jobs that want the ME get the jobs-only loop */
     uint32_t ca, ep, bv;
     if (hle_me_exception(&ca, &ep, &bv))         /* its handler recorded the exception (hle_me.c) */
-        LOG("audio: the ME took an exception: Cause %08x EPC %08x BadVAddr %08x (map EPC & 0x0FFFFFFF with poc6.elf)\n",
+        LOG("audio: the ME took an exception: Cause %08x EPC %08x BadVAddr %08x (map EPC & 0x0FFFFFFF with ps2rc.elf)\n",
             (unsigned)ca, (unsigned)ep, (unsigned)bv);
     uint64_t now = now_us();
     A.me_live_us += now - A.me_t0_us;
@@ -669,7 +669,7 @@ int hle_audio_psp_init(void (*log)(void *user, int level, const char *fmt, ...))
     A.sim_th = -1;
     A.log = log;
     read_cfg();
-    if (!opt.on) { LOG("audio: off (poc6.cfg audio=0) - sound driver silent responder\n"); return 0; }
+    if (!opt.on) { LOG("audio: off (ps2rc.cfg audio=0) - sound driver silent responder\n"); return 0; }
     /* the AUDIO folder must be on the card: without its config tables the driver's init would answer 0 (the game's
        audio hardware init fails) - keep the silent responder then */
     uint32_t sz = 0;
@@ -688,7 +688,7 @@ int hle_audio_psp_init(void (*log)(void *user, int level, const char *fmt, ...))
                 ZMA_CMDS * 8u + 3u * 64u;
     }
     unsigned free0 = (unsigned)(sceKernelTotalFreeMemSize() >> 10);
-    /* poc6.cfg mem_volatile=1 - the GE buffers live in the volatile partition,
+    /* ps2rc.cfg mem_volatile=1 - the GE buffers live in the volatile partition,
        so the guest code hole has room for this block (the user memory it leaves goes to the game heap) */
     uint8_t *in_hole = hle_psp_mem_volatile() ? hle_psp_hole_take(need, 64) : NULL;
     if (in_hole) {
@@ -803,7 +803,7 @@ int hle_audio_psp_init(void (*log)(void *user, int level, const char *fmt, ...))
         "feeder priority 0x%02x, stats every %d s%s\n", A.ch >= 0 ? "on" : "OFF", A.ch, opt.vol, sync_names[opt.sync],
         opt.latency_ms, opt.smin_pct, opt.smax, opt.interp_nearest ? "nearest" : "linear", opt.voices, opt.prio, opt.stats_s,
         opt.dump_s ? ", audio_dump requested" : "");
-    if (opt.xref) LOG("audio: engine reference loops (poc6.cfg audio_xref=1, A/B)\n");
+    if (opt.xref) LOG("audio: engine reference loops (ps2rc.cfg audio_xref=1, A/B)\n");
     if (opt.dump_s) {
         if (!hle_psp_is_emulator()) {
             LOG("audio: audio_dump refused on the PSP (card writes during the game; emulator only)\n");

@@ -26,8 +26,9 @@ from .steps import ConvertError, Progress
 def parser():
     ap = argparse.ArgumentParser(prog="python -m ps2rc.convert",
                                  description="Convert your own PS2 disc image into a PSP game folder (on this PC).")
-    ap.add_argument("source", help="the disc image (.iso, or a raw .bin) or the disc's root folder")
-    ap.add_argument("--out", help="output folder; the PSP folder is made inside it")
+    ap.add_argument("source", nargs="?", help="the disc image (.iso, or a raw .bin) or the disc's root folder "
+                    "(update: may be left out when only the settings files need a repair)")
+    ap.add_argument("--out", help="output folder; the PSP folder PS2RC_<serial> (e.g. PS2RC_SLUS12345) is made inside it")
     ap.add_argument("--folder", help="the PSP folder itself (update: e.g. the memory stick's PSP/GAME/<folder>)")
     g = ap.add_argument_group("menu assets (optional; see ps2rc/pbp/README.md)")
     g.add_argument("--title", help="title in the PSP menu (default: the pack's)")
@@ -65,7 +66,9 @@ def parser():
                    "hand-translated game code) or full (the developer build; LOCAL use only)")
     g = ap.add_argument_group("run")
     g.add_argument("--pack", help="game pack name (default: found from the disc)")
-    g.add_argument("--work", help="work folder (default OUT/_ps2rc_work); keep it to resume or re-pack quickly")
+    g.add_argument("--work", help="work folder (default %%LOCALAPPDATA%%\\PS2RC\\work, as the window's; never inside "
+                   "--out); kept to resume or update quickly")
+    g.add_argument("--clean-work", action="store_true", help="remove the whole work folder after a finished run")
     g.add_argument("--estimate", action="store_true", help="only identify, check and print the estimates")
     g.add_argument("--restart", action="store_true", help="ignore what earlier runs finished")
     g.add_argument("--no-manifest", action="store_true", help="skip the md5 manifest of the output folder")
@@ -162,6 +165,9 @@ def main(argv=None):
     if not a.out and not a.folder:
         print("ERROR: give --out DIR (or --folder PSP_FOLDER)", file=sys.stderr)
         return 2
+    if not a.source and not update:
+        print("ERROR: give the disc image (.iso) or the disc's folder", file=sys.stderr)
+        return 2
     from .pipeline import Conversion, Options
     if sys.version_info < (3, 11):
         print("PS2RC converter needs Python 3.11 or newer", file=sys.stderr)
@@ -184,6 +190,7 @@ def main(argv=None):
                    manifest=not a.no_manifest, estimate_only=a.estimate, prx=a.prx, stop_after=a.stop_after,
                    allow_gpl_libs=a.allow_gpl_libs, cold_opt=a.cold_opt or "", prebuilt=a.prebuilt,
                    lang=a.lang, dev_cfg=not a.no_dev_cfg, folder=a.folder, profile=a.profile,
+                   clean_work=a.clean_work,
                    settings=dict(kv.split("=", 1) for kv in a.settings), update=update or a.dry_run,
                    dry_run=a.dry_run, force=a.force,
                    verify_writes=None if a.verify_writes is None else a.verify_writes == "on")

@@ -2,7 +2,7 @@
  * loads the boot ELF into a 32 MB guest RAM, installs the HLE kernel and runs the recompiled program from its ELF
  * entry point on guest thread 1.
  *
- * usage: poc6_host --elf <boot ELF> --disc <extracted disc dir> --discmap discmap.txt [--meta iso_meta.bin]
+ * usage: ps2rc_host --elf <boot ELF> --disc <extracted disc dir> --discmap discmap.txt [--meta iso_meta.bin]
  *                  [--log file] [--max-seconds N] [--max-frames N] [--verbose 0|1|2] [--stuck-seconds N]
  *                  [--vcallms-nohit | --vcallms strict|nohit|hle] [--mainloop-limit N]
  *                  [--audio model|silent]  the pack's IOP audio: its model (default when built with AUDIO=1; env
@@ -329,7 +329,7 @@ void hle_plat_note_mmio(void *ra, uint32_t a)
     if (mmio_profile_path) prof_add(ra, a);
 }
 
-/* check-mode header (tests/poc6/patch_rt_header.py --mode check): a plain (masked) accessor saw an address that is
+/* check-mode header (ps2rc/pipeline/patch_rt_header.py --mode check): a plain (masked) accessor saw an address that is
    neither RAM, a RAM mirror nor the scratchpad - on the PSP that access would alias into low RAM */
 static struct { void *ra; uint32_t a; uint64_t count; } alias_tab[1024];
 static int alias_n;
@@ -616,7 +616,7 @@ int main(int argc, char **argv)
     if (psp_layout) memset(hle_ram + HLE_CODE_LO, 0xA5, HLE_CODE_HI - HLE_CODE_LO);
     uint32_t entry = 0;
     if (!load_elf(hle_elf_path, &entry)) { LOG("cannot load ELF %s\n", hle_elf_path); return 4; }
-    LOG("PoC-6 host harness: ELF %s entry %08x, disc %s, guest RAM end %08x%s (host %.1f s)\n", hle_elf_path, entry,
+    LOG("PS2RC host harness: ELF %s entry %08x, disc %s, guest RAM end %08x%s (host %.1f s)\n", hle_elf_path, entry,
         disc, hle_ram_end, psp_layout ? " (PSP layout)" : "", hle_host_seconds());
     char mpath[1024];
     if (!meta) {                                             /* iso_meta.bin next to the disc map */

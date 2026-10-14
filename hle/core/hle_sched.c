@@ -1,4 +1,4 @@
-/* hle_sched.c - EE kernel model of the PoC-6 HLE runtime: guest threads as host coroutines (hle_plat_ctx_*: ucontext
+/* hle_sched.c - EE kernel model of the HLE runtime: guest threads as host coroutines (hle_plat_ctx_*: ucontext
  * on the host, a hand-written Allegrex context switch on the PSP - one OS thread runs all guest code either way), a
  * strict priority scheduler (EE kernel semantics: 0 = highest, FIFO per priority, no time slicing), semaphores,
  * INTC/DMAC interrupt handlers, alarms, and deterministic virtual time.

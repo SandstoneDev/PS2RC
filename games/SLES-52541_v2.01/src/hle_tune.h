@@ -6,7 +6,7 @@
  * multipliers by mission scripts) are re-applied on top of the game's own value. Every key defaults to OFF (= the
  * original game; the hook then only calls the original and writes nothing).
  *
- * PSP: poc6.cfg keys (the EBOOT's folder); host: environment variables HLE_TUNE_<KEY> (e.g. HLE_TUNE_FAR=50).
+ * PSP: ps2rc.cfg keys (the EBOOT's folder); host: environment variables HLE_TUNE_<KEY> (e.g. HLE_TUNE_FAR=50).
  *   tune_far=P      far clip (the current time-of-day set's far clip 0x707490 -> camera far plane, the renderer's
  *                   world scan) and fog start (0x707494) x P % (default 100)
  *   tune_farmax=M   ... and at most M metres (default 0 = no cap); the fog start follows the far clip's ratio

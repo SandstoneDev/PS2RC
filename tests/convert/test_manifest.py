@@ -45,7 +45,7 @@ def _fake_build(monkeypatch):
         return []
 
     def link(self):
-        for n in ("poc6.elf", "poc6_strip.elf"):
+        for n in ("ps2rc.elf", "ps2rc_strip.elf"):
             open(os.path.join(self.bdir, n), "wb").write(b"\x7fELF" + bytes(60))
 
     def prx(self):
@@ -232,3 +232,60 @@ def test_cli_verify_exit_codes(env, capsys):
     os.remove(os.path.join(res["folder"], "disc", "DATA", "A.DAT"))
     assert main(["verify", res["folder"]]) == 3
     assert "Missing" in capsys.readouterr().out
+
+
+def test_repair_without_the_disc(env):
+    iso, repo, out = env
+    res, _ = _conv(iso, repo, out)
+    folder = res["folder"]
+    cfgp = os.path.join(folder, "test.cfg")
+    os.remove(cfgp)
+    os.remove(os.path.join(folder, "test_dev.cfg"))
+    plan = mf.plan_update(folder, repo=repo)
+    assert not plan.needs_disc and dict((a[0], a[1]) for a in plan.actions)["test.cfg"] == "write"
+    res2, ev = _conv(None, repo, out, update=True, folder=folder)      # no disc image at all
+    assert res2["update"]["discless"] and os.path.isfile(cfgp) and mf.verify_folder(folder).ok
+    assert open(os.path.join(folder, "test_dev.cfg")).read() == DEV
+    assert cfgfile.parse(open(cfgp, encoding="utf-8").read())["peds"] == "25"
+    # damage that needs the disc: refused in plain words, nothing written
+    a = os.path.join(folder, "disc", "DATA", "A.DAT")
+    open(a, "ab").write(b"x")
+    with pytest.raises(ConvertError) as e:
+        _conv(None, repo, out, update=True, folder=folder)
+    assert e.value.code == "update" and "needs the disc image" in e.value.message and "A.DAT" in e.value.message
+
+
+def test_refused_disc_leaves_no_output_folder(env, tmp_path):
+    _iso, repo, _out = env
+    bad = tmp_path / "not_a_disc.iso"
+    bad.write_bytes(b"\0" * 70000)
+    out = str(tmp_path / "never")
+    with pytest.raises(ConvertError):
+        _conv(str(bad), repo, out)
+    assert not os.path.exists(out)
+
+
+def test_work_folder_outside_the_output_and_cleaned(env):
+    iso, repo, out = env
+    res, _ = _conv(iso, repo, out)
+    work = os.path.join(os.environ["LOCALAPPDATA"], "PS2RC", "work")
+    assert os.listdir(out) == [os.path.basename(res["folder"])] and os.path.isdir(work)
+    assert not os.path.exists(os.path.join(work, "build", "gen_prep"))
+    _conv(iso, repo, out, clean_work=True)
+    assert not os.path.exists(work)
+
+
+def test_cli_icon1_from_a_clip_is_the_windows_format(env, tmp_path, monkeypatch):
+    import shutil
+    ff = os.environ.get("FFMPEG") or shutil.which("ffmpeg")         # FFMPEG=<ffmpeg with libx264> to run it
+    if not ff or not os.path.isfile(ff):
+        pytest.skip("no ffmpeg")
+    Image = pytest.importorskip("PIL.Image")
+    gif = str(tmp_path / "clip.gif")
+    fr = [Image.new("RGB", (288, 160), (i * 20 % 255, 80, 200 - i * 10)) for i in range(20)]
+    fr[0].save(gif, save_all=True, append_images=fr[1:], duration=40, loop=0)
+    iso, repo, out = env
+    res, _ = _conv(iso, repo, out, icon1=gif, ffmpeg=ff)
+    from ps2rc.pbp import Pbp, icon1
+    data = Pbp.read(os.path.join(res["folder"], "EBOOT.PBP"))["ICON1.PMF"]
+    assert data[:8] == b"PSMF0012" and icon1.entry_points(data)

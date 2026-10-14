@@ -166,8 +166,8 @@ static inline void rm_sdr(R5900Mem m, uint32_t a, uint64_t v) {
 }
 /* 128-bit accesses of LQC2/SQC2 in the back-end v1+ (v0 uses rt_lq/rt_sq): the low 4 address bits are ignored like
    LQ/SQ (an unaligned LQC2/SQC2 is an address error on the EE; PCSX2's recompiler masks the address); the VU0 register
-   side is 16-byte aligned too (without the hint GCC copies into it with unaligned stores). One line each: tests/poc6
-   patch_rt_header.py replaces these definitions by name. */
+   side is 16-byte aligned too (without the hint GCC copies into it with unaligned stores). One line each:
+   ps2rc/pipeline/patch_rt_header.py replaces these definitions by name. */
 static inline void rm_lq(R5900Mem m, uint32_t a, R5900Reg128 *d) { memcpy(__builtin_assume_aligned(d, 16), RM_AL(m, a & ~15u, 16), 16); }
 static inline void rm_sq(R5900Mem m, uint32_t a, const R5900Reg128 *s) { memcpy(RM_AL(m, a & ~15u, 16), __builtin_assume_aligned(s, 16), 16); }
 

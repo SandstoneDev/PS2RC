@@ -41,7 +41,7 @@
  * 2D depth: 2D draws honour the driver's Z test enable / Z write enable states on the Z buffer at 0x110000 (the
  *   round radar is a Z mask; the driver tests GEQUAL; the guest's Z clear is done lazily unless the 3D world cleared
  *   it), primitives leaving the guard band are clipped instead of clamped, L+R+SELECT+TRIANGLE toggles the log text
- *   (L+R+SELECT = fps counter), poc6.cfg ge_zmask=0 / ge_trace=<flip>.
+ *   (L+R+SELECT = fps counter), ps2rc.cfg ge_zmask=0 / ge_trace=<flip>.
  * Threads: every sceGu call runs on the game PSP thread (all guest threads are coroutines in it); the watchdog / crash
  *   handler only touch the display and the debug screen, serialised with the flip by a semaphore. */
 #ifdef HLE_PSP
@@ -54,7 +54,7 @@
 #include <psputils.h>
 #include <stdlib.h>
 #include "hle.h"
-#include "hle_cfg.h"                 /* the shared poc6.cfg table */
+#include "hle_cfg.h"                 /* the shared ps2rc.cfg table */
 #include "hle_render.h"
 #include "hle_ge.h"
 #include "hle_w3d.h"
@@ -66,9 +66,9 @@
 #include "hle_fast.h"                                      /* x_aflip (hle_x_opt) */
 
 int hle_ge_on;
-int hle_ge_guest_im2d = 0;                 /* default 0 (poc6.cfg im2d_guest=1 = the old behaviour) */
+int hle_ge_guest_im2d = 0;                 /* default 0 (ps2rc.cfg im2d_guest=1 = the old behaviour) */
 
-/* ------------------------------------------------------------------ options (<EBOOT dir>/poc6.cfg) */
+/* ------------------------------------------------------------------ options (<EBOOT dir>/ps2rc.cfg) */
 static int opt_render_ge = 1, opt_text_rows = 12, opt_tex_kb = 2048, opt_clear = 0;
 static uint32_t opt_dump[16];
 static uint32_t opt_trace;               /* ge_trace=<flip>: log every 2D draw of that flip (diagnostics) */
@@ -116,7 +116,7 @@ static uint64_t sync_us, flip_us;                 /* CPU time waiting for the GE
 static uint32_t sync_us_max, flip_us_max;
 
 /* ------------------------------------------------------------------ GE cost probe and async flip
-   GE serial probe (poc6.cfg ge_ser=N, default 0 = off): on a probe frame the frame list is built in GU_SEND mode (the
+   GE serial probe (ps2rc.cfg ge_ser=N, default 0 = off): on a probe frame the frame list is built in GU_SEND mode (the
    GE does not run while the CPU builds it) and every list end - the flip, a resync, and a CUT at each change of the
    drawing category (GS_*, marked by the entry points; the cut happens at the next list_room, the same safe point as
    an overflow resync) - is sent and waited for: the wait = the GE's own time for that part, with the main core asleep
@@ -125,7 +125,7 @@ static uint32_t sync_us_max, flip_us_max;
    N-th frame. The probe frame itself is slow (CPU and GE serial) - never in an A/B count.
    List-open time: first draw of a frame (frame_begin) -> its flip done, per frame; the A/B report divides it per variant
    (the sampler's "drawing" share may be this, not GE work: the hardware never reported "stalled").
-   Async flip (poc6.cfg ge_aflip=1 starts the presenter thread; x_aflip=0|1 per flip, default 1 then; A/B key): the
+   Async flip (ps2rc.cfg ge_aflip=1 starts the presenter thread; x_aflip=0|1 per flip, default 1 then; A/B key): the
    flip finishes the frame list WITHOUT waiting for the GE; a presenter thread (priority 0x1E) waits for that list
    (sceGeListSync) and shows the buffer; the next list start (or anything that needs the GE idle) first waits for the
    presenter ("settle") and only then advances the epoch, so nothing the pending list reads (textures, vertex blocks,
@@ -366,7 +366,7 @@ static uint32_t w3d_hold_gen;
 static inline int tex_busy(const GeTex *t) { return t->pin == epoch || (w3d_hold_gen && t->w3d_hold == w3d_hold_gen); }
 static GeTex *cur_tex;                            /* bound in the open list */
 /* Lower texture resolution for the 3D world.
-   tex_half=N (poc6.cfg / A/B key, default 0 = off): a texture first converted for a 3D draw (hle_ge_3d_texture: peds,
+   tex_half=N (ps2rc.cfg / A/B key, default 0 = off): a texture first converted for a 3D draw (hle_ge_3d_texture: peds,
    cars, props on the main core; hle_ge_3d_tex_info: buildings described to the ME) whose larger side is >= N px is
    converted at half width and height - the stored PS2 mip level 1 when the raster has one (exact), else 2:1 point
    decimation (texconv fast path, CLUT formats kept). UVs stay right: the 3D path's UVs are normalised (GE texture
@@ -391,7 +391,7 @@ static inline int bj_v(void)                      /* the statistics row of this 
     return counted && v < BJ_V - 1 ? v : -1;
 }
 static inline int fx_mode(void) { return opt_tex_half_fx ? TL_HALF : TL_ANY; }
-/* Auto mipmaps for the 3D world. tex_mip=1 (poc6.cfg / A/B key, default 0 = off):
+/* Auto mipmaps for the 3D world. tex_mip=1 (ps2rc.cfg / A/B key, default 0 = off):
    a texture converted for a 3D lookup (TL_HALF: peds / cars / props on the main core, buildings described to the ME;
    tex_half applies first) keeps its stored PS2 levels and gets generated ones below them down to the swizzle floor
    (texconv TC_F_GENMIP: 2:1 point decimation of the previous level, CLUT indices kept), at most 8. A 3D bind (main core
@@ -641,7 +641,7 @@ static void tex_flush(void)
     st_tex_flush++;
 }
 
-/* tex_half / tex_half_fx / tex_mip* from poc6.cfg (boot) and the in-run A/B (FAM_TEX, between two
+/* tex_half / tex_half_fx / tex_mip* from ps2rc.cfg (boot) and the in-run A/B (FAM_TEX, between two
    main-loop iterations); returns 1 for a known key */
 int hle_ge_tex_cfg(const char *k, const char *v)
 {
@@ -1415,7 +1415,7 @@ int hle_ge_postfx_mul(const float k[3], int dither)
    drawn with GU_SUBTRACT: Cs - Cd), composite P += min(255, 2 R2) x intensity / 256 (GU_FRAGMENT_2X doubles the
    texel: the PS2's clamp(2D - limit) exactly; bilinear 4x upscale, GU_ADD FIX / FIX 0xFF) render_passes times.
    Every render target is sampled after TEXFLUSH + TEXSYNC in the same list (the pspsdk rendertarget sample's pattern;
-   later primitives see earlier ones' pixels after a TEXFLUSH); fence = 1 (poc6.cfg postfx_rad_fence=1, a fallback)
+   later primitives see earlier ones' pixels after a TEXFLUSH); fence = 1 (ps2rc.cfg postfx_rad_fence=1, a fallback)
    finishes and syncs the list (resync) before each target is sampled - PPSSPP gave pixel-identical frames both ways.
    filter_passes 0 / 1 (the darkness
    filter's call) are drawn with the two levels. Returns the number of composite passes (0 = nothing, -1 = not the
@@ -1646,7 +1646,7 @@ static void font_build(void)
     sceKernelDcacheWritebackRange(font_clut, sizeof font_clut);
 }
 
-/* hold L + R + SELECT and press TRIANGLE to hide / show the log text over the picture (poc6.cfg ge_text = the rows
+/* hold L + R + SELECT and press TRIANGLE to hide / show the log text over the picture (ps2rc.cfg ge_text = the rows
    shown and the start state; ge_text=0 starts hidden and shows 12 rows when switched on). The game sees those
    buttons too: with SELECT held hle_pad.c turns L / R into L2 / R2, so it gets SELECT + L2 + R2 for that moment. */
 static int text_on = -1, text_rows_on;
@@ -1737,7 +1737,7 @@ static void overlay(void)
     cur_sb = cur_db = cur_filter = cur_wrap = cur_texon = -1;
 }
 
-/* poc6.cfg fps=1 shows the frame rate in the top-left corner (default 0 = off): frames shown
+/* ps2rc.cfg fps=1 shows the frame rate in the top-left corner (default 0 = off): frames shown
    per real second over the last half second and their mean time, e.g. "14.7 FPS  68 ms". Same font and state as the
    log text above; drawn after it, so it stays on top. Hold L + R and press SELECT to switch it on / off at run time
    (L + R + Down + START would open the CFW menu). The game sees SELECT + L2 + R2 for that moment (hle_pad.c: SELECT
@@ -1823,7 +1823,7 @@ static void fps_draw(void)
     cur_sb = cur_db = cur_filter = cur_wrap = cur_texon = -1;
 }
 
-/* ------------------------------------------------------------------ frame dumps (poc6.cfg ge_dump=..., PPSSPP checks)
+/* ------------------------------------------------------------------ frame dumps (ps2rc.cfg ge_dump=..., PPSSPP checks)
    The frame is read back with a GE block transfer into RAM (a temporary arena block): PPSSPP's hardware backends keep
    GE output on the host GPU and only write it back to emulated VRAM for such transfers, so a CPU read of VRAM sees
    stale bytes there; on the PSP the transfer is equally correct. */
@@ -2059,7 +2059,7 @@ void hle_ge_movie_frame(const void *pic, int rgba8888, uint32_t dump)
         sceGuDrawArray(GU_SPRITES, GU_TEXTURE_16BIT | GU_VERTEX_16BIT | GU_TRANSFORM_2D, n, NULL, v);
     }
     list_sync();                                           /* the GE has read the picture before the next decode */
-    if (dump) dump_frame(fb_off[b], "movie_disp", dump);   /* poc6.cfg movie_dump=... (PPSSPP checks only) */
+    if (dump) dump_frame(fb_off[b], "movie_disp", dump);   /* ps2rc.cfg movie_dump=... (PPSSPP checks only) */
     present(b);
     st_movie_frames++;
 }
@@ -2102,7 +2102,7 @@ int hle_ge_init(void)
     if (opt_tex_kb < 512) opt_tex_kb = 512;
     if (opt_tex_kb > 3072) opt_tex_kb = 3072;
     if (!opt_render_ge) {
-        LOG("render: text (poc6.cfg render=text): the GE stays off, the screen shows the debug console\n");
+        LOG("render: text (ps2rc.cfg render=text): the GE stays off, the screen shows the debug console\n");
         return 0;
     }
     /* two display lists + the texture arena from the guest code hole */

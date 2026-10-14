@@ -19,10 +19,10 @@
  * PSP: the same captures go to the GE back-end hle_ge.c (render=ge, the default): 2D primitives, render-buffer
  * type 0, colour clears and the flip are drawn with sceGu; raster create / texture read / unlock / destroy bump the GE
  * texture cache's upload version. Both targets measure what the translated driver originals cost (host time + virtual
- * cycles per hook, report at the end); im2d_guest=0 (PSP poc6.cfg) / HLE_IM2D_GUEST=0 (host environment) skips the 2D
+ * cycles per hook, report at the end); im2d_guest=0 (PSP ps2rc.cfg) / HLE_IM2D_GUEST=0 (host environment) skips the 2D
  * draw originals (they only build PS2 DMA packets that the HLE drops). */
 #include "hle.h"
-#include "hle_cfg.h"                 /* the shared poc6.cfg table */
+#include "hle_cfg.h"                 /* the shared ps2rc.cfg table */
 #include "hle_render.h"
 #include "hle_w3d.h"
 #include "hle_sky.h"                               /* the sky (hle_sky.c) */
@@ -65,7 +65,7 @@ static const struct { const char *name; uint32_t addr; } hooks[H_N] = {
     {"batch_flush", HLE_ADDR(batch_flush)},
 };
 static uint64_t calls[H_N];
-static int im2d_guest = 0;                 /* run the translated 2D draw originals (PSP: poc6.cfg im2d_guest, host: env);
+static int im2d_guest = 0;                 /* run the translated 2D draw originals (PSP: ps2rc.cfg im2d_guest, host: env);
                                               default 0 (their DMA is dropped), 1 = the old behaviour */
 
 static float gf(uint32_t a) { uint32_t w = gw(a); float f; memcpy(&f, &w, 4); return f; }
@@ -537,7 +537,7 @@ HLE_FN(batch_flush)
         }
 #endif
     }
-    /* poc6.cfg x_rbuf=1 / HLE_X_RBUF=1: the original only runs one of 10 batch renderers (0x3C4490 / 0x58E9B0 /
+    /* ps2rc.cfg x_rbuf=1 / HLE_X_RBUF=1: the original only runs one of 10 batch renderers (0x3C4490 / 0x58E9B0 /
        0x4ADCE0 / 0x58DDD0 / 0x4AD0E0 / 0x4B1B20 / 0x5A28C0: each executes a VU1 pipeline whose packets the HLE drops;
        the render state they touch is saved and restored inside) and then empties the buffer: count (+0) = 0 when it
        was > 0, v0 = the old count. Skipped, only that remains - the GE draws what it draws above either way. Guest
@@ -571,7 +571,7 @@ void hle_render_init(void)
     const char *e = getenv("HLE_IM2D_GUEST");
     if (e) im2d_guest = atoi(e) != 0;
 #else
-    hle_ge_init();                                         /* poc6.cfg render=ge|text, ge_*, im2d_guest */
+    hle_ge_init();                                         /* ps2rc.cfg render=ge|text, ge_*, im2d_guest */
     im2d_guest = hle_ge_guest_im2d;
 #endif
     if (!im2d_guest) LOG("render: the translated 2D draw originals are SKIPPED (im2d_guest=0)\n");

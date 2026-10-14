@@ -87,10 +87,10 @@ def test_compile_and_link_commands(tmp_path):
                                                                "-L/opt/pspdev/psp/sdk/lib", "-Wl,--wrap=x",
                                                                "-Wl,--section-ordering-file=order.ld",
                                                                "-Wl,-zmax-page-size=128"]
-    tail = builder.mk_libs + bmod.BUILDMAK_LIBS + ["-o", "poc6.elf"]
+    tail = builder.mk_libs + bmod.BUILDMAK_LIBS + ["-o", "ps2rc.elf"]
     assert link[-len(tail):] == tail
     assert [x[0] for x in tc.batches] == ["link", "fixup", "strip"]
-    assert tc.batches[2][1][0] == ["psp-strip", "poc6.elf", "-o", "poc6_strip.elf"]
+    assert tc.batches[2][1][0] == ["psp-strip", "ps2rc.elf", "-o", "ps2rc_strip.elf"]
 
 
 def test_no_layout_no_function_sections(tmp_path):
@@ -123,7 +123,7 @@ def test_flags_come_from_the_makefiles(tmp_path):
     tc = StubTc()
     builder = bmod.Builder(str(repo), StubPack([]), b, tc, bmod.BuildOptions(), Progress(), {}, str(tmp_path / "l"))
     builder.link()
-    assert tc.batches[0][1][0][-10:] == ["-lpspgu", "-lpspaudio"] + bmod.BUILDMAK_LIBS + ["-o", "poc6.elf"]
+    assert tc.batches[0][1][0][-10:] == ["-lpspgu", "-lpspaudio"] + bmod.BUILDMAK_LIBS + ["-o", "ps2rc.elf"]
     tc.batches.clear()
     builder.build_prx()
     cc = tc.batches[0][1]

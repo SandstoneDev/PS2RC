@@ -134,7 +134,7 @@ class GalleryDialog(QDialog):
 
     def add_art(self, a):
         self.arts.append(a)
-        if a.category in ("loading", "title", "background", "logo") and self.filter.findData(a.category) < 0:
+        if a.category in ("loading", "title", "background", "logo", "other") and self.filter.findData(a.category) < 0:
             self.filter.addItem(i18n.tr("gal." + a.category, self.lang), a.category)
         self.busy.set(i18n.tr("gal.reading_n", self.lang, len(self.arts)))
         if not self.filter.currentData() or self.filter.currentData() == a.category:

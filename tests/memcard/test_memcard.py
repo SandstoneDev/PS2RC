@@ -4,7 +4,7 @@
   no card (old behaviour, no virtual time), a save + load + listing + errors + free space, crash recovery of an
   interrupted save, an unformatted card + sceMcFormat, a full card, the copy fallback of a file system without rename.
 - static: every sceMc* function is defined once by name (hle_memcard.c), none left in hle_sce.c; the PSP default of
-  poc6.cfg memcard; the card folder default.
+  ps2rc.cfg memcard; the card folder default.
 """
 import os
 import re
@@ -48,7 +48,7 @@ def test_every_libmc_hook_is_defined_once_in_hle_memcard():
 def test_psp_card_defaults():
     psp = read(HLE, "psp", "hle_mcfs_psp.c")
     m = re.search(r"int on = (\d);", psp)
-    assert m, "the poc6.cfg memcard default"
+    assert m, "the ps2rc.cfg memcard default"
     assert m.group(1) in ("0", "1")
     assert 'memcard/slot1/' in psp                      # <data dir>memcard/slot1/
     core = read(HLE, "core", "hle_memcard.c")

@@ -70,7 +70,7 @@ typedef union { SceMpegAu au; uint8_t raw[64]; } MpegAu;
 typedef struct { SceInt32 mode, psm; uint8_t reserved[8]; } MpegAvcMode;
 _Static_assert(sizeof(MpegRing) == 128 && sizeof(MpegAu) == 64 && sizeof(MpegAvcMode) == 16, "libmpeg record sizes");
 
-/* ------------------------------------------------------------------ options (<EBOOT dir>/poc6.cfg) */
+/* ------------------------------------------------------------------ options (<EBOOT dir>/ps2rc.cfg) */
 static int cfg_read, opt_movies = 1, opt_8888 = 1;
 static int opt_skip = 1;                  /* movie_skip=0: X does not skip (unattended runs: PPSSPP takes keys / pads) */
 static uint32_t opt_dump[16];             /* movie_dump=T,T,...: T = movie number x 10000 + picture (1-based); writes
@@ -422,7 +422,7 @@ int hle_movie_play(const char *guest_path, uint32_t skippable, uint32_t unskip_b
     size_t k = 0;
     for (; b[k] && b[k] != '.' && b[k] != ';' && k + 1 < sizeof name; k++) name[k] = (char)toupper((unsigned char)b[k]);
     name[k] = 0;
-    if (!opt_movies) { LOG("movie %s: not played (poc6.cfg movies=0)\n", gpath); return 0; }
+    if (!opt_movies) { LOG("movie %s: not played (ps2rc.cfg movies=0)\n", gpath); return 0; }
     if (!&hle_ge_on || !hle_ge_on) { LOG("movie %s: not played (render=text: no GE display)\n", gpath); return 0; }
     if (!k) return 0;
     char path[320];

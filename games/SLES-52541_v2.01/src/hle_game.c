@@ -56,7 +56,7 @@ void hle_overlays_register(void)
    PSP: 0x89AC60(path, a1, a2) plays the install-time conversion <EBOOT dir>/movies/<NAME>.pmf with sceMpeg
    (hle_movie.c; a1 != 0: X skips at once, a1 == 0: after a2 bytes of the PSS - 2,750,000 for the first intro movie)
    and returns like the skip (v0 = 0; the caller 0x2459F0 does not read it); no PMF,
-   poc6.cfg movies=0 or a refusing decoder: skipped as on the host. */
+   ps2rc.cfg movies=0 or a refusing decoder: skipped as on the host. */
 #ifdef HLE_PSP
 #include "hle_movie.h"                         /* the core's PSP layer (copied next to this file by the build) */
 #endif

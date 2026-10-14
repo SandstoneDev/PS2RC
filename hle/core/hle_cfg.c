@@ -239,28 +239,59 @@ static int load_file(const char *path)
 }
 
 /* the player's file holds only player settings: the developer / run options live in a second file
-   next to it, read FIRST - <cfg>_dev<.ext>, then the cfg (a key in both: the cfg wins, the later line). Host:
-   HLE_CFG_DEV, then HLE_CFG. */
+   next to it, read FIRST - <cfg>_dev<.ext>, then the cfg (a key in both: the cfg wins, the later line).
+   Older file names (the pack's HLE_PACK_CFG_LEGACY, e.g. the name a folder converted by an earlier version still
+   has): each of the two files falls back to its older name only when the current name is not there.
+   PSP: the EBOOT's folder. Host: HLE_CFG_DIR (a folder, the same names), then HLE_CFG_DEV, then HLE_CFG. */
 static int found_dev, found_main;
-static char dev_name[64] = "dev cfg";        /* <name>_dev<.ext> of the pack's cfg name (log line) */
+static char dev_name[64] = "dev cfg", main_name[64] = HLE_PACK_CFG;   /* the names that were read (log line) */
+static void dev_of(const char *cfg, char *out, size_t n)          /* <name>_dev<.ext> */
+{
+    const char *dot = strrchr(cfg, '.');
+    snprintf(out, n, "%.*s_dev%s", (int)(dot ? dot - cfg : (int)strlen(cfg)), cfg, dot ? dot : "");
+}
+static int load_named(const char *root, const char *name, char *got, size_t n)
+{
+    char path[320];
+    snprintf(path, sizeof path, "%s%s", root, name);
+    if (!load_file(path)) return 0;
+    snprintf(got, n, "%s", name);
+    return 1;
+}
+static void load_dir(const char *root)
+{
+    char nm[64];
+    dev_of(HLE_PACK_CFG, nm, sizeof nm);
+    found_dev = load_named(root, nm, dev_name, sizeof dev_name);
+#ifdef HLE_PACK_CFG_LEGACY
+    if (!found_dev) {
+        dev_of(HLE_PACK_CFG_LEGACY, nm, sizeof nm);
+        found_dev = load_named(root, nm, dev_name, sizeof dev_name);
+    }
+#endif
+    found_main = load_named(root, HLE_PACK_CFG, main_name, sizeof main_name);
+#ifdef HLE_PACK_CFG_LEGACY
+    if (!found_main) found_main = load_named(root, HLE_PACK_CFG_LEGACY, main_name, sizeof main_name);
+#endif
+}
 static void load(void)
 {
     if (n_tab >= 0) return;
     n_tab = 0;
 #ifdef HLE_PSP
-    char path[320];
-    const char *dot = strrchr(HLE_PACK_CFG, '.');
-    snprintf(dev_name, sizeof dev_name, "%.*s_dev%s", (int)(dot ? dot - HLE_PACK_CFG : (int)strlen(HLE_PACK_CFG)),
-             HLE_PACK_CFG, dot ? dot : "");
-    snprintf(path, sizeof path, "%s%s", hle_plat_disc_root(), dev_name);
-    found_dev = load_file(path);
-    snprintf(path, sizeof path, "%s" HLE_PACK_CFG, hle_plat_disc_root());
-    found_main = load_file(path);
+    load_dir(hle_plat_disc_root());
 #else
-    const char *e = getenv("HLE_CFG_DEV");
-    if (e && *e) found_dev = load_file(e);
+    const char *e = getenv("HLE_CFG_DIR");
+    if (e && *e) {
+        char root[256];
+        size_t l = strlen(e);
+        snprintf(root, sizeof root, "%s%s", e, l && e[l - 1] != '/' && e[l - 1] != '\\' ? "/" : "");
+        load_dir(root);
+    }
+    e = getenv("HLE_CFG_DEV");
+    if (e && *e && load_file(e)) { found_dev = 1; snprintf(dev_name, sizeof dev_name, "%s", e); }
     e = getenv("HLE_CFG");
-    if (e && *e) found_main = load_file(e);
+    if (e && *e && load_file(e)) { found_main = 1; snprintf(main_name, sizeof main_name, "%s", e); }
     host_export();
 #endif
     found = found_dev || found_main;
@@ -332,7 +363,7 @@ void hle_cfg_report(void)
             if (o || i == n_tab)
                 LOG("cfg keys %d (%s%s%s, %d keys, pool %d of %d B): %s\n", part++,
                     found_dev ? dev_name : found_main ? "" : "no file", found_dev && found_main ? " + " : "",
-                    found_main ? HLE_PACK_CFG : found_dev ? " only" : "", n_tab, pool_n, HLE_CFG_POOL, o ? out : "-");
+                    found_main ? main_name : found_dev ? " only" : "", n_tab, pool_n, HLE_CFG_POOL, o ? out : "-");
             o = 0;
             if (i == n_tab) break;
         }

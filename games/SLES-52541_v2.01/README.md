@@ -26,14 +26,16 @@ Command line (from the repository folder):
 python -m ps2rc.convert <your disc image> --out <output folder>
 ```
 
-Then copy `<output folder>/PS2RC_POC6` to `PSP/GAME/` on the memory stick. Takes about 10 minutes on a
-12-thread PC (most of it compiling and copying 3.9 GB). Options: `--audio min` (a small test folder),
+Then copy the converted folder (its name is shown at the end) to `PSP/GAME/` on the memory stick. Takes about
+10 minutes on a 12-thread PC (most of it compiling and copying 3.9 GB). Options: `--audio min` (a small test folder),
 `--movies skip`, `--lang ru` (Russian comments in the settings file), `--set draw_distance=60`.
 `python -m ps2rc.convert verify <PSP folder>` checks a folder later; `update` repairs it and keeps your settings
 and saves.
 
-The settings file `poc6.cfg` next to `EBOOT.PBP` explains every setting (draw distance, fog, detail,
+The settings file `ps2rc.cfg` next to `EBOOT.PBP` explains every setting (draw distance, fog, detail,
 population, frame cap, overclock, controls, sound). `session.log` in the same folder shows what is in effect.
+In a folder converted by version 0.1.0 the file still has its older name: the game reads it until an `update`
+moves your values into `ps2rc.cfg` (the old file stays next to it as `.old`).
 
 ## The public build compared with the developer build
 
@@ -71,7 +73,7 @@ pressed), so the view may change once when you press SELECT; press it again to g
 | SELECT + Triangle | L3 (left stick click) |
 | SELECT + Circle | R3 (right stick click) |
 | SELECT + D-pad | right stick, full deflection (camera); two directions at once give a diagonal |
-| SELECT + Up | right stick up (default); with `select_up=r3` or `select_up=l3` in `poc6.cfg` it is R3 / L3 instead |
+| SELECT + Up | right stick up (default); with `select_up=r3` or `select_up=l3` in `ps2rc.cfg` it is R3 / L3 instead |
 
 Port functions: **L + R + SELECT** shows or hides the frames-per-second counter (`show_fps` in the settings
 file sets it at start). HOME -> Exit returns to the PSP menu. Avoid L + R + Down + START: custom firmware uses it

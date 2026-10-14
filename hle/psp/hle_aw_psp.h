@@ -17,11 +17,11 @@ void hle_aw_clock_cfg(const char *k, const char *v);
 int hle_aw_clock_on(void);
 int hle_aw_clock_early(void);                 /* cpu_clock_early=1 */
 /* cpu_clock_at=main|thread - ARK's call at the first line of main() (stage 0) / of the game thread
-   (stage 1); reads poc6.cfg itself; the report goes to session.log once it is open */
+   (stage 1); reads ps2rc.cfg itself; the report goes to session.log once it is open */
 void hle_aw_preclock(const char *dir, int stage, unsigned t0_us);
 void hle_aw_preclock_report(void (*logf)(const char *line));
 /* cpu_auto=0|342|365 (+ cpu_auto_reset=N) - crash-safe automatic overclock, see hle_aw_psp.c */
-void hle_aw_auto_boot(const char *dir, unsigned t0_us);    /* main(), first line (reads poc6.cfg itself) */
+void hle_aw_auto_boot(const char *dir, unsigned t0_us);    /* main(), first line (reads ps2rc.cfg itself) */
 void hle_aw_auto_report(void (*logf)(const char *line));   /* after the log is open */
 int hle_aw_auto_tick(char *out, unsigned n);               /* watchdog, once per second */
 int hle_aw_auto_exit(int clean, char *out, unsigned n);    /* exit sequence */

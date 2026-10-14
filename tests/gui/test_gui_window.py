@@ -152,7 +152,7 @@ def test_every_page_both_languages(gui):
     app.show_page("settings")
     assert "Grafika" in texts(app.centralWidget())              # the Russian template's group names
     menus = [a.text() for a in app.menuBar().actions()]
-    assert menus == [i18n.tr("menu.view", "ru")]
+    assert menus == [i18n.tr("menu.view", "ru"), i18n.tr("menu.help", "ru")]
 
 
 def test_interface_size_and_compact_fonts(gui):
@@ -272,7 +272,7 @@ def test_check_and_update_pages(gui, monkeypatch):
     app.selected_folder = str(folder)
 
     class Rep:
-        ok, missing, corrupt, extra, user_changed, files = True, [], [], [], ["poc6.cfg"], 312
+        ok, missing, corrupt, extra, user_changed, files = True, [], [], [], ["ps2rc.cfg"], 312
     monkeypatch.setattr(backend, "verify", lambda f, progress=None: Rep())
     app.show_page("folders")
     app._check()
@@ -284,7 +284,7 @@ def test_check_and_update_pages(gui, monkeypatch):
     assert not app.repair_row.isHidden()
     monkeypatch.setattr(backend, "plan_update", lambda f, src=None, opts=None: {"actions": [
         ("EBOOT.PBP", "rebuild", "made by an older converter"), ("disc/a.img", "copy", "damaged"),
-        ("poc6.cfg", "merge_cfg", "new settings"), ("save.dat", "keep", "")]})
+        ("ps2rc.cfg", "merge_cfg", "new settings"), ("save.dat", "keep", "")]})
     app.s["source"] = None
     app.show_page("update")
     assert pump(qapp, lambda: app.plan_tv.topLevelItemCount() == 3)
@@ -404,6 +404,21 @@ def test_system_lang_maps_only_russian(monkeypatch):
                 return _t
         monkeypatch.setattr(QLocale, "system", staticmethod(lambda: Loc()))
         assert ps2rc_gui.system_lang() == want, tags
+
+
+def test_disc_buttons_on_without_a_pack_provider(gui):
+    """a pack without a provider of its own gets the generic one: the "From the game disc..." buttons are on"""
+    app, mod, qapp, _tmp, _mp = gui
+    from PySide6.QtWidgets import QPushButton
+    from ps2rc.xmb import disc_art, disc_scan
+    pack = app._pack_dir()
+    assert not os.path.isfile(os.path.join(pack, "xmb_artwork.py"))
+    assert isinstance(disc_art.find_provider(pack), disc_scan.Provider)
+    assert app._disc_art_possible() and app._disc_music_possible()
+    app.show_page("customize")
+    disc = [b for b in app.findChildren(QPushButton) if b.text() in (i18n.tr("gal.from_disc", "en"),
+                                                                     i18n.tr("mus.from_disc", "en"))]
+    assert len(disc) == 5 and all(b.isEnabled() for b in disc) and app.art_btn.isEnabled()
 
 
 def test_gallery_opens_at_once_and_fills_in(gui, pillow):
@@ -556,3 +571,95 @@ def test_music_quality_choice(gui, fake_encoder):
     again = ps2rc_gui.App(settings_path=app.settings_path)
     assert again.project.slots["snd0"]["codec"] == "atrac3plus"
     again.close()
+
+
+def test_update_result_is_shown_with_counts_from_the_core(gui):
+    """the core reports written / rewritten as numbers (older cores: lists): both show the result (QA P2-1)"""
+    app, mod, qapp, tmp, _mp = gui
+    app.show_page("update")
+    app.running = True
+    app._event(("finished", {"update": {"written": 2, "rewritten": 1}}))
+    assert "(3)" in app.result_label.text() and app.bar.value() == 1000
+    app.running = True
+    app._event(("finished", {"update": {"written": ["a"], "rewritten": []}}))
+    assert "(1)" in app.result_label.text()
+
+
+def test_music_quality_switch_clamps_down(gui, fake_encoder):
+    """Longest at 50 s -> Balanced: the length is cut to the new maximum, never above it (QA P2-2)"""
+    app, mod, qapp, tmp, _mp = gui
+    from ps2rc.xmb import sound
+    from ps2rc.pbp.spec import MEDIA_BUDGET
+    import wave
+    wav = tmp / "long.wav"
+    with wave.open(str(wav), "wb") as w:
+        w.setnchannels(2)
+        w.setsampwidth(2)
+        w.setframerate(44100)
+        w.writeframes(b"\0" * 4 * 44100 * 70)
+    app.show_page("customize")
+    app._set_file("snd0", str(wav))
+    app.show_page("customize")
+    ui = app.slot_ui["snd0"]
+    ui["codec"].setCurrentIndex(ui["codec"].findData("atrac3_lp4"))
+    app.project.slots["snd0"]["seconds"] = 50.0
+    ui["codec"].setCurrentIndex(ui["codec"].findData("atrac3"))
+    secs = app.project.slots["snd0"]["seconds"]
+    assert secs <= sound.max_seconds(MEDIA_BUDGET, "atrac3") and secs >= 30.0
+    assert ui["len"].value() == int(secs * 10)
+    built = app.project.build(str(tmp / "w"), only=("snd0",))
+    assert "snd0" not in built.errors
+
+
+def test_about_dialog_and_help_menu(gui, monkeypatch):
+    app, mod, qapp, tmp, _mp = gui
+    titles = [a.text() for a in app.menuBar().actions()]
+    assert app.t("menu.help") in titles
+    d = app._about_dialog()                        # built, never exec'd (no modal window in tests)
+    head, body = d.about["head"].text(), d.about["body"].text()
+    assert mod.VERSION in head and "PS2RC License 1.0" in body and "SandstoneDev" in body
+    assert "https://github.com/SandstoneDev/PS2RC" in body and "discord.gg/wV8x46ZTDu" in body
+    assert d.about["body"].openExternalLinks() and "NOTICE" in d.about["note"].text()
+    seen = []
+    monkeypatch.setattr(mod, "show_in_explorer", lambda p, select=False: seen.append(p))
+    d.about["licences"].click()
+    assert seen and os.path.isdir(seen[0]) and os.path.basename(seen[0]) == "licenses"
+    d.close()
+
+
+def test_translated_choices_and_reasons(gui, monkeypatch):
+    app, mod, qapp, tmp, _mp = gui
+    import backend
+    app._set_lang("ru")
+    app.show_page("convert")
+    c = app.adv["audio"]
+    assert [c.itemData(i) for i in range(c.count())] == ["all", "min", "none"]
+    assert c.itemText(0) != "all"                                  # shown in Russian
+    c.setCurrentIndex(c.findData("min"))
+    assert app.options_kw()["audio"] == "min"
+    folder = tmp / "PSP" / "GAME" / "PS2RC_X"
+    folder.mkdir(parents=True)
+    app.selected_folder = str(folder)
+    monkeypatch.setattr(backend, "plan_update", lambda f, src=None, opts=None: {"actions": [
+        ("disc/a.img", "copy", "damaged"), ("x.bin", "write", "some other reason")]})
+    app.show_page("update")
+    assert pump(qapp, lambda: app.plan_tv.topLevelItemCount() == 2)
+    assert app.plan_tv.topLevelItem(0).text(2) == app.t("why.damaged") != "damaged"
+    assert app.plan_tv.topLevelItem(1).text(2) == "some other reason"
+    app._set_lang("en")
+
+
+def test_long_title_note_is_a_warning(gui):
+    app, mod, qapp, tmp, _mp = gui
+    app.show_page("customize")
+    app.title_edit.setText("L" * 60)
+    assert app.title_msg.property("kind") == "warn"
+
+
+def test_disc_buttons_on_with_the_generic_provider(gui):
+    """packs without their own disc reader get the generic one: the From-the-game-disc buttons are on"""
+    app, mod, qapp, tmp, _mp = gui
+    from ps2rc.xmb import disc_art
+    assert app.ident["pack"] == "example" and disc_art.find_provider(app._pack_dir()) is not None
+    app.show_page("customize")
+    assert app._disc_art_possible() and app.art_btn.isEnabled()

@@ -9,7 +9,15 @@ Docker), build (compiling and linking without make/sh), stage (output folder), p
 import os
 import sys
 
-VERSION = "0.1.0"
+VERSION = "0.1.1"
+FOLDER_MAX = 32
+
+
+def default_folder(serial):
+    """The PSP folder name a conversion gets by default (the window and the command line alike): PS2RC_ + the disc's
+    serial, ASCII letters / digits only, at most 32 characters (e.g. PS2RC_SLUS12345 for SLUS-12345)."""
+    s = "".join(c for c in str(serial or "") if c.isascii() and c.isalnum()).upper()
+    return ("PS2RC_" + s)[:FOLDER_MAX] if s else "PS2RC_GAME"
 
 
 def repo_root():

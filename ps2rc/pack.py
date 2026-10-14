@@ -214,6 +214,8 @@ def cheader(pack):
     lines.append("#define HLE_PACK_HAVE_DATA_FNV %d" % (1 if fnv else 0))
     lines.append("#define HLE_PACK_DATA_FNV 0x%016xull" % (int(fnv, 16) if fnv else 0))
     lines.append("#define HLE_PACK_CFG %s" % _c_str(g("runtime.cfg", "ps2rc.cfg")))
+    if g("runtime.cfg_legacy"):                        # an older name of the cfg (hle/core/hle_cfg.c falls back to it)
+        lines.append("#define HLE_PACK_CFG_LEGACY %s" % _c_str(g("runtime.cfg_legacy")))
     envp = g("runtime.cfg_env_prefixes", [])
     if envp:                                           # host: cfg keys exported as HLE_<KEY> (hle/core/hle_cfg.c)
         lines.append("#define HLE_PACK_CFG_ENV_PREFIXES %s" % ", ".join(_c_str(x) for x in envp))

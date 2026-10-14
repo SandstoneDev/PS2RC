@@ -28,7 +28,7 @@ cd "$B"
 exec 9>"$B/run.lock"
 if ! flock -n 9; then echo "another host run is in progress in $B"; exit 9; fi
 start=$(date +%s)
-./poc6_host --elf "$DISC/$PACK_ELF" --disc "$DISC" --discmap "$PACK_DISCMAP" --log "$B/run_$TAG.log" \
+./ps2rc_host --elf "$DISC/$PACK_ELF" --disc "$DISC" --discmap "$PACK_DISCMAP" --log "$B/run_$TAG.log" \
     --max-seconds "$MAXS" --verbose "$VERB" --psp-layout "${OVR[@]}" \
     --alias-report "$OUT/alias_$TAG.txt" --mmio-profile "$OUT/mmio_$TAG.txt" --disc-usage "$OUT/disc_$TAG.txt" "$@"
 code=$?

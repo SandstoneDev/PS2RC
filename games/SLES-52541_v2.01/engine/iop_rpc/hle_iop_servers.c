@@ -11,7 +11,7 @@
  *     when the build has the audio code (HLE_HAVE_AUDIO_MODEL); with HLE_AUDIO_WAV=<file> everything the engine
  *     renders is written as a 48 kHz WAV;
  *   - a protocol-correct silent responder (no sound) - host runs with --audio silent, PSP builds without the audio
- *     code (build option AUDIO=0) or with poc6.cfg audio=0 / no AUDIO folder on the memory stick.
+ *     code (build option AUDIO=0) or with ps2rc.cfg audio=0 / no AUDIO folder on the memory stick.
  *   On the PSP the same driver runs in the same lockstep mode (psp/hle_audio_psp.c: sceAudio output, ~2.6 MB) - the
  *   replies equal the host's; their FNV-1a hash is logged at 1024, 2048, 4096, ... RPCs and at the end (compare host
  *   and PSP logs).
@@ -53,7 +53,7 @@ static AudioHost *aud;
 #define AUD_MODEL() audio_host_model(aud)
 #endif
 int hle_audio_log_level;                       /* the driver's progress messages without --verbose (host env
-                                                  HLE_AUDIO_LOG=1, PSP poc6.cfg audio_log=1): loads, track starts */
+                                                  HLE_AUDIO_LOG=1, PSP ps2rc.cfg audio_log=1): loads, track starts */
 static void aud_log(void *user, int level, const char *fmt, ...)
 {
     (void)user;
@@ -80,7 +80,7 @@ void hle_pack_iop_init(void)
 #ifdef HLE_HAVE_AUDIO_MODEL
     if (hle_opt_audio_model) {
 #ifdef HLE_PSP
-        aud = hle_audio_psp_init(aud_log);           /* reads poc6.cfg, incl. audio_log -> hle_audio_log_level */
+        aud = hle_audio_psp_init(aud_log);           /* reads ps2rc.cfg, incl. audio_log -> hle_audio_log_level */
         LOG("Sound driver: %s\n", aud ? "sound driver running, sceAudio output" : "silent responder");
 #else
         const char *wav = getenv("HLE_AUDIO_WAV"), *lg = getenv("HLE_AUDIO_LOG");
@@ -101,7 +101,7 @@ static void recv_word(uint32_t recv, uint32_t rsize, uint32_t v)
     }
 }
 
-/* psp/hle_cdasync.c (PSP only, poc6.cfg disc_async=1): Read queued for a reader thread, GetStatus
+/* psp/hle_cdasync.c (PSP only, ps2rc.cfg disc_async=1): Read queued for a reader thread, GetStatus
    255 while it reads, Sync waits; absent (host) or off = the synchronous reads below */
 int hle_cdasync_read(uint32_t ch, uint32_t lsn, uint32_t n, void *dst) __attribute__((weak));
 int hle_cdasync_status(uint32_t ch) __attribute__((weak));

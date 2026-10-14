@@ -1,7 +1,8 @@
 """Music from the player's own disc for the menu music (SND0).
 
-Model A, like disc_art.py: the game pack's provider (`games/<pack>/xmb_artwork.py`) knows the game's audio streams;
-this module is generic. Provider functions:
+Model A, like disc_art.py: the provider (the pack's own `games/<pack>/xmb_artwork.py`, else the generic
+disc_scan.Provider with the pack's [xmb.music] facts) reads the audio streams; this module is generic. Provider
+functions:
     music_list(disc, log, progress) -> [{name, category, seconds, ref}]      progress(done, total)
     music_pcm(disc, ref, start, seconds) -> (s16le interleaved bytes, rate, channels)
 The list is cached per disc (out_dir/<key>/music.json); a chosen piece is written as a 44.1 kHz stereo WAV in the
@@ -49,7 +50,7 @@ def list_music(source, out_dir, pack_dir, log=None, progress=None):
     prov = disc_art.find_provider(pack_dir)
     if not available(pack_dir):
         return []
-    d = os.path.join(out_dir, disc_art.disc_key(source, prov.__file__))
+    d = os.path.join(out_dir, disc_art.provider_key(source, prov))
     idx = os.path.join(d, INDEX)
     if os.path.isfile(idx):
         try:

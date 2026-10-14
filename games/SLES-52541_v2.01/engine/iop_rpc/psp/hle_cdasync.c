@@ -1,4 +1,4 @@
-/* hle_cdasync.c - disc stream reads on a reader thread (PSP only, poc6.cfg disc_async=1, from the first main-loop
+/* hle_cdasync.c - disc stream reads on a reader thread (PSP only, ps2rc.cfg disc_async=1, from the first main-loop
  * iteration on).
  *
  * On the PS2 the game's disc streaming module reads asynchronously: Read(channel, buffer, lsn, n) only queues the
@@ -21,7 +21,7 @@
 int hle_disc_read_lsn_quiet(uint32_t lsn, uint32_t nsect, void *dst);
 void hle_plat_disc_lock_create(void);
 
-int hle_cdasync_opt = 0;                       /* poc6.cfg disc_async=1 */
+int hle_cdasync_opt = 0;                       /* ps2rc.cfg disc_async=1 */
 #define NCH 8
 static struct { volatile int busy; uint32_t lsn, n; void *dst; } job[NCH];
 static volatile int ring[NCH * 2];

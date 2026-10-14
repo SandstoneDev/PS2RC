@@ -371,9 +371,7 @@ def test_disc_art_from_the_players_disc(tmp_path, pillow):
     from ps2rc.xmb import disc_art
     root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     pack = os.path.join(root, "games", PACK)
-    if not os.path.isfile(os.path.join(pack, "xmb_artwork.py")):
-        pytest.skip("the game pack has no disc artwork reader")
-    arts = disc_art.extract(ISO, str(tmp_path), pack)
+    arts = disc_art.extract(ISO, str(tmp_path), pack)               # the pack's own reader, else the generic one
     cats = {}
     for a in arts:
         cats[a.category] = cats.get(a.category, 0) + 1

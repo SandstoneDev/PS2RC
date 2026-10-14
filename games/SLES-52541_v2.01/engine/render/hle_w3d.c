@@ -1654,7 +1654,7 @@ static void draw_classified(Ent *e, const M43 *M, const uint8_t *vover, int whol
 }
 
 /* the ALLEGREX counters around our own work (w3d_hwprof=N: 1 in N immediate atomics or deferred batches;
-   needs poc6.cfg prof_hw=2 on the PSP - the profiler's kernel door, ~65 us a read, so only sampled). Words (layout
+   needs ps2rc.cfg prof_hw=2 on the PSP - the profiler's kernel door, ~65 us a read, so only sampled). Words (layout
    in ps2rc_exc.h): 2 CPU cycles, 3 internal stall, 4 memory stall, 5 FPU stall, 6 VFPU stall, 7 sleep,
    9 / 10 uncached loads / stores, 11 / 12 cached loads / stores, 13 I-cache misses, 14 D-cache misses, 15 D-cache
    writebacks. The cost of the door itself (two reads back to back, 8 times) is subtracted. */

@@ -23,7 +23,7 @@ typedef void (*HleMcListFn)(void *ctx, const char *name, int is_dir, uint32_t si
 
 /* ------------------------------------------------------------------ platform file layer */
 /* configuration: returns 1 when a card is inserted in slot 1 and writes its root directory (ends with '/') to root,
-   0 = no card (the host without --memcard, PSP poc6.cfg memcard=0). Called once, at the game's first sceMcInit. */
+   0 = no card (the host without --memcard, PSP ps2rc.cfg memcard=0). Called once, at the game's first sceMcInit. */
 int hle_plat_mc_config(char *root, size_t n);
 /* the clock that stamps entries the game creates or changes (PSP: the RTC's local time; host: a fixed date + the
    virtual time, deterministic) */

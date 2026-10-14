@@ -16,7 +16,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include "hle.h"
-#include "hle_cfg.h"                 /* the shared poc6.cfg table */
+#include "hle_cfg.h"                 /* the shared ps2rc.cfg table */
 
 #define PS2_SELECT   0x0001u
 #define PS2_L3       0x0002u
@@ -58,7 +58,7 @@ static int n_pad_ev;
 static struct { double t; uint32_t a; uint8_t v, done; } pokes[MAX_POKES];
 static int n_pokes;
 
-static void poke_load(const char *s)               /* the value of poc6.cfg poke (hle_cfg.c) */
+static void poke_load(const char *s)               /* the value of ps2rc.cfg poke (hle_cfg.c) */
 {
     if (!s) return;
     while (*s && *s != '\n' && *s != '\r' && n_pokes < MAX_POKES) {
@@ -75,7 +75,7 @@ static void poke_load(const char *s)               /* the value of poc6.cfg poke
         s = e;
         if (*s == ',') s++;
     }
-    LOG("pad: %d scripted pokes from poc6.cfg poke\n", n_pokes);
+    LOG("pad: %d scripted pokes from ps2rc.cfg poke\n", n_pokes);
 }
 
 static void pokes_apply(void)
@@ -118,7 +118,7 @@ static void pad_script_load(void)
         n_pad_ev++;
         if (*s == ',') s++;
     }
-    LOG("pad: %d scripted presses from poc6.cfg pad_script\n", n_pad_ev);
+    LOG("pad: %d scripted presses from ps2rc.cfg pad_script\n", n_pad_ev);
 }
 
 static uint8_t stick(unsigned v)

@@ -1,5 +1,5 @@
 # Makefile.host - the host (Linux x86-64) harness of a translated program + the HLE runtime. Run from the build dir by
-# mk/build.sh host: make -f <this> -j6 poc6_host
+# mk/build.sh host: make -f <this> -j6 ps2rc_host
 # gen/ = the generated units (hooks applied)    hle/ = the HLE sources (+ rt/: the runtime header in check mode)
 GEN_C := $(sort $(wildcard gen/*.c))
 GEN_O := $(patsubst gen/%.c,obj/gen/%.o,$(GEN_C))
@@ -11,7 +11,7 @@ CFLAGS_GEN := $(GEN_OPT) -std=gnu11 -w $(FPFLAGS) -Ihle/rt -Igen
 CFLAGS_HLE := -O1 -g -std=gnu11 -Wall -Wno-unused-function -Wno-unused-variable -Wno-format-truncation \
               $(FPFLAGS) -Ihle/rt -Ihle -Igen $(CFLAGS_HLE_EXTRA)
 
-poc6_host: $(GEN_O) $(HLE_O)
+ps2rc_host: $(GEN_O) $(HLE_O)
 	gcc -rdynamic -o $@ $(GEN_O) $(HLE_O) -lz -lm
 
 obj/gen/%.o: gen/%.c hle/rt/r5900_rt.h
@@ -23,4 +23,4 @@ obj/hle/%.o: hle/%.c $(wildcard hle/*.h) hle/hooks.def hle/rt/r5900_rt.h
 	gcc $(CFLAGS_HLE) -c $< -o $@
 
 clean:
-	rm -rf obj poc6_host
+	rm -rf obj ps2rc_host

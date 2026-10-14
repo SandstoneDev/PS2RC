@@ -155,7 +155,15 @@ def test_encode_with_entry_points(ffmpeg, pmfmux):
         assert pmfinfo.check(info) == [] and info['header']['streams'][0]['ep_count'] == 2
 
 
+def need_lavfi(ffmpeg):
+    """these tests make their input clip with ffmpeg's test sources; the converter's own minimal build has none"""
+    r = subprocess.run([ffmpeg, '-hide_banner', '-formats'], capture_output=True)
+    if b'lavfi' not in (r.stdout or b''):
+        pytest.skip('this ffmpeg has no lavfi test sources (the minimal build); the input clip cannot be made')
+
+
 def test_encode_video_into_a_small_budget(tmp_path, ffmpeg, pmfmux):
+    need_lavfi(ffmpeg)
     src = tmp_path / 'clip.mp4'
     subprocess.run([ffmpeg, '-v', 'error', '-y', '-f', 'lavfi', '-i', 'testsrc2=size=320x240:rate=25:duration=3',
                     '-pix_fmt', 'yuv420p', str(src)], check=True)
@@ -167,6 +175,7 @@ def test_encode_video_into_a_small_budget(tmp_path, ffmpeg, pmfmux):
 
 
 def test_encode_gif_with_seconds_cap(tmp_path, ffmpeg, pmfmux):
+    need_lavfi(ffmpeg)
     src = tmp_path / 'anim.gif'
     subprocess.run([ffmpeg, '-v', 'error', '-y', '-f', 'lavfi', '-i', 'testsrc=size=100x100:rate=10:duration=4',
                     str(src)], check=True)

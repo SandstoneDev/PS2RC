@@ -38,6 +38,8 @@ main_loop = ""                             # a TRACE label of hooks.def: its cal
                                            # hle_selftest_run)
 # wait_loops = []                          # guest addresses of pure wait loops: virtual time jumps to the next event
 cfg = "ps2rc.cfg"                          # the PSP run options file next to the EBOOT
+# cfg_legacy = "old.cfg"                  # an older name of it: read only when cfg is not there (folders made by
+                                           # an earlier version); a converter update moves its values into cfg
 psp_module = "PS2RC"                       # the PSP module name
 # zones = [["name", "zone.name", 0, 1]]    # extra profiler zones of the pack's modules (id, display name, flags, rate)
 # boot_arg0 = 'cdrom0:\SLUS_000.00;1'      # argv[0] the kernel passes to main (default from boot_elf)
@@ -79,7 +81,7 @@ out = "{work}/runs"
 # disc_override = ["FILE.INI={work}/file.ini"]   # serve a disc file from elsewhere (same size)
 
 [stage]                                    # ps2rc/pipeline/stage.py and the PC converter (ps2rc/convert)
-# folder = "PS2RC_MYGAME"                  # the folder under PSP/GAME/ (converter)
+# (the PSP folder: the converter names it PS2RC_<serial>, in the window and on the command line alike)
 # include = ["DATA/*"]                     # disc paths staged (case-insensitive globs) ...
 # exclude = ["DATA/*.BAK"]                 # ... minus these ...
 files = []                                 # ... plus these disc files (paths in the disc folder)
@@ -105,3 +107,20 @@ files = []                                 # ... plus these disc files (paths in
 
 # [disc]
 # layout = "analysis/iso_layout.txt"       # a disc FOLDER has no sector numbers: the layout made once from an image
+
+# [xmb.music]                              # menu music from the player's disc (ps2rc/xmb/disc_scan.py): indexed tracks
+                                           # of interleaved PS-ADPCM sub-streams (pictures need no facts: every
+                                           # texture dictionary on the disc is found by its content)
+# names = "SOUND/NAMES.DAT"                # container names: records of names_record bytes, the name in names_len
+# names_record = 16
+# names_len = 12
+# index = "SOUND/TRACKS.DAT"               # one record per track (struct format): container number, offset, ...
+# index_record = "<B3xII"
+# container = "SOUND/{name}.STR"           # {name}: a name from the names table
+# header = 0x1000                          # track header size (the audio data follows it)
+# streams = 0xF00                          # sub-stream table in the header: {u32 bytes, u32 rate} each
+# streams_max = 8
+# stream_count = 0xF40                     # u16: sub-streams in use
+# period = 0x10000                         # the sub-streams' data alternate in periods of this many bytes; each
+# period_rate = 48000                      # sub-stream's share of a period = rate * period / period_rate bytes
+# default_category = "other"               # radio, cutscene, beats, ambience, adverts or other

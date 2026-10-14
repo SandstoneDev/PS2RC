@@ -58,12 +58,13 @@ def test_temp_moved_to_ascii(tmp_path):
 
 
 @pytest.mark.skipif(os.name != "nt", reason="code-page rule of Windows")
-def test_default_work_fits_the_code_page(tmp_path):
-    out = str(tmp_path / ("out" + NOT_ANSI))
-    env = {"LOCALAPPDATA": str(tmp_path / "lad")}
-    w = hp.default_work(out, env)
-    assert hp.ansi_safe(w) and w.startswith(str(tmp_path / "lad")) and "PS2RC" in w
-    assert hp.default_work(str(tmp_path / "plain"), env) == os.path.join(str(tmp_path / "plain"), "_ps2rc_work")
+def test_default_work_never_inside_the_output(tmp_path):
+    env = {"LOCALAPPDATA": str(tmp_path / "lad"), "ProgramData": str(tmp_path / "pd")}
+    for out in (str(tmp_path / "plain"), str(tmp_path / ("out" + NOT_ANSI))):
+        assert hp.default_work(out, env) == os.path.join(str(tmp_path / "lad"), "PS2RC", "work")
+    env["LOCALAPPDATA"] = str(tmp_path / ("lad" + NOT_ANSI))           # a user folder outside the code page
+    w = hp.default_work(str(tmp_path / ("out" + NOT_ANSI)), env)
+    assert hp.ansi_safe(w) and w.startswith(os.path.join(str(tmp_path / "pd"), "PS2RC", "work"))
 
 
 def test_converter_under_a_non_ascii_path_is_refused(tmp_path):

@@ -2,7 +2,7 @@
  *
  * Zones = timed regions on the running guest thread, depth-aware (a stack per guest thread; inclusive time runs on the
  * thread's own clock, so time spent in other guest threads is not counted), self = inclusive - zoned children:
- *   - guest zones: translated functions listed in src/hle/zones.def; tests/poc6/prepare_gen.py renames their body
+ *   - guest zones: translated functions listed in src/hle/zones.def; ps2rc/pipeline/prepare_gen.py renames their body
  *     <name>__zbody and generates the wrapper <name> (gen/hle_zones.c), which calls hle_pz_wrap;
  *   - HLE zones: PZ_SCOPE(id) at the top of an HLE function (list below);
  *   - sampled zones (PZF_SAMPLE): hot short paths, timed on 1 call in N only and kept OUT of the tree (their time stays
@@ -10,7 +10,7 @@
  * Clock: sceKernelGetSystemTimeLow on the PSP (1 us, a syscall - its cost is measured at start and printed), the host
  * monotonic clock in ns. Output: a summary every prof_summary seconds and the final tables in the log, an optional
  * binary per-iteration capture (prof.bin, tests/phase6psp/prof_bin.py). Hardware counters (PSP only, prof_hw >= 1)
- * come through the platform (src/hle/psp/hle_prof_psp.c, ps2rc_exc.prx). Off unless enabled (poc6.cfg prof=1 / host
+ * come through the platform (src/hle/psp/hle_prof_psp.c, ps2rc_exc.prx). Off unless enabled (ps2rc.cfg prof=1 / host
  * --prof); profiling never charges virtual time, so the guest runs exactly as without it.
  */
 #ifndef HLE_PROF_H
@@ -66,7 +66,7 @@ enum {
 };
 
 extern volatile int hle_pz_on;          /* zone timing active (set by hle_pz_init) */
-/* options, set by the platform before hle_pz_init (PSP poc6.cfg, host command line) */
+/* options, set by the platform before hle_pz_init (PSP ps2rc.cfg, host command line) */
 extern int hle_pz_opt_on;               /* prof=1 */
 extern int hle_pz_opt_hw;               /* prof_hw=0|1|2 (PSP only): 1 = counter thread, 2 = + zone doors */
 extern int hle_pz_opt_summary_s;        /* prof_summary=N seconds between summaries (default 10, 0 = none) */

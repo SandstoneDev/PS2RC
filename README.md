@@ -75,7 +75,7 @@ pressed), so the view may change once when you press SELECT; press it again to g
 | SELECT + Triangle | L3 (left stick click) |
 | SELECT + Circle | R3 (right stick click) |
 | SELECT + D-pad | right stick, full deflection (camera); two directions at once give a diagonal |
-| SELECT + Up | right stick up (default); with `select_up=r3` or `select_up=l3` in `poc6.cfg` it is R3 / L3 instead |
+| SELECT + Up | right stick up (default); with `select_up=r3` or `select_up=l3` in `ps2rc.cfg` it is R3 / L3 instead |
 
 Port functions: **L + R + SELECT** shows or hides the frames-per-second counter (`show_fps` in the settings
 file sets it at start). HOME -> Exit returns to the PSP menu. Avoid L + R + Down + START: custom firmware uses it
@@ -198,7 +198,8 @@ Windows 10/11 x64 (the commands are for the Windows command prompt; on Linux / m
    `doctor` also lists what the developer pipeline would need (`local.toml`, an extracted disc folder, PPSSPP,
    PCSX2); the converter needs none of these. `--dry-run` prints the plan and writes nothing; `python -m ps2rc.convert --help` lists every option.
    `python -m ps2rc.convert verify <PSP folder>` checks a converted folder later; `update` repairs it and keeps
-   your settings and saves.
+   your settings and saves (a folder made by version 0.1.0: your settings move into `ps2rc.cfg`, the old file stays
+   next to it as `.old`).
 
 The converter window from source: `python -m pip install --require-hashes -r gui/build_requirements_qt.txt`,
 then `python gui/run_gui.py`. The ready-made folder itself is made by `python gui/build_app.py` (see the top of

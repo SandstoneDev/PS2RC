@@ -93,17 +93,23 @@ def safe_temp(work, env=None):
 
 
 def default_work(out, env=None):
-    """the work folder when none is given: <out>/_ps2rc_work when its path fits the code page, else
-    %LOCALAPPDATA%/PS2RC/work/<output folder name>, else %ProgramData%/PS2RC/work/<n> (an ASCII stand-in name)"""
+    """the work folder when none is given (the window's too): %LOCALAPPDATA%/PS2RC/work - never inside the output
+    (which may be the memory stick) - when its path fits the code page, else %ProgramData%/PS2RC/work/<n> (an ASCII
+    stand-in name), else <out>/_ps2rc_work (no Windows user folders: other systems)"""
     env = os.environ if env is None else env
+    for base in (env.get("LOCALAPPDATA"),):
+        if base:
+            c = os.path.join(base, "PS2RC", "work")
+            if ansi_safe(c):
+                return c
     w = os.path.join(os.path.abspath(out), "_ps2rc_work")
-    if ansi_safe(w):
+    if not env.get("LOCALAPPDATA") and not env.get("ProgramData") and ansi_safe(w):
         return w
     name = os.path.basename(os.path.abspath(out)) or "out"
     if not is_ascii(name):
         import hashlib
         name = "out_" + hashlib.sha1(os.path.abspath(out).encode("utf-8")).hexdigest()[:10]
-    for base in (env.get("LOCALAPPDATA"), env.get("ProgramData"), env.get("PUBLIC")):
+    for base in (env.get("ProgramData"), env.get("PUBLIC")):
         if base:
             c = os.path.join(base, "PS2RC", "work", name)
             if ansi_safe(c):

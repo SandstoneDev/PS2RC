@@ -60,6 +60,15 @@ def local_dir(*parts):
     return os.path.join(base, "PS2RC", *parts)
 
 
+PROJECT_URL = "https://github.com/SandstoneDev/PS2RC"
+DISCORD_URL = "https://discord.gg/wV8x46ZTDu"
+# the update plan's fixed reasons (ps2rc.convert.manifest.plan_from) -> texts of the window
+WHY_KEYS = {"missing": "why.missing", "damaged": "why.damaged", "OK": "why.ok",
+            "new in this converter version": "why.new", "changed in this converter version": "why.changed",
+            "your settings": "why.yours", "your settings kept, new settings added": "why.merged",
+            "missing: written from the template": "why.template",
+            "an older version made it; not used any more": "why.unused",
+            "the runtime or the game pack changed since it was made": "why.runtime"}
 JOBS_RX = re.compile(r"^compile: (\d+) parallel jobs instead of \d+")
 
 
@@ -287,6 +296,13 @@ class App(QMainWindow):
             a.triggered.connect(lambda _c=False, c=code: self._set_size(c))
             g.addAction(a)
             sizes.addAction(a)
+        helpm = mb.addMenu(self.t("menu.help"))
+        a = QAction(self.t("about.h"), self)
+        a.triggered.connect(self._about)
+        helpm.addAction(a)
+        a = QAction(self.t("about.licences"), self)
+        a.triggered.connect(self._open_licences)
+        helpm.addAction(a)
         langs = view.addMenu(self.t("lang"))
         g2 = QActionGroup(self)
         choice = self.s.get("lang_choice") or "system"
@@ -296,6 +312,57 @@ class App(QMainWindow):
             a.triggered.connect(lambda _c=False, c=code: self._set_lang(c))
             g2.addAction(a)
             langs.addAction(a)
+
+    def _licences_dir(self):
+        """the app folder's licenses/ (the bundle), else the tree's gui/licenses"""
+        for d in (os.path.join(os.path.dirname(ROOT), "licenses"), os.path.join(HERE, "licenses")):
+            if os.path.isdir(d):
+                return d
+        return None
+
+    def _open_licences(self):
+        d = self._licences_dir()
+        if d:
+            show_in_explorer(d)
+
+    def _about_dialog(self):
+        """version, licence, credits, project and community links, third-party notices (Explorer only)"""
+        d = QDialog(self)
+        d.setWindowTitle(self.t("about.h"))
+        lay = QVBoxLayout(d)
+        top = QHBoxLayout()
+        try:
+            import app_icon
+            pic = QLabel()
+            pic.setPixmap(app_icon.qicon(app_icon.DEFAULT).pixmap(64, 64))
+            top.addWidget(pic)
+        except Exception:      # the icon is a nicety
+            pass
+        head = QLabel("<b>%s %s</b><br>%s" % (self.t("app"), VERSION, self.t("about.what")))
+        head.setWordWrap(True)
+        top.addWidget(head, 1)
+        lay.addLayout(top)
+        body = QLabel("%s<br>%s<br>%s <a href=\"%s\">%s</a><br>%s <a href=\"%s\">%s</a>" % (
+            self.t("about.licence"), self.t("about.credits"), self.t("about.project"), PROJECT_URL,
+            PROJECT_URL.split("//", 1)[1], self.t("about.discord"), DISCORD_URL, DISCORD_URL.split("//", 1)[1]))
+        body.setTextFormat(Qt.RichText)
+        body.setOpenExternalLinks(True)                    # a link the player clicks opens in his browser
+        body.setWordWrap(True)
+        lay.addWidget(body)
+        note = label(self.t("about.third"), "hint", wrap=True)
+        lay.addWidget(note)
+        lic = QPushButton(self.t("about.licences"))
+        lic.clicked.connect(self._open_licences)
+        lic.setEnabled(self._licences_dir() is not None)
+        close = QPushButton(self.t("about.close"))
+        close.clicked.connect(d.accept)
+        lay.addWidget(hbox(lic, None, close))
+        d.setMinimumWidth(480)
+        d.about = {"head": head, "body": body, "note": note, "licences": lic}
+        return d
+
+    def _about(self):
+        self._about_dialog().exec()
 
     def lang_entries(self):
         """("system", "System default (English)") first, then every language"""
@@ -694,7 +761,7 @@ class App(QMainWindow):
                 msgs.append(self.t("title." + code, detail) if detail else self.t("title." + code))
                 if level == "error":
                     kind = "bad"
-                elif level == "warn" and kind != "bad":
+                elif (level == "warn" or code == "long") and kind != "bad":
                     kind = "warn"
         n = len(xtitle.clean_title(text).encode("utf-8"))
         msgs.insert(0, self.t("cus.title.bytes", n, TITLE_MAX))
@@ -908,7 +975,8 @@ class App(QMainWindow):
             ui["len"].setRange(10, int(longest * 10))
             s = self.project.slots["snd0"]
             if s.get("seconds") and s["seconds"] > longest:
-                s["seconds"] = round(longest, 1)
+                s["seconds"] = int(longest * 10) / 10.0           # down to the slider's 0.1 s steps, never above
+                ui["len"].setValue(int(s["seconds"] * 10))
         if "codec_note" in ui:
             ui["codec_note"].setVisible(codec != "atrac3plus")
         self._look_changed()
@@ -1457,8 +1525,9 @@ class App(QMainWindow):
                                ("audio", "adv.audio", ("all", "min", "none"))):
             lay.addWidget(QLabel(self.t(txt)))
             c = QComboBox()
-            c.addItems(opts)
-            c.setCurrentText(self.s.get(key, opts[0]))
+            for o in opts:
+                c.addItem(self.t("adv.%s.%s" % (key, o)), o)
+            c.setCurrentIndex(max(0, c.findData(self.s.get(key, opts[0]))))
             self.adv[key] = c
             lay.addWidget(c)
             lay.addSpacing(10)
@@ -1628,8 +1697,8 @@ class App(QMainWindow):
         ov = self.overrides()
         adv = getattr(self, "adv", None) if self.page == "convert" else None
         kw = {"title": xtitle.clean_title(self.project.title) or self._default_title(),
-              "movies": adv["movies"].currentText() if adv else self.s.get("movies", "auto"),
-              "audio": adv["audio"].currentText() if adv else self.s.get("audio", "all"),
+              "movies": adv["movies"].currentData() if adv else self.s.get("movies", "auto"),
+              "audio": adv["audio"].currentData() if adv else self.s.get("audio", "all"),
               "jobs": int(adv["jobs"].value()) if adv else int(self.s.get("jobs") or os.cpu_count() or 4),
               "work": work_dir(self.out_dir()), "lang": self.lang}
         if self.out_dir():
@@ -1676,7 +1745,7 @@ class App(QMainWindow):
             return
         if self.page == "convert":
             for k in ("movies", "audio"):
-                self.s[k] = self.adv[k].currentText()
+                self.s[k] = self.adv[k].currentData()
             self.s["jobs"] = self.adv["jobs"].value()
         self._save()
         kw = self.options_kw()
@@ -1800,7 +1869,7 @@ class App(QMainWindow):
                 u = res["update"] or {}
                 self.bar.setValue(1000)
                 self.left_label.setText("")
-                n = len(u.get("written") or []) + len(u.get("rewritten") or [])
+                n = sum(v if isinstance(v, int) else len(v or []) for v in (u.get("written"), u.get("rewritten")))
                 self.result_label.setText("%s (%d)" % (self.t("upd.done"), n))
                 set_kind(self.result_label, "good")
             elif res.get("folder"):
@@ -2032,8 +2101,9 @@ class App(QMainWindow):
             return
         todo = [a for a in actions if a[1] != "keep"]
         for path, act, why, _needs in todo:
+            wkey = WHY_KEYS.get(why)
             self.plan_tv.addTopLevelItem(QTreeWidgetItem([path, self.t("act." + act) if ("act." + act) in i18n.T
-                                                          else act, why]))
+                                                          else act, self.t(wkey) if wkey else why]))
         self.plan_needs_disc = any(a[3] for a in todo)
         if not todo:
             self.plan_label.setText(self.t("upd.nothing"))

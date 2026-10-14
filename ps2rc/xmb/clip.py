@@ -35,7 +35,7 @@ def frames(src, start=0.0, seconds=DEFAULT_SECONDS, box=None, ffmpeg=None, info=
             raise PbpError("%s: no picture stream (not a clip)" % src)
         b = _box(box, info["width"], info["height"])
         crop = "crop=%d:%d:%d:%d," % (b[2] - b[0], b[3] - b[1], b[0], b[1]) if b else ""
-        vf = "%sscale=%d:%d:flags=lanczos,setsar=1,fps=%d/%d" % (crop, ICON1_W, ICON1_H, ICON1_FPS_NUM,
+        vf = "%sscale=%d:%d:flags=lanczos+accurate_rnd,setsar=1,fps=%d/%d" % (crop, ICON1_W, ICON1_H, ICON1_FPS_NUM,
                                                                   ICON1_FPS_DEN)
         loop = ["-stream_loop", "-1"] if str(src).lower().endswith((".gif", ".webp", ".apng")) else []  # GIFs loop
         cmd = [ff, "-v", "error"] + loop + ["-ss", "%.3f" % start, "-t", "%.3f" % seconds, "-i", src, "-an", "-vf", vf,

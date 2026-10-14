@@ -39,6 +39,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import pmfmux  # noqa: E402
 import pss  # noqa: E402
+import framecheck  # noqa: E402
 
 PSP_W, PSP_H = 480, 272
 VBV_MAXRATE, VBV_BUFSIZE = 3000, 1875          # kbit/s, kbit (the reference files' HRD buffer is 1,874,992 bits)
@@ -181,8 +182,17 @@ def video_filter(dar, aspect):
         pw, ph = PSP_W, min(PSP_H, int(round(PSP_W / dar / 2.0)) * 2)
     else:
         pw, ph = min(PSP_W, int(round(PSP_H * dar / 2.0)) * 2), PSP_H
-    return ('scale=%d:%d:flags=lanczos,pad=%d:%d:%d:%d:black,setsar=1,fps=30000/1001,format=yuv420p' %
+    # accurate_rnd: the scaler's exact C path (a build with inline assembly but without the matching vertical filter
+    # wrote garbage pictures without it)
+    return ('scale=%d:%d:flags=lanczos+accurate_rnd,pad=%d:%d:%d:%d:black,setsar=1,fps=30000/1001,format=yuv420p' %
             (pw, ph, PSP_W, PSP_H, (PSP_W - pw) // 2, (PSP_H - ph) // 2)), '%dx%d' % (pw, ph)
+
+
+def reference_filter(pic):
+    """the content check's reference: the same picture geometry, made in RGB (framecheck)"""
+    pw, ph = (int(x) for x in pic.split('x'))
+    return framecheck.rgb_reference_filter('scale=%d:%d:flags=bicubic,pad=%d:%d:%d:%d:black,setsar=1' %
+                                           (pw, ph, PSP_W, PSP_H, (PSP_W - pw) // 2, (PSP_H - ph) // 2))
 
 
 def has_soxr(ffmpeg):
@@ -235,7 +245,9 @@ def convert(name, src, args, work):
     r['picture'] = pic
     es = os.path.join(work, name + '.264')
     x264 = X264 + ('' if args.deblock else ':no-deblock=1')
-    base = [args.ffmpeg, '-v', 'error', '-y', '-i', src, '-map', '0:v:0', '-an', '-vf', vf, '-c:v', 'libx264',
+    # -sws_flags: also the scalers ffmpeg inserts by itself (format conversions) take the exact C path
+    base = [args.ffmpeg, '-v', 'error', '-y', '-i', src, '-map', '0:v:0', '-an', '-vf', vf,
+            '-sws_flags', 'lanczos+accurate_rnd', '-c:v', 'libx264',
             '-profile:v', 'main', '-level:v', '2.1', '-preset', args.preset, '-b:v', '%dk' % args.vkbps,
             '-x264-params', x264] + BITEXACT
     if args.no_2pass:
@@ -265,6 +277,16 @@ def convert(name, src, args, work):
     if frames != st['access_units']:
         raise RuntimeError('%s: ffmpeg decoded %s frames of %d' % (name, frames, st['access_units']))
     r['decoded_frames'] = frames
+    # pictures against the source (a faulty scaler in the ffmpeg build fails here, loudly)
+    t0 = time.time()
+    secs = st['seconds']
+    times_ = [round(secs * x, 2) for x in (0.3, 0.5, 0.7)] if secs > 1.0 else [0.0]
+    try:
+        r['picture_check'] = framecheck.check(args.ffmpeg, pmf, PSP_W, PSP_H, source=src,
+                                              ref_vf=reference_filter(pic), times=times_, what=name)
+    except framecheck.FrameCheckError as e:
+        raise RuntimeError(str(e))
+    times['picture_check'] = time.time() - t0
     r['pmf_bytes'], r['pmf_md5'] = os.path.getsize(pmf), md5(pmf)
     if snd:
         kv = stream_facts(args, wav_out, 'stream=codec_name,sample_rate,channels,block_align:format=duration')
@@ -336,8 +358,9 @@ def main():
         log('%s: converting %s ...' % (name, src))
         r = convert(name, src, args, work)
         s = r['sound']
-        log('%s: %.3f s, %d frames, PMF %d bytes (md5 %s)%s, %.0f s' % (
+        log('%s: %.3f s, %d frames, PMF %d bytes (md5 %s; pictures vs source %.1f dB)%s, %.0f s' % (
             name, r['pmf']['seconds'], r['decoded_frames'], r['pmf_bytes'], r['pmf_md5'],
+            r['picture_check']['best'],
             ', WAV %d bytes %s %.3f s (md5 %s)' % (r['wav_bytes'], s['wav_codec'], s['wav_seconds'], r['wav_md5'])
             if s else ', no sound', r['total_s']))
         report.append(r)

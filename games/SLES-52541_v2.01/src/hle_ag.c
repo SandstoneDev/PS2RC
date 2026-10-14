@@ -1,4 +1,4 @@
-/* hle_ag.c - game-logic cuts behind poc6.cfg keys (default 0 = the original).
+/* hle_ag.c - game-logic cuts behind ps2rc.cfg keys (default 0 = the original).
  *
  * x_agcam=R (host HLE_X_AGCAM=R, R in cm; 0 = off): the camera's world-collision cone cast at half rate.
  *   camera_cone_cast 0x2261C0 (called by the camera modes 0x20C370 / 0x225B30 from the camera update 0x201B20)

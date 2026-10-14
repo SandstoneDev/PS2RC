@@ -26,9 +26,13 @@ FOLDER_MAX = 32
 
 def default_folder(serial):
     """the PSP folder name the player gets: PS2RC_ + the disc's serial, ASCII letters / digits, at most 32
-    characters (never a pack's internal build-folder name)"""
-    s = "".join(c for c in str(serial or "") if c.isascii() and c.isalnum()).upper()
-    return ("PS2RC_" + s)[:FOLDER_MAX] if s else "PS2RC_GAME"
+    characters (never a pack's internal build-folder name); the same rule as the command line (ps2rc.convert)"""
+    try:
+        from ps2rc.convert import default_folder as core
+        return core(serial)
+    except ImportError:        # older core: the same rule here
+        s = "".join(c for c in str(serial or "") if c.isascii() and c.isalnum()).upper()
+        return ("PS2RC_" + s)[:FOLDER_MAX] if s else "PS2RC_GAME"
 
 
 def foreign_folder(path):

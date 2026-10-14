@@ -7,7 +7,7 @@ import shutil
 import sys
 import time
 
-from . import VERSION, repo_root
+from . import VERSION, default_folder, repo_root
 from . import cfgfile
 from . import hostpaths
 from . import disc as discmod
@@ -36,7 +36,7 @@ STEPS = [("identify", "Identify the disc"), ("extract", "Read the boot program, 
 def code_hash(repo):
     """The translator and the pack's analysis scripts (a change re-runs the analysis / translation steps)."""
     parts = []
-    for rel in ("src/ps2rc", "tests/phase3", "tests/phase4", "tests/phase4b", "tests/poc6", "tests/phase6psp",
+    for rel in ("src/ps2rc", "tests/phase3", "tests/phase4", "tests/phase4b", "tests/phase6psp",
                 "tests/refbins.py", "ps2rc/pipeline", "ps2rc/analysis", "ps2rc/r5900", "ps2rc/vu", "ps2rc/backend_c.py",
                 "ps2rc/ir.py", "ps2rc/image.py", "ps2rc/overlay.py", "ps2rc/bind.py", "ps2rc/pack.py"):
         parts.append(tree_hash(os.path.join(repo, rel), exts=(".py",)))
@@ -95,8 +95,9 @@ class Options:
         self.dry_run = kw.get("dry_run", False)            # update: only list what would change
         self.verify_writes = kw.get("verify_writes")       # read every written file back (None: on for an update)
         self.force = kw.get("force", False)                # update: allow another game version than the folder's
+        self.clean_work = kw.get("clean_work", False)      # remove the whole work folder after a finished run
         self.profile = kw.get("profile")                   # pack build profile (None: the pack's default)
-        self.folder = kw.get("folder")                     # the PSP folder itself (default: OUT/<the pack's folder>)
+        self.folder = kw.get("folder")                     # the PSP folder itself (default: OUT/PS2RC_<serial>)
 
 
 class Conversion:
@@ -183,7 +184,8 @@ class Conversion:
                                "move the whole converter folder to a plain path, e.g. PS2RC_Converter at the top "
                                "of a drive, and start "
                                "it from there")
-        os.makedirs(o.out, exist_ok=True)
+        if o.update and not (o.source and os.path.exists(o.source)):
+            return self._run_discless()                     # repair without the disc image (cfg files only)
         dev_analysis = None
         try:
             from ps2rc import config
@@ -200,6 +202,7 @@ class Conversion:
         except IdentifyError as e:
             raise ConvertError(e.code, e.message, e.hint)
         self.ident, self.pack = ident, ident.pack
+        os.makedirs(o.out, exist_ok=True)                   # only for a disc that was accepted
         self._setup_env(self.pack.name)
         p.open_log(self.log)
         self.recipe = Recipe(self.pack, dev_analysis)
@@ -214,8 +217,7 @@ class Conversion:
         if not self.recipe.get("convert.translate"):
             raise ConvertError("pack", "pack %s has no conversion recipe ([convert] in pack.toml or convert.toml)"
                                % self.pack.name, "this pack cannot be converted by this converter version")
-        self.folder = self.recipe.get("stage.folder") or self.pack.get("runtime.psp_module") or "PS2RC"
-        self.folder_dir = os.path.abspath(o.folder) if getattr(o, "folder", None) else             os.path.join(os.path.abspath(o.out), self.folder)
+        self.folder_dir = os.path.abspath(o.folder) if getattr(o, "folder", None) else self._default_folder_dir()
         self.folder = os.path.basename(self.folder_dir)
         self.md5cache = Md5Cache(os.path.join(self.work, "stage_md5.json"))
         vw = o.verify_writes if o.verify_writes is not None else bool(o.update)
@@ -292,8 +294,128 @@ class Conversion:
         total = time.time() - t_all
         p.info("DONE in %.0f s. Copy the folder %s to PSP/GAME/ on the memory stick." % (total, self.folder_dir))
         self.result.update(folder=self.folder_dir, seconds=total)
-        json.dump(self.result, open(os.path.join(self.work, "result.json"), "w"), indent=1, default=str)
+        with open(os.path.join(self.work, "result.json"), "w") as f:
+            json.dump(self.result, f, indent=1, default=str)
+        self._clean_work()
         return self.result
+
+    def _clean_work(self):
+        """After a finished conversion: the work folder's pure temporaries go (the copies of the translation that
+        prepare_gen reads, the movies taken from the disc); what makes a re-run or an update fast stays (step records,
+        translation, objects). --clean-work removes the whole work folder."""
+        import shutil as _sh
+        if getattr(self.o, "clean_work", False):
+            self.p.info("work folder %s removed (--clean-work)" % self.work)
+            self.p.close()                                  # the log file lives there
+            _sh.rmtree(self.work, ignore_errors=True)
+            return
+        freed = 0
+        for rel in (os.path.join("build", "gen_prep"), "movies_src", "assets_prev"):
+            d = os.path.join(self.work, rel)
+            if os.path.isdir(d):
+                for dp, _dn, fs in os.walk(d):
+                    freed += sum(os.path.getsize(os.path.join(dp, f)) for f in fs)
+                _sh.rmtree(d, ignore_errors=True)
+        if freed:
+            self.p.log("work folder: %.0f MB of temporary files removed; kept for a fast re-run: %s"
+                       % (freed / 1e6, self.work))
+
+    def _run_discless(self):
+        """Update without the disc image: allowed when only the run options files are missing / out of date (the
+        plan's actions without needs_disc). The folder's manifest names the game and the pack."""
+        o, p = self.o, self.p
+        from types import SimpleNamespace
+        from .identify import list_packs
+        folder = os.path.abspath(o.folder) if getattr(o, "folder", None) else None
+        if not folder and o.out and os.path.isdir(o.out):
+            for n in sorted(os.listdir(o.out)):
+                if os.path.isfile(os.path.join(o.out, n, mf.MANIFEST)):
+                    folder = os.path.join(os.path.abspath(o.out), n)
+                    break
+        m = mf.load(folder) if folder else None
+        if not m:
+            raise ConvertError("update", "no disc image given and no converted folder with a manifest found%s"
+                               % (" in %s" % (folder or o.out) if (folder or o.out) else ""),
+                               "give the disc image of the game (.iso) - the update then rebuilds what is needed")
+        name = (m.get("pack") or {}).get("name")
+        pack = dict((n, pk) for n, pk in list_packs(self.repo) if not isinstance(pk, Exception)).get(name)
+        if pack is None:
+            raise ConvertError("update", "the game pack %s of %s is not in this converter" % (name, folder),
+                               "use the converter version that made the folder, or give the disc image")
+        g, d = m.get("game") or {}, m.get("disc") or {}
+        self.pack, self.folder_dir, self.folder = pack, folder, os.path.basename(folder)
+        self.ident = SimpleNamespace(serial=g.get("serial"), version=g.get("version"), region=g.get("region"),
+                                     boot=d.get("boot") or "", elf_sha256=d.get("boot_sha256"))
+        self.recipe = Recipe(pack, None)
+        self.old_manifest = m
+        p.info("update without the disc image: %s (%s %s, made by converter %s)" % (
+            folder, g.get("serial"), g.get("version"), m.get("converter")))
+        rep = mf.verify_folder(folder, p)
+        p.info(rep.text())
+        oc = m.get("cfg") or {}
+        files = self._cfg_texts(oc.get("lang"), oc.get("decisions") or {})
+        exp = {r: (v.get("kind", "generated"), None) for r, v in m.get("files", {}).items()}
+        import hashlib
+        for nm, (text, kind) in files.items():
+            exp[nm] = (kind, hashlib.sha256(text.encode("utf-8")).hexdigest())
+        cur = {"converter": VERSION, "runtime": runtime_fingerprint(self.repo, pack, (m.get("options") or {})
+                                                                    .get("profile"))}
+        plan = mf.plan_from(rep, exp, cur)
+        plan.notes.append("no disc image given: only what needs no disc can be repaired")
+        if o.dry_run:
+            p.info(plan.text())
+            self.result.update(plan=plan.to_dict(), plan_text=plan.text(), report=rep.to_dict(), plan_obj=plan)
+            return self.result
+        need = [a[0] for a in plan.actions if a[3]]
+        if need:
+            raise ConvertError("update", "this repair needs the disc image: %s" % ", ".join(need[:6]) +
+                               (" and %d more" % (len(need) - 6) if len(need) > 6 else ""),
+                               "give the disc image of the game (.iso)")
+        work = os.path.join(hostpaths.default_work(o.out or os.path.dirname(folder)), "discless")
+        os.makedirs(work, exist_ok=True)
+        st = Stager(None, self.recipe, folder, p, Md5Cache(os.path.join(work, "stage_md5.json")), verify_writes=True)
+        written = []
+        for nm, (text, kind) in files.items():
+            act = dict((a[0], a[1]) for a in plan.actions).get(nm, "keep")
+            if act == "keep":
+                continue
+            if kind == "user":
+                text = self._player_cfg_merged(nm, text)
+            st.write_bytes(nm, text.encode("utf-8"))
+            written.append(nm)
+        for r, v in list(m["files"].items()):
+            if r in written:
+                sha, md5 = mf.hash_file(os.path.join(folder, r))
+                v.update(size=os.path.getsize(os.path.join(folder, r)), sha256=sha, md5=md5)
+        m["written"] = time.strftime("%Y-%m-%d %H:%M:%S")
+        mf.write(folder, m)
+        mf.write_md5_list(folder, m)
+        p.info("update without the disc: %s written (%s)" % (len(written), ", ".join(written) or "nothing to do"))
+        self.result.update(folder=folder, update={"written": st.written, "rewritten": st.rewritten,
+                                                  "report": rep.to_dict(), "discless": True})
+        return self.result
+
+    def _cfg_texts(self, lang, decisions):
+        """{name: (text, kind)} of the run options files from the pack's templates, the given language and the
+        converter's earlier decisions (a repair without the disc: nothing is decided again)."""
+        o = self.o
+        cfg_name = self.pack.get("runtime.cfg") or "ps2rc.cfg"
+        players, dev, default = cfgfile.pack_templates(self.pack)
+        if not players:
+            return {}
+        lang = o.lang or lang or default
+        if lang not in players:
+            lang = default
+        tpl = cfgfile.read_text(players[lang])
+        settings = dict(decisions)
+        settings.update({str(k): str(v) for k, v in o.settings.items()})
+        text = cfgfile.render_player(tpl, settings)
+        self.cfg_info = {"name": cfg_name, "lang": lang, "template_keys": cfgfile.keys(tpl), "decisions": decisions,
+                         "dev": cfgfile.dev_name(cfg_name) if dev and o.dev_cfg else None}
+        files = {cfg_name: (text, "user")}
+        if dev and o.dev_cfg:
+            files[cfgfile.dev_name(cfg_name)] = (cfgfile.read_text(dev), "generated")
+        return files
 
     def _stop(self, name):
         if self.o.stop_after == name:
@@ -335,6 +457,26 @@ class Conversion:
                         return path
         raise ConvertError("input", "%s: a disc folder needs the disc's sector layout, and no pack has one for %s"
                            % (src, boot), "use the disc image (.iso), or give --layout FILE")
+
+    def _default_folder_dir(self):
+        """OUT/PS2RC_<serial> (the window's default too). An update without --folder whose OUT has no folder of that
+        name takes the folder in OUT that the converter made from this disc (its manifest: the same serial and
+        version), e.g. one an earlier version named after the pack."""
+        out = os.path.abspath(self.o.out)
+        d = os.path.join(out, default_folder(self.ident.serial or self.pack.get("id.serial")))
+        if self.o.update and not os.path.isdir(d) and os.path.isdir(out):
+            for n in sorted(os.listdir(out)):
+                m = mf.load(os.path.join(out, n)) if os.path.isfile(os.path.join(out, n, mf.MANIFEST)) else None
+                g = (m or {}).get("game") or {}
+                if (g.get("serial"), g.get("version")) == (self.ident.serial, self.ident.version):
+                    self.p.info("update: the folder made from this disc in %s is %s" % (out, n))
+                    return os.path.join(out, n)
+        return d
+
+    def _cfg_moves(self):
+        """[(old, new)]: the folder's run options files still under the pack's older name ([runtime] cfg_legacy)."""
+        return cfgfile.cfg_moves(self.folder_dir, self.pack.get("runtime.cfg") or "ps2rc.cfg",
+                                 self.pack.get("runtime.cfg_legacy"))
 
     def _runtime_fp(self):
         if getattr(self, "_rt_fp", None) is None:
@@ -389,7 +531,9 @@ class Conversion:
         rep = mf.verify_folder(fd, p) if os.path.isdir(fd) else mf.VerifyReport(fd, None)
         if old:
             p.info(rep.text())
-        plan = mf.plan_from(rep, self._expected_files(), {"converter": VERSION, "runtime": self._runtime_fp()})
+        moves = self._cfg_moves()
+        plan = mf.plan_from(rep, self._expected_files(), {"converter": VERSION, "runtime": self._runtime_fp()},
+                            moves=moves)
         plan.notes.append(hostpaths.tools_line(self.repo, self.o.ffmpeg))
         if self.o.dry_run:
             return plan
@@ -398,12 +542,14 @@ class Conversion:
             self.stager.trust = {os.path.normcase(os.path.abspath(os.path.join(fd, r.replace("/", os.sep))))
                                  for r in old["files"] if r not in bad}
             for r in rep.corrupt:                       # damaged copies go; the stage writes them again
+                if r in dict(moves):                    # an edited old-name file: kept as .old by the stage
+                    continue
                 try:
                     os.remove(os.path.join(fd, r.replace("/", os.sep)))
                 except OSError:
                     pass
-        for name in ("stage", "movies"):                # the stage runs again (it keeps what is right)
-            self.rec.forget(name)
+        self.rec.forget("stage")                        # the stage runs again (it keeps what is right); the movie
+        #                                                 step's own record stays: intact movies are not re-encoded
         self.update_report = rep
         self.update_plan = plan
         return plan
@@ -620,7 +766,7 @@ class Conversion:
     def _link(self):
         b = self.builder
         fp = fingerprint("link", self.fp_compile, tree_hash(os.path.join(b.bdir, "obj")), self.tc.description)
-        elf, strip = os.path.join(b.bdir, "poc6.elf"), os.path.join(b.bdir, "poc6_strip.elf")
+        elf, strip = os.path.join(b.bdir, "ps2rc.elf"), os.path.join(b.bdir, "ps2rc_strip.elf")
         self.fp_link = fp
         if self._cached("link", fp):
             return elf, strip
@@ -682,9 +828,19 @@ class Conversion:
         p["DATA.PSP"] = open(strip, "rb").read()
         for slot, path in keep.get("files", {}).items():   # update: the folder's own menu assets, unless new ones
             p[slot] = open(path, "rb").read()
+        icon1 = assets["icon1"]
         try:
-            notes = apply(p, icon0=assets["icon0"], icon1_src=assets["icon1"], pic0=assets["pic0"],
-                          pic1=assets["pic1"], snd0=assets["snd0"], fit=o.fit, ffmpeg=self.ffmpeg, log=self.p.log)
+            if icon1 and os.path.splitext(icon1)[1].lower() not in (".pmf",):
+                # a clip / GIF: the window's path (ps2rc.xmb.clip: 3 s from the start, the centred cover crop,
+                # PSMF 0012 with an entry-point map), the budget = what the music leaves
+                from ps2rc.pbp.spec import MEDIA_BUDGET
+                from ps2rc.xmb import clip
+                snd = open(assets["snd0"], "rb").read() if assets["snd0"] else p["SND0.AT3"]
+                icon1, rep = clip.make_icon1(icon1, budget=MEDIA_BUDGET - len(snd or b""), ffmpeg=self.ffmpeg)
+                self.p.log("eboot: ICON1 from %s: %s" % (assets["icon1"], ", ".join(
+                    "%s %s" % kv for kv in sorted(rep.items()) if kv[0] in ("frames", "bytes", "kbps", "seconds"))))
+            notes = apply(p, icon0=assets["icon0"], icon1_src=icon1, pic0=assets["pic0"], pic1=assets["pic1"],
+                          snd0=assets["snd0"], fit=o.fit, ffmpeg=self.ffmpeg, log=self.p.log, icon1_epmap=True)
         except PbpError as e:
             raise ConvertError("assets", str(e), "pick another picture / file, or leave that asset out")
         for n in notes:
@@ -764,9 +920,10 @@ class Conversion:
         return "-DHLE_HAVE_AUDIO_MODEL" in hle_sources(self.repo, self._build_options().audio_model, self.pack,
                                                        self._profile()[1])[1]
 
-    def _player_cfg_merged(self, name, text):
-        """Update: the player's existing settings file merged into the new one (his values kept)."""
-        path = os.path.join(self.folder_dir, name)
+    def _player_cfg_merged(self, name, text, src=None):
+        """Update: the player's existing settings file merged into the new one (his values kept). src: the file to
+        take his values from when it is not `name` (the older name of a folder converted by an earlier version)."""
+        path = os.path.join(self.folder_dir, src or name)
         old = getattr(self, "old_manifest", None) or {}
         if not (self.o.update and os.path.isfile(path)):
             return text
@@ -777,9 +934,9 @@ class Conversion:
                   if pv.get(k.lower()) == v}              # the converter's old decisions are not the player's
         forget |= {k.lower() for k in list(self.o.settings) + list(self.cfg_info["decisions"])}   # this run's win
         merged, info = cfgfile.merge_player(prev, text, oc.get("template_keys"), forget=forget)
-        self.p.info("update: %s - your values kept (%s), new settings %s, dropped %s" % (
-            name, ", ".join(info["kept"]) or "none changed from the defaults", ", ".join(info["added"]) or "none",
-            ", ".join(info["dropped"]) or "none"))
+        self.p.info("update: %s%s - your values kept (%s), new settings %s, dropped %s" % (
+            name, " (from %s)" % src if src else "", ", ".join(info["kept"]) or "none changed from the defaults",
+            ", ".join(info["added"]) or "none", ", ".join(info["dropped"]) or "none"))
         return merged
 
     def _cfg(self, movies_on):
@@ -842,10 +999,13 @@ class Conversion:
         st.copy_file(os.path.join(self.work, "iso_meta.bin"), "iso_meta.bin")
         if prx:
             st.copy_file(prx, "ps2rc_exc.prx")
+        moves = self._cfg_moves()                     # a folder of an earlier version: its files' older names
+        moved_to = {new: old for old, new in moves}
         for name, (text, kind) in cfgs.items():
             if kind == "user":
-                text = self._player_cfg_merged(name, text)
+                text = self._player_cfg_merged(name, text, moved_to.get(name))
             st.write_bytes(name, text.encode("utf-8"))
+        self._cfg_migrate(moves)
         files, total, lines = st.stage_disc(o.audio if o.audio != "none" else None, self.ident.boot)
         with open(os.path.join(self.folder_dir, "disc_files.txt"), "w", encoding="ascii", newline="\n") as f:
             f.write("# disc files staged under disc/ (path, size in bytes)\n")
@@ -854,6 +1014,28 @@ class Conversion:
             len(files), total / 1e6, " (%d hard links to the disc folder)" % st.linked if st.linked else "",
             " + ".join(sorted(cfgs))))
         self._save("stage", fp, [self.folder_dir + os.sep + "EBOOT.PBP", os.path.join(self.folder_dir, "disc")], t0)
+
+    def _cfg_migrate(self, moves):
+        """The old-name files after their values went into the new names: the player's file is kept as <name>.old
+        (his edits are never lost); the developer file is removed when the converter made it unchanged (the folder's
+        manifest says so), else kept as .old too. Recorded in the manifest ("cfg_migrated")."""
+        fd = self.folder_dir
+        old = ((getattr(self, "old_manifest", None) or {}).get("files") or {})
+        self.cfg_migrated = []
+        for o, n in moves:
+            path = os.path.join(fd, o)
+            if not os.path.isfile(path):
+                continue
+            info = old.get(o) or {}
+            entry = {"from": o, "to": n, "converter": VERSION}
+            if info.get("kind") == "generated" and info.get("sha256") == mf.hash_file(path)[0]:
+                os.remove(path)
+                entry["removed"] = True
+                self.p.info("update: %s replaced by %s (removed: the converter made it, unchanged)" % (o, n))
+            else:
+                entry["kept_as"] = cfgfile.keep_old(fd, o)
+                self.p.info("update: %s replaced by %s; the old file is kept as %s" % (o, n, entry["kept_as"]))
+            self.cfg_migrated.append(entry)
 
     def _movies(self):
         o = self.o
@@ -917,7 +1099,9 @@ class Conversion:
                 "options": {"audio": self.o.audio, "movies": bool(getattr(self, "movies_on", False)),
                             "profile": self._profile()[0],
                             "title_sha256": hashlib.sha256((self.o.title or "").encode()).hexdigest()},
-                "cfg": ci, "runtime_files": list(self.recipe.get("stage.runtime_files", []) or [])}
+                "cfg": ci, "cfg_migrated": list((getattr(self, "old_manifest", None) or {}).get("cfg_migrated") or [])
+                + list(getattr(self, "cfg_migrated", None) or []),
+                "runtime_files": list(self.recipe.get("stage.runtime_files", []) or []) + list(cfgfile.KEPT_OLD)}
 
     def _verify(self):
         self._step_begin("verify")

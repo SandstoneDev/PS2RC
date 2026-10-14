@@ -177,7 +177,8 @@ class VerifyReport:
         if self.extra:
             out.append("Not made by the converter (left alone): %s" % _short(self.extra))
         if not self.ok:
-            out.append("Fix: run the converter's update with your disc image - it copies only these files again.")
+            out.append("Fix: run the converter's update - it writes only these files again (game data and the "
+                       "program need your disc image; the settings files do not).")
         return "\n".join(out)
 
 
@@ -231,7 +232,8 @@ def verify_folder(folder, progress=None, quick=False):
 class UpdatePlan:
     """What an update would do: actions (path, action, reason, needs_disc). action: copy (from the disc), rebuild
     (the program: EBOOT / kernel module - needs the disc), write (a generated file without the disc), merge_cfg
-    (the player's settings: values kept, new keys added), remove (a file an older version made), keep."""
+    (the player's settings: values kept, new keys added), remove (a file an older version made), rename (an old
+    settings file kept as <name>.old after its values moved to the new name), keep."""
 
     def __init__(self):
         self.actions = []
@@ -267,11 +269,14 @@ class UpdatePlan:
         return "\n".join(out)
 
 
-def plan_from(report, expected, current_info, cfg_name=None):
+def plan_from(report, expected, current_info, cfg_name=None, moves=()):
     """An update plan from a folder check and what the current converter would write.
     expected: {relpath: (kind, sha256 or None)} the current converter's output (None = not known without a build);
-    current_info: {"converter", "runtime"} of this converter."""
+    current_info: {"converter", "runtime"} of this converter; moves: [(old, new)] run options files still under the
+    pack's older name (cfgfile.cfg_moves)."""
     plan = UpdatePlan()
+    moved_to = {new: old for old, new in moves}
+    moved_from = {old: new for old, new in moves}
     plan.report = report
     m = report.manifest or {}
     old = m.get("files", {})
@@ -283,7 +288,10 @@ def plan_from(report, expected, current_info, cfg_name=None):
     for r, (kind, sha) in sorted(expected.items()):
         o = old.get(r)
         if kind == "user":
-            if r in damaged:
+            if r in moved_to:
+                plan.add(r, "merge_cfg", "your settings in %s carried over to its new name, new settings added"
+                         % moved_to[r], False)
+            elif r in damaged:
                 plan.add(r, "write", "missing: written from the template", False)
             elif o is None and os.path.exists(os.path.join(report.folder, r)):
                 plan.add(r, "merge_cfg", "your settings kept, new settings added", False)
@@ -292,13 +300,15 @@ def plan_from(report, expected, current_info, cfg_name=None):
             else:
                 plan.add(r, "keep", "your settings", False)
             continue
-        if r in damaged:
+        if r in damaged:                                # a text the converter renders itself needs no disc
             plan.add(r, "copy" if kind == "game_data" else "rebuild" if r.upper().endswith((".PBP", ".PRX"))
-                     else "write", "missing" if r in report.missing else "damaged", True)
+                     else "write", "missing" if r in report.missing else "damaged", sha is None)
         elif o is None:
-            plan.add(r, "copy" if kind == "game_data" else "write", "new in this converter version", True)
+            plan.add(r, "copy" if kind == "game_data" else "write", "new in this converter version",
+                     kind == "game_data" or sha is None)
         elif sha is not None and o.get("sha256") != sha:
-            plan.add(r, "copy" if kind == "game_data" else "write", "changed in this converter version", True)
+            plan.add(r, "copy" if kind == "game_data" else "write", "changed in this converter version",
+                     kind == "game_data")
         elif sha is None and newer and kind != "game_data":
             why = ("made by converter %s, this is %s" % (m.get("converter"), current_info.get("converter"))
                    if m.get("converter") != current_info.get("converter") else
@@ -306,8 +316,12 @@ def plan_from(report, expected, current_info, cfg_name=None):
             plan.add(r, "rebuild", why, True)
         else:
             plan.add(r, "keep", "OK", False)
-    for r in sorted(old):
-        if r not in expected:
+    for r in sorted(old) + sorted(set(moved_from) - set(old)):
+        if r in moved_from:
+            ok = (old.get(r) or {}).get("kind") == "generated" and r not in damaged
+            plan.add(r, "remove" if ok else "rename", "replaced by %s" % moved_from[r] if ok else
+                     "replaced by %s; kept as %s.old" % (moved_from[r], r), False)
+        elif r not in expected:
             plan.add(r, "remove", "an older version made it; not used any more", False)
     return plan
 
@@ -326,6 +340,7 @@ def plan_update(folder, source=None, progress=None, repo=None, **opts):
     exp = {r: (v.get("kind", "generated"), None if v.get("kind") != "user" else v.get("sha256"))
            for r, v in m.get("files", {}).items()}
     cur = {"converter": None, "runtime": None}
+    moves = []
     try:
         from . import VERSION, repo_root
         from .identify import list_packs
@@ -336,9 +351,18 @@ def plan_update(folder, source=None, progress=None, repo=None, **opts):
         for n, pk in list_packs(root):
             if n == name and not isinstance(pk, Exception):
                 cur["runtime"] = runtime_fingerprint(root, pk, (m.get("options") or {}).get("profile"))
+                from .cfgfile import cfg_moves, pack_templates, dev_name, read_text
+                moves = cfg_moves(folder, pk.get("runtime.cfg") or "ps2rc.cfg", pk.get("runtime.cfg_legacy"))
+                _pl, dev, _dl = pack_templates(pk)              # the developer file: known text, no disc needed
+                dn = dev_name(pk.get("runtime.cfg") or "ps2rc.cfg")
+                if dev and dn in exp:
+                    exp[dn] = (exp[dn][0], hashlib.sha256(read_text(dev).encode("utf-8")).hexdigest())
     except Exception:
         pass
-    plan = plan_from(rep, exp, cur)
+    for o, nw in moves:                            # the current converter writes them under the new name
+        kind, sha = exp.pop(o, ("generated", None))
+        exp[nw] = (kind, None)
+    plan = plan_from(rep, exp, cur, moves=moves)
     try:
         from . import repo_root
         from .hostpaths import tools_line

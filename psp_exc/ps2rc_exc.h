@@ -110,7 +110,7 @@ typedef struct {
 } Ps2rcMeBlock;
 
 /* ---- exit mode + the exit marker (module version 2).
- * hookfn(block, 2) = "exit mode", the EBOOT's replacement for stop + unload before sceKernelExitGame (poc6.cfg az_exit=1):
+ * hookfn(block, 2) = "exit mode", the EBOOT's replacement for stop + unload before sceKernelExitGame (ps2rc.cfg az_exit=1):
  * the default exception handler is given back and the counter thread told to quit (as module_stop), but the ME
  * sysevent handlers stay as they are - ours registered, the OS ME driver's "SceMeRpc" record still pointing at our no-op
  * - and the module is NOT unloaded, so nothing the kernel can still call (the sysevent list, SceMeRpc's handler word)
@@ -118,7 +118,7 @@ typedef struct {
  * our takeover; uofw me_wrapper). From then on both handlers only RECORD what reaches them into the exit marker: 16 words
  * in the Media Engine's reset-vector RAM (KSEG1, written only while the ME is held in reset - the EBOOT stopped it at
  * exit 1/6), which a soft reboot does not clear unless the OS's ME boot rewrites it. The next PS2RC run reads it back
- * at boot (poc6.cfg az_marker=1): "the previous exit dispatched N sysevents to the ME handlers". A power cut erases it. */
+ * at boot (ps2rc.cfg az_marker=1): "the previous exit dispatched N sysevents to the ME handlers". A power cut erases it. */
 #define PS2RC_AZ_MARK_ADDR 0xBFC00400u              /* after our ME stub (<= 128 words), before the 0x600 mailboxes */
 #define PS2RC_AZ_MARK_MAGIC 0x415A5831u             /* "AZX1" */
 #define PS2RC_AZ_MARK_WORDS 16

@@ -31,7 +31,7 @@
  * original and a "._ps2rc_tmp" (incomplete) is deleted. Names containing "_ps2rc" are never shown to the game.
  * An unformatted card: the folder holds "_ps2rc_unformatted" (tests; sceMcFormat removes everything and the marker).
  *
- * No card (host without --memcard, PSP poc6.cfg memcard=0): exactly the old stub behaviour - every command completes
+ * No card (host without --memcard, PSP ps2rc.cfg memcard=0): exactly the old stub behaviour - every command completes
  * with -10, GetInfo reports type/free/format 0, no virtual time charged (host baseline: main loop at vtime 40.090).
  * Card: each command charges MC_COST_CMD EE cycles (+ n/8 for data) at a safe point - deterministic, independent of
  * how long the memory stick takes.

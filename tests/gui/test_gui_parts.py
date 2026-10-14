@@ -118,7 +118,7 @@ def test_drives_and_folders(tmp_path):
     game = psp / "PSP" / "GAME"
     (game / "PS2RC_X").mkdir(parents=True)
     (game / "PS2RC_X" / "EBOOT.PBP").write_bytes(b"\0PBP")
-    (game / "PS2RC_X" / "poc6.cfg").write_text("a=1")
+    (game / "PS2RC_X" / "ps2rc.cfg").write_text("a=1")
     (game / "PS2RC_Y").mkdir()
     (game / "PS2RC_Y" / psp_drives.MANIFEST).write_text(json.dumps({"converter_version": "0.0.9"}))
     (game / "OTHER").mkdir()

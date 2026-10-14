@@ -1,7 +1,7 @@
 # Makefile.psp - the PSP EBOOT of a translated program + the HLE runtime. Run from the build dir by mk/build.sh:
 #   make -f <this> -j6 gen_objs   (all generated units, parallel)   then   make -f <this>   (HLE, link, EBOOT.PBP)
 # gen/ = the generated units (hooks, trap set, patches applied)     hle/ = the HLE sources (+ rt/: the runtime header)
-TARGET   = poc6
+TARGET   = ps2rc
 GEN_C   := $(sort $(wildcard gen/*.c))
 GEN_O   := $(patsubst gen/%.c,obj/gen/%.o,$(GEN_C))
 HLE_C   := $(sort $(wildcard hle/*.c))

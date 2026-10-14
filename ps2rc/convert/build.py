@@ -24,7 +24,7 @@ HLEFLAGS = ["-DHLE_PSP", "-Wall", "-Wno-unused-function", "-Wno-unused-variable"
 LIBS = ["-lpspgu", "-lpsppower", "-lpsprtc", "-lpspmpeg", "-lpspaudio"]
 BUILDMAK_LIBS = ["-lpspdebug", "-lpspdisplay", "-lpspge", "-lpspctrl", "-lpspnet", "-lpspnet_apctl"]
 PSP_FW_VERSION = 600
-TARGET = "poc6"
+TARGET = "ps2rc"
 # the kernel module imports the CFW function it needs through its own stub (ps2rc_sctrl.S, PSPSDK import macros)
 PRX_DEFAULT = {"OBJS": "exc_main.o exc_asm.o exc_me.o ps2rc_sctrl.o", "CFLAGS": "-O2 -G0 -Wall", "LIBS": "",
                "PSP_FW_VERSION": "660"}
@@ -196,9 +196,9 @@ def find_script(repo, *cands):
 
 
 SCRIPTS = {
-    "prepare_gen": ("tests/poc6/prepare_gen.py", "ps2rc/pipeline/prepare_gen.py"),
+    "prepare_gen": ("ps2rc/pipeline/prepare_gen.py",),
     "layout_apply": ("tests/phase6psp/r_layout/layout_apply.py", "ps2rc/pipeline/layout_apply.py"),
-    "patch_rt_header": ("tests/poc6/patch_rt_header.py", "ps2rc/pipeline/patch_rt_header.py"),
+    "patch_rt_header": ("ps2rc/pipeline/patch_rt_header.py",),
     "bind": ("src/ps2rc/bind.py", "ps2rc/bind.py"),
     "pack": ("src/ps2rc/pack.py", "ps2rc/pack.py"),
 }
@@ -316,7 +316,7 @@ def translation_name(trans, alias, layout_dir, y_hdr):
 
 
 class Builder:
-    """One PSP build in `bdir` (gen_prep/, gen/, hle/, obj/, poc6.elf, poc6_strip.elf)."""
+    """One PSP build in `bdir` (gen_prep/, gen/, hle/, obj/, ps2rc.elf, ps2rc_strip.elf)."""
 
     def __init__(self, repo, pack, bdir, toolchain, opts, progress, env, log):
         self.repo, self.pack, self.bdir, self.tc = repo, pack, os.path.abspath(bdir), toolchain
@@ -563,8 +563,8 @@ class Builder:
         todo.sort(key=lambda j: -os.path.getsize(os.path.join(b, j.argv[-3])))
         nj = self.tc.jobs(self.opts.jobs) if hasattr(self.tc, "jobs") else self.opts.jobs
         if nj < self.opts.jobs:
-            self.progress.warn("compile: %d parallel jobs instead of %d - the free memory where the compiler runs "
-                               "allows about %d MB per job" % (nj, self.opts.jobs, MB_PER_JOB))
+            self.progress.info("compile: %d parallel jobs (of %d): the free memory allows about %d MB per job - "
+                               "fine, only a little slower" % (nj, self.opts.jobs, MB_PER_JOB))
         self.used_jobs, self.reused = nj, reused
         self.progress.log("compile: %d of %d units to build (%d generated), %d jobs, %s"
                           % (len(todo), len(jobs), ngen, nj, self.tc.description))

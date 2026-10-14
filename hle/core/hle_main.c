@@ -1,4 +1,4 @@
-/* hle_main.c - platform-independent core of the PoC-6 HLE runtime: logging front end, milestones, the call-trace
+/* hle_main.c - platform-independent core of the PS2RC HLE runtime: logging front end, milestones, the call-trace
  * ring, the end-of-run report, guest memory helpers, COP0 / rt_fatal handling, the VCALLMS modes and the boot
  * sequence shared by the host harness (hle_host.c: main, ELF loading, signals) and the PSP (psp/hle_psp.c).
  *
