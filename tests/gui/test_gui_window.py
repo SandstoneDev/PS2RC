@@ -205,6 +205,49 @@ def test_settings_reach_the_converter(gui, monkeypatch):
     assert app.overrides() == {}
 
 
+def test_controls_mapping_as_dropdowns(gui, monkeypatch):
+    """the game pack's real templates: the control mapping settings are drop-downs of combinations in both languages,
+    a choice reaches the converter as the cfg key"""
+    app, mod, qapp, tmp, _mp = gui
+    import glob
+    import shutil
+    from PySide6.QtWidgets import QComboBox, QScrollArea
+    pat = os.path.join(os.path.dirname(__file__), "..", "..", "games", "*", "cfg", "player_en.cfg")
+    tpls = [p for p in sorted(glob.glob(pat)) if "#map_l2=" in open(p, encoding="utf-8").read()]
+    if not tpls:
+        pytest.skip("no game pack template with the control keys")
+    cfg = os.path.dirname(tpls[0])                                   # found by content: no game named here
+    for lang in ("en", "ru"):
+        shutil.copyfile(os.path.join(cfg, "player_%s.cfg" % lang), str(tmp / ("tpl_%s.cfg" % lang)))
+    want = {"modifier": ["", "select", "l", "r", "none"], "select_to_game": ["", "always", "tap"],
+            "map_l2": ["", "select+l", "l+r", "select+square", "none"],
+            "map_rstick": ["", "select+dpad", "l+dpad", "r+dpad", "r+analog", "analog", "none"]}
+    for lang in ("en", "ru"):
+        app._set_lang(lang)
+        app._identify_async(app.s["source"])
+        pump(qapp, lambda: app.ident and not app.ident.get("busy"))
+        app.show_page("settings")
+        pump(qapp, timeout=0.2)
+        combos = app.centralWidget().findChildren(QComboBox)
+        lists = [[c.itemData(i) for i in range(c.count())] for c in combos]
+        for key, opts in want.items():
+            assert opts in lists, (lang, key, lists)
+        t = texts(app.centralWidget())
+        assert ("L2" in t) and (("SELECT" in t) or lang == "ru")
+        area = app.centralWidget().findChildren(QScrollArea)[0]
+        box = [c for c, li in zip(combos, lists) if li == want["map_l2"]][0]
+        area.ensureWidgetVisible(box)
+        pump(qapp, timeout=0.2)
+        shots = os.environ.get("PS2RC_TEST_SHOTS")                 # a developer looks at the page
+        if shots:
+            app.grab().save(os.path.join(shots, "settings_controls_%s.png" % lang))
+    items = {i.key: i for i in app.template_items if hasattr(i, "key")}
+    app._set_value(items["map_l2"], "l+r")
+    app._set_value(items["select_to_game"], "tap")
+    assert app.overrides() == {"map_l2": "l+r", "select_to_game": "tap"}
+    app._restore_settings()
+
+
 def test_convert_passes_exact_assets_and_shows_progress(gui, monkeypatch):
     app, mod, qapp, tmp, _mp = gui
     from ps2rc.convert import pipeline
@@ -617,7 +660,7 @@ def test_about_dialog_and_help_menu(gui, monkeypatch):
     assert app.t("menu.help") in titles
     d = app._about_dialog()                        # built, never exec'd (no modal window in tests)
     head, body = d.about["head"].text(), d.about["body"].text()
-    assert mod.VERSION in head and "PS2RC License 1.0" in body and "SandstoneDev" in body
+    assert mod.VERSION in head and "PS2RC License 1.1" in body and "SandstoneDev" in body
     assert "https://github.com/SandstoneDev/PS2RC" in body and "discord.gg/wV8x46ZTDu" in body
     assert d.about["body"].openExternalLinks() and "NOTICE" in d.about["note"].text()
     seen = []

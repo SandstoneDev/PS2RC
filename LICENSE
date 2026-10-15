@@ -1,4 +1,4 @@
-PS2RC License, version 1.0
+PS2RC License, version 1.1
 
 Copyright (c) 2026 SandstoneDev. All rights reserved, except as granted below.
 
@@ -25,9 +25,10 @@ and no game data may ever be distributed with it.
    such as the addresses, sizes and names of the functions a game pack hooks, or the
    checksums that identify a disc, are not Game Data under this licence; whether you may
    publish them is your responsibility (section 2(f)).
-   "A Reserved Game" is a game, identified by its disc serial, that SandstoneDev has
-   declared reserved in a RESERVED.md notice published by SandstoneDev in a SandstoneDev
-   repository on GitHub, or on the community server named in section 2(b).
+   "A Listed Disc" is a game disc, identified by its disc serial, that is listed in a
+   DISTRIBUTION.md notice published by SandstoneDev in a SandstoneDev repository on
+   GitHub, or on the community server named in section 2(b). A notice that SandstoneDev
+   published for the same purpose under version 1.0 of this licence also counts.
 
 1. WHAT YOU MAY DO
 
@@ -69,16 +70,20 @@ and no game data may ever be distributed with it.
        strings or encoded blobs), and not as links to copies of it. Every user supplies a
        game from a copy they legally own; translating and building a game happens on the
        user's own machine, for the user's own use.
-   (e) Not a Reserved Game. You may not Distribute PS2RC, a program built with it, or any
-       Derived Work that runs a Reserved Game in whole or in part, or that is made to work
-       with a Reserved Game's files (for example a game pack or a modified game pack, a
-       patch, a build or a conversion tool for it). This applies to every Derived Work
-       Distributed after the notice that declares the game reserved. One exception: you
-       may keep a fork of a SandstoneDev repository on GitHub, and change it there, only
-       to prepare contributions (pull requests) to that repository; you may not publish
-       releases or builds from such a fork. A Derived Work made for another game, or for
-       software of your own, is not affected. Only SandstoneDev distributes work for a
-       Reserved Game.
+   (e) Distribution of work for Listed Discs. You may not Distribute PS2RC, a program
+       built with it, or any Derived Work that runs the game on a Listed Disc in whole
+       or in part, or that is made to work with the files of a Listed Disc (for example
+       a game pack or a modified game pack, a patch, a build or a conversion tool for
+       it), unless SandstoneDev gives you written permission. This applies to every
+       Derived Work Distributed after the disc was first listed in such a notice. One
+       exception: you may keep a fork of a SandstoneDev repository on GitHub, and change
+       it there, only to prepare contributions (pull requests) to that repository; you
+       may not publish releases or builds from such a fork. A Derived Work made for a
+       disc that is not listed, or for software of your own, is not affected. Work for a
+       Listed Disc is distributed only by the PS2RC project (SandstoneDev). This is not
+       a claim of any right in any game. Games, their names and all rights in them
+       belong to their owners. This condition only limits how works based on PS2RC's
+       code may be distributed.
    (f) Your responsibility. This licence gives no rights to any game, to any trademark,
        or to third-party code beyond what that code's own licence gives. You are
        responsible for complying with the laws that apply to you, including those on
@@ -143,3 +148,15 @@ game content remain the property of their respective owners.
 Rightsholders with concerns are welcome to contact the maintainer before filing a
 formal notice: through the repository's issue tracker, the community server
 (https://discord.gg/wV8x46ZTDu), or by e-mail to sandstonedevpsp@gmail.com.
+
+---
+
+CHANGES FROM VERSION 1.0
+
+Version 1.1 changes only wording, not what the licence requires: the term defined in
+section 0 is now "Listed Disc" and its notice is named DISTRIBUTION.md; condition 2(e)
+now names SandstoneDev's written permission (which SandstoneDev could always give) and
+states that it is not a claim of any right in any game. A notice published under
+version 1.0 still counts. Copies of PS2RC and of Derived Works that were Distributed
+under version 1.0 remain under version 1.0; this version applies to copies Distributed
+with it.

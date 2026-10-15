@@ -5,7 +5,8 @@ This project is not affiliated with, authorized or endorsed by Rockstar Games, T
 
 The pack holds only our own code and the facts needed to work with that disc (addresses, sizes, checksums, file
 names). It holds no game code and no game data: the converter makes everything game-derived on your PC, from
-your own disc, and it never leaves your PC. The game is reserved under the licence: see [RESERVED.md](RESERVED.md).
+your own disc, and it never leaves your PC. Builds and packs for this disc are distributed only by the PS2RC
+project: see [DISTRIBUTION.md](DISTRIBUTION.md).
 Third-party notices of the pack: [NOTICE.md](NOTICE.md).
 
 ## What you need
@@ -13,7 +14,9 @@ Third-party notices of the pack: [NOTICE.md](NOTICE.md).
 - A disc image of **your own** PAL disc SLES-52541, **version 2.01** (made with a PC drive; an ISO). Another
   version or region is refused with a message: the boot program's size and SHA-256 are checked. The check only
   tells the version; it does not prove ownership.
-- A PSP-2000 or PSP-3000 with custom firmware (ARK), about 4 GB free on the memory stick (with all sound files).
+- A PSP-2000 or PSP-3000 (64 MB) with custom firmware (ARK) and its extra memory on; the PSP Go (64 MB) is untested.
+  Not the PSP-1000: 32 MB is too little (the game shows "not supported" and exits). About 4 GB free on the memory
+  stick (with all sound files).
 - The converter (the repository's README: download the release, or build from source).
 
 ## Convert
@@ -59,7 +62,8 @@ Everything in the settings file works the same.
 
 The PSP has no L2, R2, L3, R3 and no right stick. **SELECT is a modifier**: hold it and press a second
 button. SELECT itself still reaches the game as SELECT (the game changes the camera view when SELECT is
-pressed), so the view may change once when you press SELECT; press it again to get the view back.
+pressed), so the view may change once when you press SELECT; press it again to get the view back, or set
+`select_to_game=tap` (see below).
 
 | PSP | PS2 |
 |---|---|
@@ -78,6 +82,23 @@ pressed), so the view may change once when you press SELECT; press it again to g
 Port functions: **L + R + SELECT** shows or hides the frames-per-second counter (`show_fps` in the settings
 file sets it at start). HOME -> Exit returns to the PSP menu. Avoid L + R + Down + START: custom firmware uses it
 for its own menu.
+
+### Change the controls
+
+The table above is the built-in layout. Every PS2 button the PSP lacks can be moved to other buttons in
+`ps2rc.cfg` (section CONTROLS; the converter's settings page shows the same choices as lists). A combination is
+two or three buttons joined with `+`: `select start l r up down left right triangle circle cross square`.
+Examples:
+
+- `select_to_game=tap` - SELECT reaches the game only when pressed and released alone, so combinations no longer
+  change the camera view.
+- `map_l2=l+r` and `map_r2=r+square` - L2 on L and R together, R2 on R and Square.
+- `map_rstick=r+analog` - hold R and use the analog stick to move the right stick (camera, hydraulics).
+
+Other keys: `modifier` (`select`, `l`, `r` or `none`: the button the built-in combinations use), `map_l3`,
+`map_r3`, `map_l1`, `map_r1`, `map_select`, `map_start`. A value the game does not understand, two keys on the
+same buttons, L + R + SELECT, HOME or L + R + Down + START: that key keeps its built-in value. `session.log` shows
+the layout in effect in the line `controls: ...` and the reason for every value that was not used.
 
 ### What the game's button prompts mean on the PSP
 
@@ -164,5 +185,5 @@ is one move; the PSP's D-pad always gives the full stick deflection).
 
 ## Licence
 
-PS2RC License 1.0, see [LICENSE](../../LICENSE). This game is reserved: [RESERVED.md](RESERVED.md). Never share a
-converted folder, an EBOOT built from the game, or any file from the disc - every player converts their own disc.
+PS2RC License 1.1, see [LICENSE](../../LICENSE). Distribution notice for this disc: [DISTRIBUTION.md](DISTRIBUTION.md).
+Never share a converted folder, an EBOOT built from the game, or any file from the disc - every player converts their own disc.

@@ -19,4 +19,8 @@ typedef struct Ps2rcKCall {
 /* fn(arg[0], ..., arg[11]) in kernel mode; < 0 = refused (no KUBridge library, or it declined) */
 int ps2rc_kcall(void *fn, Ps2rcKCall *args);
 
+/* kuKernelGetModel (NID 0x24331850): 0 = 01g (PSP-1000), 1 = 02g, ... 4 = 05g (PSP Go). Linked only where the
+   KUBridge library exists - call it only after ps2rc_kcall succeeded (hle_model_psp.c) */
+int ps2rc_kgetmodel(void);
+
 #endif

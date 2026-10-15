@@ -38,9 +38,11 @@ player's own disc and never leaves it.
 
 - A disc image made from **a disc you legally own** (for the supported disc: the PAL disc named above, version
   2.01, as an ISO made with a PC drive).
-- A **PSP-2000 or PSP-3000** (64 MB of RAM) with custom firmware (ARK): the runtime uses the large user memory
-  partition, a small kernel-mode helper module and the Media Engine. Other models: Unknown. About 4 GB free on
-  the memory stick.
+- A **PSP-2000 or PSP-3000** (64 MB of RAM) with custom firmware (ARK) and ARK's extra memory on ("Use Extra
+  Memory"): the runtime uses the large user memory partition, a small kernel-mode helper module and the Media
+  Engine. The PSP Go also has 64 MB (untested). **The PSP-1000 is not supported**: it has 32 MB (24 MB for games)
+  and the converted game needs about 50 MB (translated code ~13 MB + the PS2's RAM ~28 MB + buffers); it shows a
+  "not supported" screen and returns to the menu. About 4 GB free on the memory stick.
 - A **64-bit Windows 10 (1809 or newer) or Windows 11** PC for the ready-made converter. From source the
   converter also runs on Linux and macOS with the pspdev toolchain.
 
@@ -61,7 +63,8 @@ file. Everything the converter makes stays on your PC: never share the folder it
 
 The PSP has no L2, R2, L3, R3 and no right stick. **SELECT is a modifier**: hold it and press a second
 button. SELECT itself still reaches the game as SELECT (the game changes the camera view when SELECT is
-pressed), so the view may change once when you press SELECT; press it again to get the view back.
+pressed), so the view may change once when you press SELECT; press it again to get the view back, or set
+`select_to_game=tap` (see below).
 
 | PSP | PS2 |
 |---|---|
@@ -80,6 +83,23 @@ pressed), so the view may change once when you press SELECT; press it again to g
 Port functions: **L + R + SELECT** shows or hides the frames-per-second counter (`show_fps` in the settings
 file sets it at start). HOME -> Exit returns to the PSP menu. Avoid L + R + Down + START: custom firmware uses it
 for its own menu.
+
+### Change the controls
+
+The table above is the built-in layout. Every PS2 button the PSP lacks can be moved to other buttons in
+`ps2rc.cfg` (section CONTROLS; the converter's settings page shows the same choices as lists). A combination is
+two or three buttons joined with `+`: `select start l r up down left right triangle circle cross square`.
+Examples:
+
+- `select_to_game=tap` - SELECT reaches the game only when pressed and released alone, so combinations no longer
+  change the camera view.
+- `map_l2=l+r` and `map_r2=r+square` - L2 on L and R together, R2 on R and Square.
+- `map_rstick=r+analog` - hold R and use the analog stick to move the right stick (camera, hydraulics).
+
+Other keys: `modifier` (`select`, `l`, `r` or `none`: the button the built-in combinations use), `map_l3`,
+`map_r3`, `map_l1`, `map_r1`, `map_select`, `map_start`. A value the game does not understand, two keys on the
+same buttons, L + R + SELECT, HOME or L + R + Down + START: that key keeps its built-in value. `session.log` shows
+the layout in effect in the line `controls: ...` and the reason for every value that was not used.
 
 ### What the game's button prompts mean on the PSP
 
@@ -240,12 +260,13 @@ development see [psp-developer](https://github.com/SandstoneDev/psp-developer).
 
 ## Forks and other games
 
-The game this repository converts is **reserved** (the pack's `RESERVED.md` in `games/`; LICENSE, section
-2(e)). In short (the [LICENSE](LICENSE) has the exact terms):
+Work based on PS2RC for the disc this repository converts is distributed only by the PS2RC project (the pack's
+`DISTRIBUTION.md` in `games/`; LICENSE, section 2(e)). This is not a claim of any right in the game: games, their
+names and all rights in them belong to their owners. In short (the [LICENSE](LICENSE) has the exact terms):
 
 - you may fork this repository on GitHub **only to contribute back** (pull requests);
-- you may **not** publish your own releases or builds of a port of this game, or a modified game pack for it,
-  anywhere;
+- you may **not** publish your own releases or builds of a conversion of this disc, or a modified game pack for
+  it, anywhere;
 - to port **other** games, use [universal-ps2-recompiler](https://github.com/SandstoneDev/universal-ps2-recompiler):
   free, under the same licence.
 
@@ -267,9 +288,8 @@ For work on other games, under the licence:
 - **never distribute game data**: no game files, no disc images, and nothing
   translated or built from a game (generated C, EBOOTs of a commercial game). Every
   user builds from their own disc;
-- a game that SandstoneDev has declared reserved (a `RESERVED.md` notice in a
-  SandstoneDev repository, or on the community server) may not be ported in a
-  distributed fork.
+- a disc listed in a `DISTRIBUTION.md` notice of SandstoneDev (in a SandstoneDev
+  repository, or on the community server) may not be ported in a distributed fork.
 
 If you break the terms, your permission ends; SandstoneDev may restore it in writing. The start-up credit screen
 is a build option; you may keep, change or remove it.

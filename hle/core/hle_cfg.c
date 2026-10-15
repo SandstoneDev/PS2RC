@@ -146,7 +146,15 @@ static void line_in(char *s)
 
     const Alias *a = alias_of(s);
     if (!a) { set_kv(s, v); return; }
-    if (a->lo == 0 && a->hi == 0) { set_kv(a->key, v); return; }   /* word key, stored as given */
+    if (a->lo == 0 && a->hi == 0) {                                  /* word key, stored as given */
+        if (a->words && a->words[0] == '!') {                        /* ... but only one of its words */
+            int x;
+            for (char *p = v; *p; p++) if (*p >= 'A' && *p <= 'Z') *p = (char)(*p + 32);
+            if (!word_num(a->words, v, &x)) { note("%s=%s is not a valid value (ignored)%s; ", s, v, ""); return; }
+        }
+        set_kv(a->key, v);
+        return;
+    }
     for (char *p = v; *p; p++) if (*p >= 'A' && *p <= 'Z') *p = (char)(*p + 32);
     int x;
     char num[16];

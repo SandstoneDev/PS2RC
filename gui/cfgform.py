@@ -6,7 +6,8 @@ The template is plain text the game reads: `key=value` lines, `#key=value` = a s
 header is a comment line between two `# ----` rulers. The kind of control comes from that description:
     "1 = on, 0 = off" (any words)          -> check box
     "10 to 100"                             -> slider with that range (unit from "percent" / "metres" / ...)
-    "full = ..., half = ..., low = ..."     -> drop-down (words);  "30, 25, 20, 15 or 60" -> drop-down (numbers)
+    "full = ..., half = ..., low = ..."     -> drop-down (words; "select+l = ..." = a button combination);
+    "30, 25, 20, 15 or 60"                  -> drop-down (numbers)
     anything else                           -> text field
 A "RISK" sentence in the description asks the player to confirm a change. The control kinds come from the
 English template; another language's template only gives its descriptions (merge_descriptions).
@@ -17,7 +18,7 @@ RULER = re.compile(r"^#\s*-{8,}\s*$")
 SETTING = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*([^#]*?)\s*(?:#.*)?$")
 COMMENTED = re.compile(r"^#(?!\s)([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(\S[^#]*?)\s*$")
 RANGE = re.compile(r"(?<![\w.-])(-?\d+)\s+(?:to|-)\s+(-?\d+)(?![\d\w]|\.\d)")
-PAIR = re.compile(r"(?<![\w=])([A-Za-z0-9]+)\s+=\s+")
+PAIR = re.compile(r"(?<![\w=+])([A-Za-z0-9]+(?:\+[A-Za-z0-9]+)*)\s+=\s+")   # "select+l = ...": a button combination
 NUMLIST = re.compile(r"((?:\d+(?:\s*\([^)]*\))?\s*,\s*)*\d+(?:\s*\([^)]*\))?\s+or\s+\d+)")
 UNITS = (("percent", "%"), ("centimetre", "cm"), ("metre", "m"), ("mhz", "MHz"))
 ON_WORDS = ("on", "yes", "drawn", "play")

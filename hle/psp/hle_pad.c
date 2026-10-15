@@ -1,6 +1,6 @@
 /* hle_pad.c - the PSP controls as the game's DualShock 2 (port 0), for the libpad HLE in hle/core/hle_sce.c.
  *
- * The PSP has no L2/R2/L3/R3 and no right stick, so SELECT is a modifier (it still reaches the game as SELECT):
+ * The PSP has no L2/R2/L3/R3 and no right stick. Built-in layout (ps2rc.cfg can change it: hle_padmap.h):
  *   PSP              PS2                       PSP + SELECT held     PS2
  *   Cross/Circle/    Cross/Circle/              L                    L2
  *   Square/Triangle  Square/Triangle            R                    R2
@@ -8,6 +8,7 @@
  *   START / SELECT   START / SELECT             Circle               R3
  *   D-pad            D-pad                      D-pad                right stick (full deflection)
  *   analog stick     left stick (dead zone)
+ * SELECT still reaches the game as SELECT (select_to_game=always), or only as a short pulse after a lone tap (tap).
  * Returned mask: PS2 button bits, active HIGH (scePadRead inverts): low byte SELECT L3 R3 START UP RIGHT DOWN LEFT,
  * high byte L2 R2 L1 R1 TRIANGLE CIRCLE CROSS SQUARE. sticks[] = right X, right Y, left X, left Y (0x80 = centre).
  */
@@ -17,34 +18,21 @@
 #include <stdlib.h>
 #include "hle.h"
 #include "hle_cfg.h"                 /* the shared ps2rc.cfg table */
+#include "hle_padmap.h"              /* the player's mapping (pure C, host-tested) */
 
-#define PS2_SELECT   0x0001u
-#define PS2_L3       0x0002u
-#define PS2_R3       0x0004u
-#define PS2_START    0x0008u
-#define PS2_UP       0x0010u
-#define PS2_RIGHT    0x0020u
-#define PS2_DOWN     0x0040u
-#define PS2_LEFT     0x0080u
-#define PS2_L2       0x0100u
-#define PS2_R2       0x0200u
-#define PS2_L1       0x0400u
-#define PS2_R1       0x0800u
-#define PS2_TRIANGLE 0x1000u
-#define PS2_CIRCLE   0x2000u
-#define PS2_CROSS    0x4000u
-#define PS2_SQUARE   0x8000u
-
-#define DEAD 40                                      /* PSP sticks rest anywhere in ~128 +- 30 */
+_Static_assert(PM_SELECT == PSP_CTRL_SELECT && PM_START == PSP_CTRL_START && PM_UP == PSP_CTRL_UP &&
+               PM_RIGHT == PSP_CTRL_RIGHT && PM_DOWN == PSP_CTRL_DOWN && PM_LEFT == PSP_CTRL_LEFT &&
+               PM_L == PSP_CTRL_LTRIGGER && PM_R == PSP_CTRL_RTRIGGER && PM_TRIANGLE == PSP_CTRL_TRIANGLE &&
+               PM_CIRCLE == PSP_CTRL_CIRCLE && PM_CROSS == PSP_CTRL_CROSS && PM_SQUARE == PSP_CTRL_SQUARE &&
+               PM_HOME == PSP_CTRL_HOME, "hle_padmap.h button bits = pspctrl.h");
 
 static int pad_ready;
 static uint32_t pad_last;
 static unsigned pad_logged;
-/* SELECT + UP: right stick up (default), or a PS2 stick click with the run option pad_sel_up=r3|l3 (SELECT + Circle
-   is always R3) */
-static uint16_t sel_up_bit = 0;
+static PadMap pad_map;                              /* ps2rc.cfg map_* / modifier / select_to_game / select_up */
+static PadTap pad_tap;
 
-/* run option pad_script=T0-T1:MASK,... - scripted presses by virtual time (seconds; MASK = the PS2 bits below),
+/* run option pad_script=T0-T1:MASK,... - scripted presses by virtual time (seconds; MASK = PS2 bits as returned),
    ORed into the PSP buttons: the host's --pad on the PSP, for deterministic PPSSPP runs (e.g. into the pause menu) */
 #define MAX_PAD_EV 32
 static struct { double t0, t1; uint16_t m; int16_t lx, ly; } pad_ev[MAX_PAD_EV];
@@ -94,8 +82,7 @@ static void pad_script_load(void)
 {
     /* the shared table (hle_cfg.c, whole file; the keys may now be on the first line too) */
     poke_load(hle_cfg_get("poke"));
-    const char *su = hle_cfg_get("pad_sel_up");
-    if (su) sel_up_bit = !strncmp(su, "l3", 2) ? PS2_L3 : !strncmp(su, "stick", 5) ? 0 : PS2_R3;
+    padmap_config(&pad_map, hle_cfg_get);
     char *s = (char *)hle_cfg_get("pad_script");  /* a private copy in hle_cfg.c's pool (read only here) */
     if (!s) return;
     while (*s && *s != '\n' && *s != '\r' && n_pad_ev < MAX_PAD_EV) {
@@ -121,15 +108,6 @@ static void pad_script_load(void)
     LOG("pad: %d scripted presses from ps2rc.cfg pad_script\n", n_pad_ev);
 }
 
-static uint8_t stick(unsigned v)
-{
-    int d = (int)v - 128;
-    if (d > -DEAD && d < DEAD) return 0x80;
-    int s = d > 0 ? (d - DEAD) * 127 / (127 - DEAD) : (d + DEAD) * 128 / (128 - DEAD);   /* rescale past the dead zone */
-    s += 128;
-    return (uint8_t)(s < 0 ? 0 : s > 255 ? 255 : s);
-}
-
 uint16_t hle_plat_pad_read(uint8_t sticks[4])
 {
     if (!pad_ready) {
@@ -137,9 +115,9 @@ uint16_t hle_plat_pad_read(uint8_t sticks[4])
         sceCtrlSetSamplingMode(PSP_CTRL_MODE_ANALOG);
         pad_ready = 1;
         pad_script_load();
-        LOG("pad: PSP controls -> DualShock 2 port 0 (SELECT = modifier: +L L2, +R R2, +Triangle L3, +Circle R3, "
-            "+Up %s, +D-pad right stick)\n", sel_up_bit == PS2_R3 ? "R3 (sub-missions)" : sel_up_bit == PS2_L3 ? "L3"
-                                                                                        : "right stick up");
+        /* "controls: ..." = the PSP controls -> DualShock 2 port 0, as in effect */
+        LOG("%s (* = built-in, not in the cfg file; ! = the file's value was not used, see the notes)\n", pad_map.line);
+        if (pad_map.notes[0]) LOG("controls notes: %s\n", pad_map.notes);
     }
     if (n_pokes) pokes_apply();
     SceCtrlData p;
@@ -151,41 +129,7 @@ uint16_t hle_plat_pad_read(uint8_t sticks[4])
         for (int i = 0; i < n_pad_ev; i++)
             if (t >= pad_ev[i].t0 && t < pad_ev[i].t1) m |= pad_ev[i].m;
     }
-    int mod = (b & PSP_CTRL_SELECT) != 0;
-    if (b & PSP_CTRL_SELECT) m |= PS2_SELECT;
-    if (b & PSP_CTRL_START) m |= PS2_START;
-    if (b & PSP_CTRL_CROSS) m |= PS2_CROSS;
-    if (b & PSP_CTRL_SQUARE) m |= PS2_SQUARE;
-    if (mod) {
-        if (b & PSP_CTRL_TRIANGLE) m |= PS2_L3;
-        if (b & PSP_CTRL_CIRCLE) m |= PS2_R3;
-        if (b & PSP_CTRL_LTRIGGER) m |= PS2_L2;
-        if (b & PSP_CTRL_RTRIGGER) m |= PS2_R2;
-    } else {
-        if (b & PSP_CTRL_TRIANGLE) m |= PS2_TRIANGLE;
-        if (b & PSP_CTRL_CIRCLE) m |= PS2_CIRCLE;
-        if (b & PSP_CTRL_LTRIGGER) m |= PS2_L1;
-        if (b & PSP_CTRL_RTRIGGER) m |= PS2_R1;
-    }
-    uint8_t rx = 0x80, ry = 0x80;
-    if (mod) {                                       /* D-pad = right stick (camera) */
-        if (b & PSP_CTRL_LEFT) rx = 0x00;
-        if (b & PSP_CTRL_RIGHT) rx = 0xFF;
-        if (b & PSP_CTRL_UP) {
-            if (sel_up_bit) m |= sel_up_bit;         /* build 33: SELECT + UP = R3 (sub-missions) by default */
-            else ry = 0x00;
-        }
-        if (b & PSP_CTRL_DOWN) ry = 0xFF;
-    } else {
-        if (b & PSP_CTRL_UP) m |= PS2_UP;
-        if (b & PSP_CTRL_DOWN) m |= PS2_DOWN;
-        if (b & PSP_CTRL_LEFT) m |= PS2_LEFT;
-        if (b & PSP_CTRL_RIGHT) m |= PS2_RIGHT;
-    }
-    sticks[0] = rx;
-    sticks[1] = ry;
-    sticks[2] = stick(p.Lx);
-    sticks[3] = stick(p.Ly);
+    m |= padmap_apply(&pad_map, &pad_tap, b, p.Lx, p.Ly, hle_frame, sticks);
     if (n_pad_ev) {                                  /* scripted left stick */
         double t = (double)hle_vtime / EE_HZ;
         for (int i = 0; i < n_pad_ev; i++)

@@ -23,7 +23,7 @@
  * name     friendly key (what the shipped cfg template uses)
  * key      the internal key it is stored as (the modules read only internal keys)
  * lo / hi  numeric range of the FRIENDLY value: outside = clamped (noted in the log); lo = hi = 0: a word key, stored
- *          as given (pad_sel_up, cpu_auto_reset)
+ *          as given (pad_sel_up, cpu_auto_reset); a word key with "!word=n,..." takes only those words (lower case)
  * def      the code default of the INTERNAL key (applies when the file sets neither name; shown with '*')
  * inv      1 = internal = lo + hi - friendly (shadows=1 is x_fxskip=0)
  * words    "word=number,..." friendly words (textures=half); "!" first = ONLY these values (overclock, game_fps);

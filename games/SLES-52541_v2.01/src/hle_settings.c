@@ -9,7 +9,7 @@
  * name     friendly key (what the shipped cfg template uses)
  * key      the internal key it is stored as (the modules read only internal keys)
  * lo / hi  numeric range of the FRIENDLY value: outside = clamped (noted in the log); lo = hi = 0: a word key, stored
- *          as given (pad_sel_up, cpu_auto_reset)
+ *          as given (pad_sel_up, cpu_auto_reset); with "!word=n,..." words only those words (lower case)
  * def      the code default of the INTERNAL key (applies when the file sets neither name; shown with '*')
  * inv      1 = internal = lo + hi - friendly (shadows=1 is x_fxskip=0)
  * words    "word=number,..." friendly words (textures=half); "!" first = ONLY these values (overclock)
@@ -45,6 +45,18 @@ static const HleCfgAlias aliases[] = {
     {"overclock_reset","cpu_auto_reset", 0,    0,   0, 0, NULL},
     /* controls / sound */
     {"select_up",      "pad_sel_up",     0,    0,   0, 0, NULL},             /* r3 | l3 | stick */
+    /* the player's control mapping (hle/psp/hle_padmap.h checks the combinations: "controls:" log line) */
+    {"modifier",       "pad_mod",        0,    0,   0, 0, "!select=0,l=1,r=2,none=3"},
+    {"select_to_game", "pad_sel_game",   0,    0,   0, 0, "!always=0,tap=1"},
+    {"map_l2",         "pad_l2",         0,    0,   0, 0, NULL},             /* a combination: select+l */
+    {"map_r2",         "pad_r2",         0,    0,   0, 0, NULL},
+    {"map_l3",         "pad_l3",         0,    0,   0, 0, NULL},
+    {"map_r3",         "pad_r3",         0,    0,   0, 0, NULL},
+    {"map_rstick",     "pad_rstick",     0,    0,   0, 0, NULL},             /* select+dpad | r+analog | none */
+    {"map_l1",         "pad_l1",         0,    0,   0, 0, NULL},
+    {"map_r1",         "pad_r1",         0,    0,   0, 0, NULL},
+    {"map_select",     "pad_select",     0,    0,   0, 0, NULL},
+    {"map_start",      "pad_start",      0,    0,   0, 0, NULL},
     {"sound",          "audio",          0,    1,   1, 0, "off=0,on=1"},
     {"volume",         "audio_vol",      0,  100, 100, 0, NULL},
     {"intro_movies",   "movies",         0,    1,   1, 0, "off=0,on=1"},

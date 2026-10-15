@@ -41,6 +41,7 @@
 #include "ps2rc_exc.h"                          /* the crash handler (src/psp_exc, ps2rc_exc.prx next to the EBOOT) */
 #include "hle_hitch.h"                          /* hitch sources (disc, log) */
 #include "hle_mem_psp.h"                        /* memory mode diagnostics, volatile partition, heap_extra_kb */
+#include "hle_model_psp.h"                      /* PSP-1000 (32 MB) or a 64 MB model */
 #include "hle_aw_psp.h"                         /* results block / results_<seq>.txt / shots, cpu_clock_mhz */
 /* profiler, PSP part (psp/hle_prof_psp.c): hardware counters through ps2rc_exc.prx, off unless ps2rc.cfg prof_hw >= 1 */
 int hle_psp_is_emulator(void);
@@ -116,9 +117,11 @@ static volatile int exiting;
    RAM end (= the game heap's end: the pack's text patch) N KB above the pack's PSP RAM end, at most 32 MB - 64 KB
    (the PS2 has 32 MB); mem_volatile=1 - our big buffers into the volatile 4 MB (hle_mem_psp.c), the audio block into
    the hole; mem_reserve_kb=K - user memory kept free after the window (default: estimated from audio / movies /
-   prof_capture); mem_fake_free_kb=K - TEST ONLY: pretend K KB free at start (checks the 24 MB mode message). Defaults 0:
+   prof_capture); mem_fake_free_kb=K - TEST ONLY: pretend K KB free at start (checks the 24 MB mode message);
+   mem_fake_model=N - TEST ONLY: pretend kuKernelGetModel() = N (0 = PSP-1000: checks the "not supported" screen). Defaults 0:
    the window ends at the pack's PSP RAM end, nothing in the volatile partition. */
 static int opt_heap_extra_kb, opt_mem_volatile, opt_mem_reserve_kb = -1, opt_mem_fake_free_kb;
+static int opt_mem_fake_model = -1;
 static int cfg_movies = 1, cfg_audio = 1;          /* read here only for the reserve estimate (hle_movie / hle_audio_psp
                                                       parse their own keys) */
 static uint32_t window_size = 0x01BC0000u;         /* = WINDOW_SIZE + heap extra */
@@ -1015,6 +1018,7 @@ static void read_config(void)
             else if (!strcmp(k, "mem_volatile")) opt_mem_volatile = atoi(v);
             else if (!strcmp(k, "mem_reserve_kb")) opt_mem_reserve_kb = atoi(v);
             else if (!strcmp(k, "mem_fake_free_kb")) opt_mem_fake_free_kb = atoi(v);
+            else if (!strcmp(k, "mem_fake_model")) opt_mem_fake_model = atoi(v);
             else if (!strcmp(k, "movies")) cfg_movies = atoi(v);
             else if (!strcmp(k, "audio")) cfg_audio = atoi(v);
             else if (!strcmp(k, "results")) opt_results = atoi(v);
@@ -1124,6 +1128,26 @@ static void mem_mode_check(void)
             "4 forcemax) msspeed(+27)=%u iso_cache_partition(+8)=%u (2 = high memory applied); bytes 0-39: %s\n",
             (unsigned)scr, (unsigned)magic, magic == 0xB00B1E55u ? "ARK" : sc[0] == 0xA5 && sc[1] == 0xA5 ?
             "buffer untouched: no SE config" : "not ARK's magic - offsets meaningless", sc[34], sc[27], sc[8], hex);
+    /* B0: the console model (hle_model_psp.c). A PSP-1000 has 32 MB (24 MB for games): no setting helps - say so and
+       leave; ARK's extra-memory advice below is only for the 64 MB models. */
+    if (opt_mem_fake_model >= 0) hle_model_fake(opt_mem_fake_model);
+    char md[192];
+    hle_model_describe(md, sizeof md);
+    say("console: %s%s\n", md, opt_mem_fake_model >= 0 ? " - TEST: mem_fake_model" : "");
+    int m32 = hle_model_is_32mb();
+    if (m32 == 1) {
+        pspDebugScreenClear();
+        pspDebugScreenSetXY(0, 2);
+        say("\n**********************************************************************\n");
+        say("This PSP model (PSP-1000) is not supported:\n");
+        say("the game needs the 64 MB of a PSP-2000, PSP-3000 or PSP Go.\n");
+        say("\n");
+        say("The PSP-1000 has 32 MB (24 MB for games); the converted game alone\n");
+        say("needs about 50 MB. No setting or plugin can change this.\n");
+        say("**********************************************************************\n");
+        hle_set_exit_reason("unsupported console: PSP-1000 (32 MB)");
+        hle_plat_exit(4);                          /* final lines, "Press X to exit", the ordered exit */
+    }
     /* B: the memory mode */
     unsigned free_kb = opt_mem_fake_free_kb > 0 ? (unsigned)opt_mem_fake_free_kb : tot_kb;
     unsigned big_kb = opt_mem_fake_free_kb > 0 ? (unsigned)opt_mem_fake_free_kb : max_kb;
@@ -1136,10 +1160,13 @@ static void mem_mode_check(void)
         pspDebugScreenSetXY(0, 2);
         say("\n**********************************************************************\n");
         if (mode24) {
-            say("ARK: extra memory off - this port needs the PSP-2000/3000 64 MB mode.\n");
+            say("ARK: extra memory off - this port needs the 64 MB mode of the\n");
+            say("PSP-2000 / PSP-3000 / PSP Go.\n");
             say("Enable 'Use Extra Memory' (ARK settings / SETTINGS.TXT: always, highmem, on)\n");
             say("or check the memory stick (a slow / damaged card makes ARK fall back to\n");
             say("the settings in flash1). Free memory now %u KB (24 MB mode).\n", free_kb);
+            if (m32 < 0)                           /* model Unknown (no kernel bridge): name the other cause too */
+                say("A PSP-1000 (32 MB) cannot run this game at all.\n");
         } else {
             say("Not enough free memory for the game: largest block %u KB, needs %u KB.\n", big_kb, base_kb + 1024);
             say("Disable game plugins (SEPLUGINS) and start it again.\n");
@@ -1355,7 +1382,8 @@ static int game_main(SceSize args, void *argp)
     __asm__ volatile("cfc1 %0, $31" : "=r"(fcr31));
     say("==== PS2RC PSP session ====\n");
     say("build=%d target=psp model=%s fw=%x.%x%x cpu_mhz=%d bus_mhz=%d compiler=gcc-%s\n", HLE_BUILD_NUM,
-        free_kb_start > 24576 ? "PSP-2000/3000" : "PSP-1000", (fw >> 24) & 0xFF, (fw >> 16) & 0xFF, (fw >> 8) & 0xFF,
+        hle_model_is_32mb() == 1 ? "PSP-1000" : hle_model_is_32mb() == 0 ? "PSP-2000/3000/Go"
+        : hle_psp_is_emulator() ? "emulator" : "unknown", (fw >> 24) & 0xFF, (fw >> 16) & 0xFF, (fw >> 8) & 0xFF,
         scePowerGetCpuClockFrequencyInt(), scePowerGetBusClockFrequencyInt(), __VERSION__);
     say("translation=%s fcr31=%08x log=write-through (every line; ps2rc.cfg log_sync=0: buffered once the guest runs)\n",
         HLE_TRANSLATION, fcr31);

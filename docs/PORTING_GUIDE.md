@@ -492,6 +492,7 @@ When you publish your fork or your pack:
 - name things neutrally (see [CONTRIBUTING.md](../CONTRIBUTING.md));
 - keep it free: no selling, renting, paywalls or subscriptions; voluntary donations
   are fine only if they gate nothing;
-- do not port a game that SandstoneDev has declared reserved (LICENSE, section 2(e)).
+- do not port a disc listed in a `DISTRIBUTION.md` notice of SandstoneDev (LICENSE,
+  section 2(e)).
 
 Users of your pack build their own copy from their own disc, on their own machine.
