@@ -2,9 +2,13 @@
 interpreter. Everything is generated here; no game or SDK data."""
 import os
 import random
+import shutil
 import struct
 import subprocess
 
+import pytest
+
+from ps2rc import config
 from ps2rc.iop.r3000 import decode
 
 REG = {n: i for i, n in enumerate(["zero", "at", "v0", "v1", "a0", "a1", "a2", "a3", "t0", "t1", "t2", "t3", "t4",
@@ -331,23 +335,40 @@ RT_DIR = os.path.join(ROOT, "ps2rc", "iop", "rt")
 
 
 def wsl_path(p):
-    p = os.path.abspath(p)
-    return "/mnt/" + p[0].lower() + p[2:].replace("\\", "/")
+    """The path a shell script sees: as it is on Linux, /mnt/<drive>/... through WSL (Windows)."""
+    return config.posix_path(os.path.abspath(p))
 
 
 def wsl_run(script_text, workdir):
     script = os.path.join(workdir, "run.sh")
     open(script, "w", newline="\n").write("set -e\ncd %s\n%s\n" % (wsl_path(workdir), script_text))
-    env = dict(os.environ, MSYS_NO_PATHCONV="1")
-    p = subprocess.run(["wsl.exe", "-d", "Debian", "--", "bash", wsl_path(script)], env=env, capture_output=True)
+    if os.name == "nt" and not shutil.which("wsl.exe"):
+        pytest.skip("needs WSL")
+    p = subprocess.run(config.bash_argv(script), env=dict(os.environ, MSYS_NO_PATHCONV="1"),
+                       capture_output=True)
     return p.returncode, p.stdout.decode(errors="replace"), p.stderr.decode(errors="replace")
+
+
+def ucontext_lib():
+    """The link flag for getcontext/makecontext: \"-lucontext\" where libc has none (musl keeps them in
+    libucontext); glibc and macOS print the bare name back from -print-file-name and get nothing. Probed on the
+    machine running pytest, which is also where the line executes (no native gcc on Windows - the line runs in
+    WSL, whose libc has the functions)."""
+    for name in ("libucontext.so", "libucontext.a"):
+        try:
+            p = subprocess.run(["gcc", "-print-file-name=" + name], capture_output=True, text=True, timeout=30)
+        except OSError:
+            return ""
+        if p.stdout.strip() not in ("", name):
+            return " -lucontext"
+    return ""
 
 
 def gcc_line(sources, out, extra=""):
     rt = wsl_path(RT_DIR)
     return ("gcc -O2 -std=gnu11 -Wall -Wno-unused-label -Wno-unused-variable -Wno-unused-but-set-variable %s -I%s "
-            "-I. -o %s %s %s/iop_rt.c %s/iop_rt_libs.c %s/iop_rt_ucontext.c" % (extra, rt, out, " ".join(sources), rt,
-                                                                               rt, rt))
+            "-I. -o %s %s %s/iop_rt.c %s/iop_rt_libs.c %s/iop_rt_ucontext.c%s" % (extra, rt, out, " ".join(sources),
+                                                                                   rt, rt, rt, ucontext_lib()))
 
 
 def rnd(seed):

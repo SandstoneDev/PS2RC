@@ -32,12 +32,19 @@ jobs:
     steps:
       - name: Host tools
         run: |
-          apk add --no-cache bash git make gcc g++ musl-dev zlib-dev python3
+          apk add --no-cache bash git make gcc g++ musl-dev libucontext-dev zlib-dev python3
           python3 -m venv /opt/venv
           /opt/venv/bin/pip install pytest pyelftools
       - uses: actions/checkout@v4
       - name: Tests that compile generated C (native gcc + psp-gcc)
         run: /opt/venv/bin/python -m pytest -q -m "wsl and not oracle and not psp and not needs_game"
+      - name: Example pack, disc and translation
+        # build_elf.sh assembles the example program, translate.py makes <work>/example/trans -
+        # what mk/build.sh then finds at the pack's [build] translation
+        run: |
+          export PATH=/opt/venv/bin:$PATH
+          bash games/example/build_elf.sh
+          python3 ps2rc/pipeline/translate.py --pack example
       - name: Example pack, host build and run
         run: |
           export PATH=/opt/venv/bin:$PATH

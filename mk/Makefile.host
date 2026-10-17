@@ -7,12 +7,19 @@ HLE_C := $(sort $(wildcard hle/*.c))
 HLE_O := $(patsubst hle/%.c,obj/hle/%.o,$(HLE_C))
 GEN_OPT ?= -O1
 FPFLAGS := -frounding-math -ffp-contract=off -fno-fast-math -fno-strict-aliasing
+# musl (Alpine) keeps getcontext/makecontext in libucontext, libc has no copy of them: probe for the library, glibc
+# and macOS print the bare name back and get nothing added.
+UCONTEXT_SO := $(shell gcc -print-file-name=libucontext.so 2>/dev/null)
+UCONTEXT_A := $(shell gcc -print-file-name=libucontext.a 2>/dev/null)
+ifneq (,$(filter-out libucontext.so libucontext.a,$(strip $(UCONTEXT_SO) $(UCONTEXT_A))))
+UCONTEXT_LIBS := -lucontext
+endif
 CFLAGS_GEN := $(GEN_OPT) -std=gnu11 -w $(FPFLAGS) -Ihle/rt -Igen
 CFLAGS_HLE := -O1 -g -std=gnu11 -Wall -Wno-unused-function -Wno-unused-variable -Wno-format-truncation \
               $(FPFLAGS) -Ihle/rt -Ihle -Igen $(CFLAGS_HLE_EXTRA)
 
 ps2rc_host: $(GEN_O) $(HLE_O)
-	gcc -rdynamic -o $@ $(GEN_O) $(HLE_O) -lz -lm
+	gcc -rdynamic -o $@ $(GEN_O) $(HLE_O) -lz -lm $(UCONTEXT_LIBS)
 
 obj/gen/%.o: gen/%.c hle/rt/r5900_rt.h
 	@mkdir -p obj/gen
