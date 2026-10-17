@@ -2,9 +2,13 @@
 interpreter. Everything is generated here; no game or SDK data."""
 import os
 import random
+import shutil
 import struct
 import subprocess
 
+import pytest
+
+from ps2rc import config
 from ps2rc.iop.r3000 import decode
 
 REG = {n: i for i, n in enumerate(["zero", "at", "v0", "v1", "a0", "a1", "a2", "a3", "t0", "t1", "t2", "t3", "t4",
@@ -331,15 +335,17 @@ RT_DIR = os.path.join(ROOT, "ps2rc", "iop", "rt")
 
 
 def wsl_path(p):
-    p = os.path.abspath(p)
-    return "/mnt/" + p[0].lower() + p[2:].replace("\\", "/")
+    """The path a shell script sees: as it is on Linux, /mnt/<drive>/... through WSL (Windows)."""
+    return config.posix_path(os.path.abspath(p))
 
 
 def wsl_run(script_text, workdir):
     script = os.path.join(workdir, "run.sh")
     open(script, "w", newline="\n").write("set -e\ncd %s\n%s\n" % (wsl_path(workdir), script_text))
-    env = dict(os.environ, MSYS_NO_PATHCONV="1")
-    p = subprocess.run(["wsl.exe", "-d", "Debian", "--", "bash", wsl_path(script)], env=env, capture_output=True)
+    if os.name == "nt" and not shutil.which("wsl.exe"):
+        pytest.skip("needs WSL")
+    p = subprocess.run(config.bash_argv(script), env=dict(os.environ, MSYS_NO_PATHCONV="1"),
+                       capture_output=True)
     return p.returncode, p.stdout.decode(errors="replace"), p.stderr.decode(errors="replace")
 
 
