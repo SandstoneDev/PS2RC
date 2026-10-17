@@ -222,7 +222,7 @@ jobs:
           # --require-hashes НЕ применяется на Linux: gui/build_requirements_qt.txt держит только win_amd64 колёса
           AppDir/usr/python/bin/python3 -m pip install --upgrade pip
           AppDir/usr/python/bin/python3 -m pip install \
-            pyside6-essentials==6.11.2 shiboken6==6.11.2 pyelftools pillow
+            pyside6-essentials==6.11.2 shiboken6==6.11.2 pyelftools pillow pytest
 
       - name: The PS2RC tree (public packs only, as in gui/build_app.py)
         run: |
@@ -325,7 +325,7 @@ jobs:
           # универсальные колёса PySide6 (macosx_13_0_universal2); --require-hashes только для Windows
           work/python/bin/python3 -m pip install --upgrade pip
           work/python/bin/python3 -m pip install \
-            pyside6-essentials==6.11.2 shiboken6==6.11.2 pyelftools pillow
+            pyside6-essentials==6.11.2 shiboken6==6.11.2 pyelftools pillow pytest
 
       - name: The PS2RC tree (public packs only, as in gui/build_app.py)
         run: |
