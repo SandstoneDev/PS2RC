@@ -232,6 +232,7 @@ jobs:
             --exclude .git --exclude __pycache__ --exclude .pytest_cache \
             --exclude tests --exclude tools/dev --exclude tools/release \
             --exclude games/SLES-52541_v2.01 \
+            --exclude /AppDir \
             ./ AppDir/usr/share/ps2rc/app/
 
       - name: pspdev toolchain (prebuilt, same pinned release as toolchain.lock.toml)
@@ -334,6 +335,7 @@ jobs:
             --exclude .git --exclude __pycache__ --exclude .pytest_cache \
             --exclude tests --exclude tools/dev --exclude tools/release \
             --exclude games/SLES-52541_v2.01 \
+            --exclude /work \
             ./ work/app/
 
       - name: pspdev toolchain (prebuilt, arm64)
