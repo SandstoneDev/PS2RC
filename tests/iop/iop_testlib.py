@@ -349,11 +349,26 @@ def wsl_run(script_text, workdir):
     return p.returncode, p.stdout.decode(errors="replace"), p.stderr.decode(errors="replace")
 
 
+def ucontext_lib():
+    """The link flag for getcontext/makecontext: \"-lucontext\" where libc has none (musl keeps them in
+    libucontext); glibc and macOS print the bare name back from -print-file-name and get nothing. Probed on the
+    machine running pytest, which is also where the line executes (no native gcc on Windows - the line runs in
+    WSL, whose libc has the functions)."""
+    for name in ("libucontext.so", "libucontext.a"):
+        try:
+            p = subprocess.run(["gcc", "-print-file-name=" + name], capture_output=True, text=True, timeout=30)
+        except OSError:
+            return ""
+        if p.stdout.strip() not in ("", name):
+            return " -lucontext"
+    return ""
+
+
 def gcc_line(sources, out, extra=""):
     rt = wsl_path(RT_DIR)
     return ("gcc -O2 -std=gnu11 -Wall -Wno-unused-label -Wno-unused-variable -Wno-unused-but-set-variable %s -I%s "
-            "-I. -o %s %s %s/iop_rt.c %s/iop_rt_libs.c %s/iop_rt_ucontext.c" % (extra, rt, out, " ".join(sources), rt,
-                                                                               rt, rt))
+            "-I. -o %s %s %s/iop_rt.c %s/iop_rt_libs.c %s/iop_rt_ucontext.c%s" % (extra, rt, out, " ".join(sources),
+                                                                                   rt, rt, rt, ucontext_lib()))
 
 
 def rnd(seed):

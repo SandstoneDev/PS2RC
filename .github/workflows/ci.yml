@@ -32,7 +32,7 @@ jobs:
     steps:
       - name: Host tools
         run: |
-          apk add --no-cache bash git make gcc g++ musl-dev zlib-dev python3
+          apk add --no-cache bash git make gcc g++ musl-dev libucontext-dev zlib-dev python3
           python3 -m venv /opt/venv
           /opt/venv/bin/pip install pytest pyelftools
       - uses: actions/checkout@v4
