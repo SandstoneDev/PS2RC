@@ -227,6 +227,7 @@ jobs:
       - name: The PS2RC tree (public packs only, as in gui/build_app.py)
         run: |
           set -eu
+          mkdir -p AppDir/usr/share/ps2rc        # rsync makes only the last component of the destination
           rsync -a \
             --exclude .git --exclude __pycache__ --exclude .pytest_cache \
             --exclude tests --exclude tools/dev --exclude tools/release \
