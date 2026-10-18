@@ -129,7 +129,12 @@ jobs:
         with:
           msystem: UCRT64
           update: false
-          install: make tar xz python
+          # diffutils provides cmp, which gcc's s-tm-texi rule needs
+          # (missing cmp silently sent the check into the "different" branch
+          # and failed the build).
+          # perl is needed for the man-page rules of binutils/gcc (not fatal,
+          # but keeps the build output clean).
+          install: make tar xz python diffutils perl
           pacboy: gcc:p gmp:p mpfr:p mpc:p isl:p zlib:p zstd:p
 
       - name: Cache the built Windows toolchain
@@ -176,7 +181,8 @@ jobs:
           python -m pip install --upgrade pip
           # хэши в gui/build_requirements_qt.txt - от win_amd64 колёса, здесь они действительны
           python -m pip install --require-hashes -r gui/build_requirements_qt.txt
-          python -m pip install pyelftools pillow
+          # pytest нужен уже шагу "Unit tests" ниже (он идёт раньше шагов сборки DIST)
+          python -m pip install pyelftools pillow pytest
 
       # сам конвертер и его тесты данных не требуют; --quick хватает для проверки Python-части
       - name: Unit tests (data-free)
