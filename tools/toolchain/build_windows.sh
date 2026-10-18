@@ -25,6 +25,8 @@
 # licenses/ (texts copied from the sources).
 set -Eeuo pipefail
 
+SELF_DIR=$(cd "$(dirname "$0")" && pwd)   # $0 may be relative; the script cd's into its build dirs later
+
 JOBS=$(nproc 2>/dev/null || echo 4)
 WORK=""
 BINUTILS="" GCC="" TARGET_FILES="" PSPSDK_TOOLS="" PREFIX="" BINUTILS_GEN="" GCC_PATCHES="" GCC_GEN="" RESUME=0
@@ -232,7 +234,7 @@ for d in /ucrt64/share/licenses/{crt,winpthreads,libwinpthread,gmp,mpfr,mpc,isl,
 done
 # pthread-embedded / newlib / GMP-MPFR-MPC texts from the pinned archives, ISL's MIT text from an isl source archive or
 # MSYS2's isl package (complete_licenses.py)
-python3 "$(dirname "$0")/complete_licenses.py" "$PREFIX" "$(dirname "$GCC")" || say "licences: some texts missing (see above)"
+python3 "$SELF_DIR/complete_licenses.py" "$PREFIX" "$(dirname "$GCC")" || say "licences: some texts missing (see above)"
 
 say "build info"
 {
