@@ -47,6 +47,11 @@ done
 for v in BINUTILS GCC TARGET_FILES PSPSDK_TOOLS PREFIX; do
   [ -n "${!v}" ] || { echo "missing --$(echo $v | tr 'A-Z_' 'a-z-')" >&2; exit 2; }
 done
+# callers pass relative paths (tc/foo.tar); from here on the script cd's into its build dirs,
+# so resolve every input path once now - otherwise the pspsdk-tools tar fails after the gcc cd
+for v in BINUTILS GCC TARGET_FILES PSPSDK_TOOLS BINUTILS_GEN GCC_GEN GCC_PATCHES; do
+  if [ -n "${!v}" ]; then eval "$v=\$(realpath \"\${!v}\")"; fi
+done
 case "${MSYSTEM:-}" in
   UCRT64|MINGW64) ;;
   *) echo "run this in an MSYS2 UCRT64 (or MINGW64) shell (MSYSTEM=${MSYSTEM:-unset})" >&2; exit 2 ;;
