@@ -159,6 +159,17 @@ jobs:
             --prefix /c/pspdev-win --work /c/pspdev-tc-work --jobs "$(nproc)"
           rm -rf /c/pspdev-tc-work
 
+      # a failed build says only "exit code 2" on the step itself; the full gcc/binutils log lives in the work dir
+      # (the ERR trap in build_windows.sh already prints its tail into the step output)
+      - name: The toolchain build log (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pspdev-win-build-log
+          path: C:\pspdev-tc-work\build.log
+          if-no-files-found: ignore
+          retention-days: 7
+
       - name: Python packages (pinned Qt for Windows)
         shell: pwsh
         run: |

@@ -23,7 +23,7 @@
 #   --prefix                the toolchain directory to create (bin/, libexec/, lib/, psp/); must not exist
 # Output: the toolchain in --prefix plus BUILDINFO.txt (sources, configure lines, host compiler) and
 # licenses/ (texts copied from the sources).
-set -euo pipefail
+set -Eeuo pipefail
 
 JOBS=$(nproc 2>/dev/null || echo 4)
 WORK=""
@@ -61,6 +61,21 @@ LOG="$WORK/build.log"
 : > "$LOG"
 t0=$(date +%s)
 say() { echo "[$(( $(date +%s) - t0 )) s] $*" | tee -a "$LOG"; }
+
+# Every configure/make writes to $LOG (CI output would be flooded otherwise); on the first failed command show
+# what failed and the log tail here - otherwise a red CI run says only "exit code 2" and nothing else.
+on_err() {
+  local rc=$?
+  echo "" >&2
+  echo "build_windows.sh: FAILED (exit $rc)" >&2
+  echo "  command: ${BASH_COMMAND}" >&2
+  echo "  at line ${BASH_LINENO[0]} of $(basename "${BASH_SOURCE[1]:-$0}")" >&2
+  echo "---- last 60 lines of $LOG ----" >&2
+  tail -n 60 "$LOG" >&2 || true
+  echo "---- end of log ----" >&2
+  exit "$rc"
+}
+trap on_err ERR
 
 unpack() {   # archive dest [tar --exclude options] (one top-level directory expected)
   mkdir -p "$2"
