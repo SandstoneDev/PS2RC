@@ -23,7 +23,9 @@
 #   --prefix                the toolchain directory to create (bin/, libexec/, lib/, psp/); must not exist
 # Output: the toolchain in --prefix plus BUILDINFO.txt (sources, configure lines, host compiler) and
 # licenses/ (texts copied from the sources).
-set -euo pipefail
+set -Eeuo pipefail
+
+SELF_DIR=$(cd "$(dirname "$0")" && pwd)   # $0 may be relative; the script cd's into its build dirs later
 
 JOBS=$(nproc 2>/dev/null || echo 4)
 WORK=""
@@ -47,6 +49,11 @@ done
 for v in BINUTILS GCC TARGET_FILES PSPSDK_TOOLS PREFIX; do
   [ -n "${!v}" ] || { echo "missing --$(echo $v | tr 'A-Z_' 'a-z-')" >&2; exit 2; }
 done
+# callers pass relative paths (tc/foo.tar); from here on the script cd's into its build dirs,
+# so resolve every input path once now - otherwise the pspsdk-tools tar fails after the gcc cd
+for v in BINUTILS GCC TARGET_FILES PSPSDK_TOOLS BINUTILS_GEN GCC_GEN GCC_PATCHES; do
+  if [ -n "${!v}" ]; then eval "$v=\$(realpath \"\${!v}\")"; fi
+done
 case "${MSYSTEM:-}" in
   UCRT64|MINGW64) ;;
   *) echo "run this in an MSYS2 UCRT64 (or MINGW64) shell (MSYSTEM=${MSYSTEM:-unset})" >&2; exit 2 ;;
@@ -61,6 +68,21 @@ LOG="$WORK/build.log"
 : > "$LOG"
 t0=$(date +%s)
 say() { echo "[$(( $(date +%s) - t0 )) s] $*" | tee -a "$LOG"; }
+
+# Every configure/make writes to $LOG (CI output would be flooded otherwise); on the first failed command show
+# what failed and the log tail here - otherwise a red CI run says only "exit code 2" and nothing else.
+on_err() {
+  local rc=$?
+  echo "" >&2
+  echo "build_windows.sh: FAILED (exit $rc)" >&2
+  echo "  command: ${BASH_COMMAND}" >&2
+  echo "  at line ${BASH_LINENO[0]} of $(basename "${BASH_SOURCE[1]:-$0}")" >&2
+  echo "---- last 60 lines of $LOG ----" >&2
+  tail -n 60 "$LOG" >&2 || true
+  echo "---- end of log ----" >&2
+  exit "$rc"
+}
+trap on_err ERR
 
 unpack() {   # archive dest [tar --exclude options] (one top-level directory expected)
   mkdir -p "$2"
@@ -212,7 +234,7 @@ for d in /ucrt64/share/licenses/{crt,winpthreads,libwinpthread,gmp,mpfr,mpc,isl,
 done
 # pthread-embedded / newlib / GMP-MPFR-MPC texts from the pinned archives, ISL's MIT text from an isl source archive or
 # MSYS2's isl package (complete_licenses.py)
-python3 "$(dirname "$0")/complete_licenses.py" "$PREFIX" "$(dirname "$GCC")" || say "licences: some texts missing (see above)"
+python3 "$SELF_DIR/complete_licenses.py" "$PREFIX" "$(dirname "$GCC")" || say "licences: some texts missing (see above)"
 
 say "build info"
 {

@@ -1,0 +1,444 @@
+# build.yml - сборка готового конвертера PS2RC под три платформы:
+#
+#   Windows x64   -> PS2RC-Converter-Windows-x64.zip
+#                    "PS2RC Converter.exe" (gui/build_app.py, свой лаунчер на MinGW) + приватный Python с
+#                    PySide6 + нативный PSP-тулчейн psp-gcc, собранный здесь же tools/toolchain/build_windows.sh
+#   Linux x86_64  -> PS2RC-Converter-Linux-x86_64.AppImage
+#                    portable CPython (python-build-standalone) + PySide6 + исходники + пребилд pspdev,
+#                    AppRun запускает gui/run_gui.py
+#   macOS arm64   -> PS2RC-Converter-macOS-arm64.dmg (+ .zip) со "PS2RC Converter.app" (ад hoc подпись)
+#
+# Триггеры: вручную (workflow_dispatch) и теги v*. На каждый push сборка не запускается специально: job
+# windows-toolchain в cold-состоянии идёт 1-2 часа (нативный psp-gcc под Windows); после первого запуска он
+# берётся из кэша (ключ по tools/toolchain/toolchain.lock.toml).
+#
+# ВАЖНО по лицензии: LICENSE PS2RC (раздел 2(e)) разрешает публиковать сборки только проекту SandstoneDev.
+# Поэтому здесь НЕТ upload-release-asset: готовые артефакты отдаются только через actions/upload-artifact.
+# Не превращайте этот workflow в публикацию релизов в форке.
+#
+# Что не входит в бандлы (как и в официальную папку): ffmpeg и atracdenc (шаги фильмов и музыки в меню выключены);
+# чтобы их добавить - скачайте официальные бинарники с их лицензиями и передайте gui/build_app.py --ffmpeg /
+# --atracdenc (Windows) или положите рядом в tools/ (Linux / macOS).
+#
+# Полезное: версия тулчейна pspdev берётся из tools/toolchain/toolchain.lock.toml ([release] tag); если pspdev
+# переименует ассеты, поправьте PSPDEV_TAG / имена ассетов ниже.
+
+name: build
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.12"          # та же версия, что у официальной папки (build_app.py копирует sys.base_prefix)
+  PSPDEV_TAG: "v20260901"         # из toolchain.lock.toml [release].tag (коммиты = psp-gcc 15.2.0)
+  # пребилды python-build-standalone (portable CPython для Linux / macOS бандлов)
+  PY_TAG: "20261013"
+  PY_VER: "3.12.15+20261013"
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1. Входные данные для сборки нативного Windows-тулчейна.
+  #    build_windows.sh собирает только HOST-часть (binutils, gcc как .exe); всё, что работает на PSP
+  #    (newlib, libgcc, pspsdk), берётся из Linux-сборки pspdev тех же коммитов (pack_target_files.sh),
+  #    а сгенерированные flex/bison-парсеры делаются здесь (MSYS2 их не умеет).
+  # ---------------------------------------------------------------------------
+  toolchain-parts:
+    name: toolchain inputs (linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: bison and flex (generated parsers)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends bison flex
+
+      - name: Cache downloads
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: tc
+          key: tc-parts-${{ hashFiles('tools/toolchain/toolchain.lock.toml') }}
+
+      - name: Pinned sources + target files + pspsdk tools + generated parsers
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          set -eu
+          mkdir -p tc/src
+          # архивы точных коммитов из toolchain.lock.toml (binutils, gcc, newlib, pspsdk, ...)
+          python tools/toolchain/fetch_sources.py tc/src
+
+          # пребилд pspdev с теми же коммитами (та же ссылка, что в lock-файле для Linux-игроков и CI)
+          curl -fL --retry 3 -o tc/pspdev.tar.gz \
+            "https://github.com/pspdev/pspdev/releases/download/${PSPDEV_TAG}/pspdev-debian-latest.tar.gz"
+          mkdir -p tc/pspdev-x
+          tar -C tc/pspdev-x -xf tc/pspdev.tar.gz
+          if [ -d tc/pspdev-x/bin ]; then PSPDEV_DIR=tc/pspdev-x; else PSPDEV_DIR=$(echo tc/pspdev-x/*); fi
+
+          # target-файлы: psp/include, psp/lib, psp/sdk, lib/gcc/psp/<ver> (host-часть pspdev не нужна)
+          bash tools/toolchain/pack_target_files.sh "$PSPDEV_DIR" tc/target_files.tar
+
+          # исходники pspsdk-тулов, которые build_windows.sh компилирует как psp-fixup-imports / psp-prxgen /
+          # psp-build-exports (в пребилде они собраны под Linux)
+          P=$(tar -tf tc/src/pspsdk-*.tar.gz | head -1 | cut -d/ -f1)
+          mkdir -p tc/pspsdk && tar -C tc/pspsdk -xf tc/src/pspsdk-*.tar.gz
+          tar -C "tc/pspsdk/$P" -cf tc/pspsdk_tools.tar tools
+
+          # сгенерированные парсеры из тех же архивов (иначе MSYS2 потребовались бы bison/flex)
+          bash tools/toolchain/gen_binutils_parsers.sh tc/src/binutils-*.tar.gz tc/binutils_generated.tar
+          bash tools/toolchain/gen_gcc_generated.sh tc/src/gcc-*.tar.gz tc/gcc_generated.tar
+
+          rm -rf tc/pspdev-x tc/pspdev.tar.gz tc/pspsdk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: toolchain-parts
+          path: tc/
+          retention-days: 3
+          if-no-files-found: error
+
+  # ---------------------------------------------------------------------------
+  # 2. Windows x64: нативный psp-gcc + готовая папка с PS2RC Converter.exe
+  # ---------------------------------------------------------------------------
+  windows:
+    name: Windows x64 (.exe)
+    needs: toolchain-parts
+    runs-on: windows-latest
+    timeout-minutes: 340          # холодная сборка gcc под Windows занимает 1-2 часа
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          architecture: x64       # build_app.py копирует именно этот интерпретатор в python/
+
+      # MSYS2: хост-компилятор (ucrt64) для лаунчера gui/launcher.c и для сборки psp-gcc.
+      # Куда именно он встал, отдаёт output msys2-location (обычно D:\a\_temp\msys64).
+      - uses: msys2/setup-msys2@v2
+        id: msys2
+        with:
+          msystem: UCRT64
+          update: false
+          # diffutils provides cmp, which gcc's s-tm-texi rule needs
+          # (missing cmp silently sent the check into the "different" branch
+          # and failed the build).
+          # perl is needed for the man-page rules of binutils/gcc (not fatal,
+          # but keeps the build output clean).
+          install: make tar xz python diffutils perl
+          pacboy: gcc:p gmp:p mpfr:p mpc:p isl:p zlib:p zstd:p
+
+      - name: Cache the built Windows toolchain
+        id: tc
+        uses: actions/cache@v4
+        with:
+          path: C:\pspdev-win
+          key: pspdev-win-${{ hashFiles('tools/toolchain/toolchain.lock.toml') }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: toolchain-parts
+          path: tc
+
+      - name: Build the native Windows psp-gcc (first run only)
+        if: steps.tc.outputs.cache-hit != 'true'
+        shell: msys2 {0}
+        run: |
+          set -eu
+          bash tools/toolchain/build_windows.sh \
+            --binutils tc/src/binutils-*.tar.gz \
+            --gcc tc/src/gcc-*.tar.gz \
+            --binutils-generated tc/binutils_generated.tar \
+            --gcc-generated tc/gcc_generated.tar \
+            --target-files tc/target_files.tar \
+            --pspsdk-tools tc/pspsdk_tools.tar \
+            --prefix /c/pspdev-win --work /c/pspdev-tc-work --jobs "$(nproc)"
+          rm -rf /c/pspdev-tc-work
+
+      # a failed build says only "exit code 2" on the step itself; the full gcc/binutils log lives in the work dir
+      # (the ERR trap in build_windows.sh already prints its tail into the step output)
+      - name: The toolchain build log (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pspdev-win-build-log
+          path: C:\pspdev-tc-work\build.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Python packages (pinned Qt for Windows)
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          # хэши в gui/build_requirements_qt.txt - от win_amd64 колёса, здесь они действительны
+          python -m pip install --require-hashes -r gui/build_requirements_qt.txt
+          # pytest нужен уже шагу "Unit tests" ниже (он идёт раньше шагов сборки DIST)
+          python -m pip install pyelftools pillow pytest
+
+      # сам конвертер и его тесты данных не требуют; --quick хватает для проверки Python-части
+      - name: Unit tests (data-free)
+        run: python -m pytest -q -m "not wsl and not oracle and not psp and not slow and not needs_game"
+
+      - name: Build the converter folder (exe + python + toolchain)
+        shell: pwsh
+        run: |
+          $gcc = Join-Path "${{ steps.msys2.outputs.msys2-location }}" "ucrt64\bin\gcc.exe"
+          python gui/build_app.py --out DIST `
+            --toolchain C:\pspdev-win `
+            --cc $gcc
+        # если audit/bundle_deps ругается на чужой раннере - сначала посмотрите, каких DLL не хватает;
+        # --allow-missing лишь сообщает и НЕ должен попадать в публикуемые сборки
+
+      - name: Pack the folder
+        shell: pwsh
+        run: tar -a -c -f PS2RC-Converter-Windows-x64.zip -C DIST PS2RC_Converter
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PS2RC-Converter-Windows-x64
+          path: PS2RC-Converter-Windows-x64.zip
+          if-no-files-found: error
+
+  # ---------------------------------------------------------------------------
+  # 3. Linux x86_64: AppImage с portable Python, PySide6 и pspdev
+  # ---------------------------------------------------------------------------
+  linux:
+    name: Linux x86_64 (AppImage)
+    runs-on: ubuntu-latest       # 24.04; glibc сборки >= 2.34 (так у колёс PySide6 manylinux_2_34)
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build-only system libraries (Qt)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libgl1 libegl1 libxkbcommon0 libfontconfig1 file
+
+      - name: Portable CPython
+        run: |
+          set -eu
+          curl -fL --retry 3 -o /tmp/py.tar.gz \
+            "https://github.com/astral-sh/python-build-standalone/releases/download/${PY_TAG}/cpython-${PY_VER}-x86_64-unknown-linux-gnu-install_only.tar.gz"
+          mkdir -p AppDir/usr
+          tar -C AppDir/usr -xf /tmp/py.tar.gz        # распаковывается в python/ (bin/, lib/)
+          AppDir/usr/python/bin/python3 -V
+
+      - name: Python packages
+        run: |
+          set -eu
+          # --require-hashes НЕ применяется на Linux: gui/build_requirements_qt.txt держит только win_amd64 колёса
+          AppDir/usr/python/bin/python3 -m pip install --upgrade pip
+          AppDir/usr/python/bin/python3 -m pip install \
+            pyside6-essentials==6.11.2 shiboken6==6.11.2 pyelftools pillow pytest
+
+      - name: The PS2RC tree (public packs only, as in gui/build_app.py)
+        run: |
+          set -eu
+          mkdir -p AppDir/usr/share/ps2rc        # rsync makes only the last component of the destination
+          rsync -a \
+            --exclude .git --exclude __pycache__ --exclude .pytest_cache \
+            --exclude tests --exclude tools/dev --exclude tools/release \
+            --exclude games/SLES-52541_v2.01 \
+            --exclude /AppDir \
+            ./ AppDir/usr/share/ps2rc/app/
+
+      - name: pspdev toolchain (prebuilt, same pinned release as toolchain.lock.toml)
+        run: |
+          set -eu
+          curl -fL --retry 3 -o /tmp/pspdev.tar.gz \
+            "https://github.com/pspdev/pspdev/releases/download/${PSPDEV_TAG}/pspdev-ubuntu-latest-x86_64.tar.gz"
+          mkdir -p /tmp/pspdev-x AppDir/usr/lib/toolchain
+          tar -C /tmp/pspdev-x -xf /tmp/pspdev.tar.gz
+          if [ -d /tmp/pspdev-x/bin ]; then SRC=/tmp/pspdev-x; else SRC=$(echo /tmp/pspdev-x/*); fi
+          cp -a "$SRC"/. AppDir/usr/lib/toolchain/
+
+      - name: AppRun, .desktop, icon
+        run: |
+          set -eu
+          cat > AppDir/AppRun <<'EOF'
+          #!/bin/sh
+          # запуск конвертера из AppImage: свой Python, свои Qt, свой psp-gcc
+          HERE="$(dirname "$(readlink -f "$0")")"
+          export PS2RC_TOOLCHAIN="$HERE/usr/lib/toolchain"
+          export PATH="$HERE/usr/lib/toolchain/bin:$PATH"
+          export QT_PLUGIN_PATH="$HERE/usr/python/lib/python3.12/site-packages/PySide6/plugins"
+          exec "$HERE/usr/python/bin/python3" -X utf8 "$HERE/usr/share/ps2rc/app/gui/run_gui.py" "$@"
+          EOF
+          chmod +x AppDir/AppRun
+
+          cat > AppDir/ps2rc.desktop <<'EOF'
+          [Desktop Entry]
+          Type=Application
+          Name=PS2RC Converter
+          Comment=Convert a PS2 disc you own into a PSP game folder
+          Exec=ps2rc
+          Icon=ps2rc
+          Terminal=false
+          Categories=Utility;
+          EOF
+
+          cp docs/logo.png AppDir/ps2rc.png
+
+      - name: Smoke test inside the bundle
+        env:
+          QT_QPA_PLATFORM: offscreen
+          PS2RC_TOOLCHAIN: ${{ github.workspace }}/AppDir/usr/lib/toolchain
+        run: |
+          set -eu
+          cd AppDir/usr/share/ps2rc/app
+          "${GITHUB_WORKSPACE}/AppDir/usr/python/bin/python3" -c \
+            "from PySide6.QtWidgets import QApplication; QApplication([]); print('qt ok')"
+          "${GITHUB_WORKSPACE}/AppDir/usr/python/bin/python3" -m ps2rc doctor --quick
+
+      - name: Make the AppImage
+        env:
+          ARCH: x86_64
+          APPIMAGE_EXTRACT_AND_RUN: "1"     # на раннере нет libfuse2 - распаковываем вместо FUSE
+        run: |
+          set -eu
+          curl -fL --retry 3 -o /tmp/appimagetool \
+            https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x /tmp/appimagetool
+          /tmp/appimagetool AppDir PS2RC-Converter-Linux-x86_64.AppImage
+          ls -lh PS2RC-Converter-Linux-x86_64.AppImage
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PS2RC-Converter-Linux-x86_64
+          path: PS2RC-Converter-Linux-x86_64.AppImage
+          if-no-files-found: error
+
+  # ---------------------------------------------------------------------------
+  # 4. macOS arm64: .app в .dmg (и .zip); подпись ad hoc, без Apple Developer ID
+  # ---------------------------------------------------------------------------
+  macos:
+    name: macOS arm64 (.dmg)
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Portable CPython
+        run: |
+          set -eu
+          curl -fL --retry 3 -o /tmp/py.tar.gz \
+            "https://github.com/astral-sh/python-build-standalone/releases/download/${PY_TAG}/cpython-${PY_VER}-aarch64-apple-darwin-install_only.tar.gz"
+          mkdir -p work
+          tar -C work -xf /tmp/py.tar.gz              # work/python/{bin,lib}
+          work/python/bin/python3 -V
+
+      - name: Python packages
+        run: |
+          set -eu
+          # универсальные колёса PySide6 (macosx_13_0_universal2); --require-hashes только для Windows
+          work/python/bin/python3 -m pip install --upgrade pip
+          work/python/bin/python3 -m pip install \
+            pyside6-essentials==6.11.2 shiboken6==6.11.2 pyelftools pillow pytest
+
+      - name: The PS2RC tree (public packs only, as in gui/build_app.py)
+        run: |
+          set -eu
+          rsync -a \
+            --exclude .git --exclude __pycache__ --exclude .pytest_cache \
+            --exclude tests --exclude tools/dev --exclude tools/release \
+            --exclude games/SLES-52541_v2.01 \
+            --exclude /work \
+            ./ work/app/
+
+      - name: pspdev toolchain (prebuilt, arm64)
+        run: |
+          set -eu
+          curl -fL --retry 3 -o /tmp/pspdev.tar.gz \
+            "https://github.com/pspdev/pspdev/releases/download/${PSPDEV_TAG}/pspdev-macos-latest-arm64.tar.gz"
+          mkdir -p /tmp/pspdev-x work/toolchain
+          tar -C /tmp/pspdev-x -xf /tmp/pspdev.tar.gz
+          if [ -d /tmp/pspdev-x/bin ]; then SRC=/tmp/pspdev-x; else SRC=$(echo /tmp/pspdev-x/*); fi
+          cp -a "$SRC"/. work/toolchain/
+
+      - name: Smoke test inside the bundle files
+        env:
+          QT_QPA_PLATFORM: offscreen
+          PS2RC_TOOLCHAIN: ${{ github.workspace }}/work/toolchain
+        run: |
+          set -eu
+          cd work/app
+          "${GITHUB_WORKSPACE}/work/python/bin/python3" -c \
+            "from PySide6.QtWidgets import QApplication; QApplication([]); print('qt ok')"
+          "${GITHUB_WORKSPACE}/work/python/bin/python3" -m ps2rc doctor --quick
+
+      - name: Assemble PS2RC Converter.app
+        run: |
+          set -eu
+          APP="stage/PS2RC Converter.app"
+          mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+          cp -a work/python "$APP/Contents/Resources/python"
+          cp -a work/app "$APP/Contents/Resources/app"
+          cp -a work/toolchain "$APP/Contents/Resources/toolchain"
+
+          # лаунчер: оболочка .app запускает свой Python на gui/run_gui.py (он сам поднимает окно дочерним процессом)
+          cat > "$APP/Contents/MacOS/ps2rc" <<'EOF'
+          #!/bin/sh
+          R="$(cd "$(dirname "$0")/../Resources" && pwd)"
+          export PS2RC_TOOLCHAIN="$R/toolchain"
+          export PATH="$R/toolchain/bin:$PATH"
+          export QT_PLUGIN_PATH="$R/python/lib/python3.12/site-packages/PySide6/plugins"
+          exec "$R/python/bin/python3" -X utf8 "$R/app/gui/run_gui.py" "$@"
+          EOF
+          chmod +x "$APP/Contents/MacOS/ps2rc"
+
+          cat > "$APP/Contents/Info.plist" <<'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleName</key><string>PS2RC Converter</string>
+            <key>CFBundleDisplayName</key><string>PS2RC Converter</string>
+            <key>CFBundleIdentifier</key><string>org.sandstonedev.ps2rc</string>
+            <key>CFBundleExecutable</key><string>ps2rc</string>
+            <key>CFBundlePackageType</key><string>APPL</string>
+            <key>CFBundleShortVersionString</key><string>0.0.0-ci</string>
+            <key>CFBundleVersion</key><string>0</string>
+            <key>LSMinimumSystemVersion</key><string>13.0</string>
+            <key>NSHighResolutionCapable</key><true/>
+            <key>NSPrincipalClass</key><string>NSApplication</string>
+          </dict>
+          </plist>
+          EOF
+
+          # иконка из docs/logo.png (лучшее усилие: без неё .app тоже работает)
+          mkdir -p work.iconset
+          sips -z 512 512 docs/logo.png --out work.iconset/icon_512x512.png >/dev/null \
+            && iconutil -c icns work.iconset -o "$APP/Contents/Resources/ps2rc.icns" \
+            && /usr/libexec/PlistBuddy -c "Add :CFBundleIconFile string ps2rc.icns" "$APP/Contents/Info.plist" \
+            || echo "icon: skipped"
+
+          # Apple Silicon без подписи вообще не запускает бинарники: ad hoc подпись обязательна.
+          # Для App Store / Gatekeeper без предупреждений нужен свой Developer ID + notarization (вне CI).
+          codesign --force --deep --sign - "$APP"
+          codesign --verify --deep "$APP"
+
+      - name: DMG and ZIP
+        run: |
+          set -eu
+          hdiutil create -volname "PS2RC Converter" -srcfolder stage -ov -format UDZO \
+            PS2RC-Converter-macOS-arm64.dmg
+          cd stage && zip -qry ../PS2RC-Converter-macOS-arm64.zip "PS2RC Converter.app"
+          ls -lh ../PS2RC-Converter-macOS-*
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PS2RC-Converter-macOS-arm64
+          path: |
+            PS2RC-Converter-macOS-arm64.dmg
+            PS2RC-Converter-macOS-arm64.zip
+          if-no-files-found: error

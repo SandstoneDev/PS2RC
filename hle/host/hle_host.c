@@ -37,7 +37,17 @@
  */
 #define _GNU_SOURCE
 #include <dlfcn.h>
-#include <execinfo.h>
+/* backtrace() comes with <execinfo.h>: glibc / macOS have it, musl (Alpine) and MinGW do not - then no chain is
+   printed (HLE_HAVE_EXECINFO below) */
+#if defined(__has_include)
+# if __has_include(<execinfo.h>)
+#  include <execinfo.h>
+#  define HLE_HAVE_EXECINFO 1
+# endif
+#endif
+#ifndef HLE_HAVE_EXECINFO
+# define HLE_HAVE_EXECINFO 0
+#endif
 #include <fcntl.h>
 #include <fenv.h>
 #include <signal.h>
@@ -281,6 +291,7 @@ const char *hle_plat_fn_name(void *pc)
 
 void hle_plat_backtrace(void)
 {
+#if HLE_HAVE_EXECINFO
     void *frames[64];
     int n = backtrace(frames, 64);
     char **syms = backtrace_symbols(frames, n);
@@ -290,6 +301,9 @@ void hle_plat_backtrace(void)
         const char *p = strchr(s, '(');
         LOG("  %s\n", p ? p : s);
     }
+#else
+    LOG("host backtrace: not available on this C library\n");
+#endif
 }
 
 /* trap-set profiling: generated functions that reached the register model (open addressing on the return address) */

@@ -2,11 +2,13 @@
 C (both register modes) against a cycle-level reference simulator with exact arithmetic on random microprograms and
 random register states. Synthetic only."""
 import os
+import shutil
 import struct
 import subprocess
 
 import pytest
 
+from ps2rc import config
 from ps2rc.vu import micro_gen as G
 from ps2rc.vu.micro_gen_isa import decode, decode_program, text
 from vu_testlib import (up, lo, LOWER_NOP, to_bytes, random_program, random_state, Sim, rnd, ONE, fmul, fadd)
@@ -16,8 +18,8 @@ ROOT = os.path.dirname(os.path.dirname(HERE))
 
 
 def wsl_path(p):
-    p = os.path.abspath(p)
-    return "/mnt/" + p[0].lower() + p[2:].replace("\\", "/")
+    """The path a shell script sees: as it is on Linux, /mnt/<drive>/... through WSL (Windows)."""
+    return config.posix_path(os.path.abspath(p))
 
 
 # ---------------------------------------------------------------------------------------------- decoder / chain
@@ -175,7 +177,9 @@ def test_generated_c_matches_the_reference(tmp_path, seed, mode):
     script = ("set -e\ncd %s\ngcc -O2 -std=gnu11 -frounding-math -ffp-contract=off -fno-fast-math -fno-math-errno "
               "-Wall -Wno-unused-label -I%s -I. -o t driver.c tprog.c -lm\n./t\n" % (wsl_path(str(d)), rt))
     (d / "run.sh").write_text(script, newline="\n")
-    p = subprocess.run(["wsl.exe", "-d", "Debian", "--", "bash", wsl_path(str(d / "run.sh"))],
+    if os.name == "nt" and not shutil.which("wsl.exe"):
+        pytest.skip("needs WSL")
+    p = subprocess.run(config.bash_argv(str(d / "run.sh")),
                        env=dict(os.environ, MSYS_NO_PATHCONV="1"), capture_output=True)
     assert p.returncode == 0, p.stderr.decode(errors="replace")[-3000:]
     got = dict(l.split(" ", 1) for l in p.stdout.decode().splitlines() if l.startswith("K"))
