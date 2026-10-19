@@ -27,7 +27,7 @@ EXCL=$(mktemp)
 # files owned by psp-pacman packages (paths relative to the install root) minus the kept packages
 if [ -d "$SRC/var/lib/pacman/local" ]; then
   for d in "$SRC"/var/lib/pacman/local/*/; do
-    name=$(sed -n '/^%NAME%/{n;p}' "$d/desc" 2>/dev/null || true)
+    name=$(sed -n '/^%NAME%/{n;p;}' "$d/desc" 2>/dev/null || true)
     case ",$KEEP," in *",$name,"*) continue ;; esac
     [ -f "$d/files" ] && sed -n '/^%FILES%/,/^$/p' "$d/files" | grep -v '^%' | grep -v '/$' | grep -v '^$' >> "$EXCL" || true
   done
