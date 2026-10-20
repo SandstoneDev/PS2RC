@@ -5,8 +5,8 @@
 <p align="center"><b>Join the community on Discord: <a href="https://discord.gg/wV8x46ZTDu">discord.gg/wV8x46ZTDu</a></b></p>
 
 > **Read [LICENSE](LICENSE) before you use the code.** This is free, source-available
-> software. You may use it for free and fork it to contribute back; publishing your own
-> builds or releases of this game's port is not allowed (see [Forks](#forks-and-other-games)).
+> software. You may use it, fork it, change it and share your work for free, as long as you
+> credit the original (see [Forks](#forks)).
 > **No game data is included here**, and none may ever be added: you bring a disc you legally own.
 
 PS2RC is a **converter**: it turns a PlayStation 2 game disc that you own into a game folder for the
@@ -258,19 +258,10 @@ skills and field notes for an AI coding agent), is
 [universal-ps2-recompiler](https://github.com/SandstoneDev/universal-ps2-recompiler). For general PSP
 development see [psp-developer](https://github.com/SandstoneDev/psp-developer).
 
-## Forks and other games
+## Forks
 
-Work based on PS2RC for the disc this repository converts is distributed only by the PS2RC project (the pack's
-`DISTRIBUTION.md` in `games/`; LICENSE, section 2(e)). This is not a claim of any right in the game: games, their
-names and all rights in them belong to their owners. In short (the [LICENSE](LICENSE) has the exact terms):
-
-- you may fork this repository on GitHub **only to contribute back** (pull requests);
-- you may **not** publish your own releases or builds of a conversion of this disc, or a modified game pack for
-  it, anywhere;
-- to port **other** games, use [universal-ps2-recompiler](https://github.com/SandstoneDev/universal-ps2-recompiler):
-  free, under the same licence.
-
-For work on other games, under the licence:
+You may fork this repository, change it and publish your fork and its releases under the licence. In short (the
+[LICENSE](LICENSE) has the exact terms):
 
 - everything you distribute must be **free**: no selling, renting, paywalls or
   subscriptions. Voluntary donations are fine as long as they gate nothing (no
@@ -283,16 +274,18 @@ For work on other games, under the licence:
   Community: https://discord.gg/wV8x46ZTDu
   ```
 
+- the start-up credit screen (the splash with the QR code) is a build option (`--no-splash` for the converter,
+  `SPLASH=0` for `mk/build.sh`): your fork may keep, change or remove it, as long as its README keeps the credit
+  above with the link to the original repository, https://github.com/SandstoneDev/PS2RC;
 - the PS2RC code in your fork stays under the PS2RC License; keep `LICENSE` and
   `NOTICE.md` with your source;
 - **never distribute game data**: no game files, no disc images, and nothing
   translated or built from a game (generated C, EBOOTs of a commercial game). Every
-  user builds from their own disc;
-- a disc listed in a `DISTRIBUTION.md` notice of SandstoneDev (in a SandstoneDev
-  repository, or on the community server) may not be ported in a distributed fork.
+  user builds from their own disc.
 
-If you break the terms, your permission ends; SandstoneDev may restore it in writing. The start-up credit screen
-is a build option; you may keep, change or remove it.
+To port **other** games, [universal-ps2-recompiler](https://github.com/SandstoneDev/universal-ps2-recompiler) is the
+agent kit for it, free, under the same licence. If you break the terms, your permission ends; SandstoneDev may restore
+it in writing.
 
 ## Community
 
@@ -302,10 +295,57 @@ Contributions: read [CONTRIBUTING.md](CONTRIBUTING.md). Security problems: see
 [SECURITY.md](SECURITY.md). Other contact: GitHub issues, the Discord, or
 sandstonedevpsp@gmail.com.
 
+
 **Takedown policy.** Rightsholders can reach the maintainer through GitHub issues,
 the Discord or sandstonedevpsp@gmail.com. On a takedown or removal notice the named
 material is removed promptly and not published again (no re-uploads or mirrors);
 GitHub's DMCA process applies as usual. Details: [TAKEDOWN.md](TAKEDOWN.md).
+
+## Credits
+
+PS2RC is written by SandstoneDev. Thanks to the people and projects whose public work it uses or learned from. Each
+keeps its own licence; the licence texts and what exactly was used are in [NOTICE.md](NOTICE.md).
+
+People:
+
+- **DenielX** ([github.com/DenielX](https://github.com/DenielX/), YouTube
+  [@sp-pteam-indev6976](https://www.youtube.com/@sp-pteam-indev6976)) - for advice during development.
+- **mcidclan** ([github.com/mcidclan](https://github.com/mcidclan)) - PSP Media Engine research: the runtime's Media
+  Engine start-up follows the boot pattern of his
+  [me-feed-graphics-engine](https://github.com/mcidclan/me-feed-graphics-engine) (MIT), and his Media Engine samples
+  (memory map, spinlock, soft interrupts, DMA) and clock research shaped the Media Engine and overclock work.
+- **aap**: MIT-licensed code adapted in the game pack for the PS2 texture layout (texel order, transfer sizes,
+  palette order); its licence text is in the game pack's `NOTICE.md`.
+- The posters of the ps2dev forum thread
+  ["scePowerSetClockFrequency"](https://forums.ps2dev.org/viewtopic.php?t=7937) (2007): how the PSP's PLL, CPU and bus
+  clocks relate, and why memory-bound code gains less from a higher CPU clock.
+
+Used by PS2RC or shipped next to the converter as separate programs:
+
+- [pspdev](https://github.com/pspdev): the PSP toolchain (GCC, binutils, newlib) and PSPSDK;
+- [ARK custom firmware](https://github.com/PSP-Arkfive/ARK-5) ([ARK-4](https://github.com/PSP-Archive/ARK-4)): the
+  KUBridge / SystemControl calls and the overclock and extra-memory interfaces it offers to homebrew;
+- [FFmpeg](https://ffmpeg.org) (with libx264): intro movies, the animated menu icon and the menu music input;
+- [atracdenc](https://github.com/dcherednik/atracdenc): the menu music (ATRAC3 / ATRAC3plus);
+- [Qt for Python (PySide6)](https://www.pyside.org) and [Qt](https://www.qt.io): the converter window;
+- [Python](https://www.python.org), [pyelftools](https://github.com/eliben/pyelftools) and
+  [Pillow](https://python-pillow.org): the converter;
+- [DejaVu fonts](https://dejavu-fonts.github.io/): the text of the start-up screen.
+
+Studied as references (no code taken):
+
+- [PCSX2](https://pcsx2.net/): the reference emulator for bit-exact tests (through its PINE interface);
+- [PPSSPP](https://www.ppsspp.org/) and [pspautotests](https://github.com/hrydgard/pspautotests): the test emulator,
+  its source and hardware notes (GE, VFPU, movies);
+- [ps2sdk](https://github.com/ps2dev/ps2sdk): EE syscall numbers and the memory-card library's behaviour;
+- [Play!](https://github.com/jpd002/Play-): the semantics of the EE kernel's syscalls;
+- [PS2Recomp](https://github.com/ran-j/PS2Recomp) and [N64Recomp](https://github.com/N64Recomp/N64Recomp): static
+  recompiler designs, and the library signature-scan method PS2RC re-implements;
+- [ps2tek](https://psi-rockin.github.io/ps2tek/): PS2 hardware registers;
+- [psx-spx](https://problemkaputt.de/psx-spx.htm): the PlayStation sound hardware;
+- [uOFW](https://github.com/uofw/uofw), [vfpu-docs](https://github.com/pspdev/vfpu-docs),
+  [PSPTEK](http://daifukkat.su/docs/psptek/): PSP firmware interfaces, the VFPU and the hardware maps.
+
 
 ## Not affiliated
 

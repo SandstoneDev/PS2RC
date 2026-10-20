@@ -5,8 +5,7 @@ This project is not affiliated with, authorized or endorsed by Rockstar Games, T
 
 The pack holds only our own code and the facts needed to work with that disc (addresses, sizes, checksums, file
 names). It holds no game code and no game data: the converter makes everything game-derived on your PC, from
-your own disc, and it never leaves your PC. Builds and packs for this disc are distributed only by the PS2RC
-project: see [DISTRIBUTION.md](DISTRIBUTION.md).
+your own disc, and it never leaves your PC.
 Third-party notices of the pack: [NOTICE.md](NOTICE.md).
 
 ## What you need
@@ -185,5 +184,5 @@ is one move; the PSP's D-pad always gives the full stick deflection).
 
 ## Licence
 
-PS2RC License 1.1, see [LICENSE](../../LICENSE). Distribution notice for this disc: [DISTRIBUTION.md](DISTRIBUTION.md).
+PS2RC License 1.2, see [LICENSE](../../LICENSE).
 Never share a converted folder, an EBOOT built from the game, or any file from the disc - every player converts their own disc.

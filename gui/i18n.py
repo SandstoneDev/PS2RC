@@ -104,7 +104,7 @@ T = {
     "menu.help": "Help",
     "about.h": "About PS2RC Converter",
     "about.what": "Converts your own PS2 game disc into a PSP game folder, on this PC.",
-    "about.licence": "Licence: PS2RC License 1.1 (licenses/PS2RC-LICENSE.txt).",
+    "about.licence": "Licence: PS2RC License 1.2 (licenses/PS2RC-LICENSE.txt).",
     "about.credits": "Made by SandstoneDev.",
     "about.project": "Project:",
     "about.discord": "Join the community on Discord:",

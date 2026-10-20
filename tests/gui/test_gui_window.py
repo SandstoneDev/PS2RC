@@ -660,7 +660,7 @@ def test_about_dialog_and_help_menu(gui, monkeypatch):
     assert app.t("menu.help") in titles
     d = app._about_dialog()                        # built, never exec'd (no modal window in tests)
     head, body = d.about["head"].text(), d.about["body"].text()
-    assert mod.VERSION in head and "PS2RC License 1.1" in body and "SandstoneDev" in body
+    assert mod.VERSION in head and "PS2RC License 1.2" in body and "SandstoneDev" in body
     assert "https://github.com/SandstoneDev/PS2RC" in body and "discord.gg/wV8x46ZTDu" in body
     assert d.about["body"].openExternalLinks() and "NOTICE" in d.about["note"].text()
     seen = []

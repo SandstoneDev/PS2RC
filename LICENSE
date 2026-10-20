@@ -1,10 +1,10 @@
-PS2RC License, version 1.1
+PS2RC License, version 1.2
 
 Copyright (c) 2026 SandstoneDev. All rights reserved, except as granted below.
 
 This is a source-available licence, not an open-source one. It lets you study PS2RC,
-use it to recompile PS2 games you own, fork it to support other games, and share your
-work, as long as everything stays free of charge, you credit the original recompiler,
+use it to recompile PS2 games you own, fork it, change it and share your work, as
+long as everything stays free of charge, you credit the original recompiler,
 and the PS2RC code in your work stays under this licence. PS2RC contains no game data,
 and no game data may ever be distributed with it.
 
@@ -24,11 +24,7 @@ and no game data may ever be distributed with it.
    maps) and its data tables, in any form or encoding. Facts needed to work with a game,
    such as the addresses, sizes and names of the functions a game pack hooks, or the
    checksums that identify a disc, are not Game Data under this licence; whether you may
-   publish them is your responsibility (section 2(f)).
-   "A Listed Disc" is a game disc, identified by its disc serial, that is listed in a
-   DISTRIBUTION.md notice published by SandstoneDev in a SandstoneDev repository on
-   GitHub, or on the community server named in section 2(b). A notice that SandstoneDev
-   published for the same purpose under version 1.0 of this licence also counts.
+   publish them is your responsibility (section 2(e)).
 
 1. WHAT YOU MAY DO
 
@@ -57,8 +53,10 @@ and no game data may ever be distributed with it.
            Community: https://discord.gg/wV8x46ZTDu
        You may not remove or hide this credit, claim that you wrote PS2RC, or suggest
        that SandstoneDev endorses your work. A credit inside the program is welcome but
-       not required: the start-up credit screen PS2RC ships with may be kept, changed or
-       removed.
+       not required: you may keep, change or remove the start-up credit screen PS2RC
+       ships with (the splash screen with SandstoneDev's QR code). If you change or
+       remove it, the credit above, with its link to the original repository
+       https://github.com/SandstoneDev/PS2RC, must still be in your README.
    (c) Same licence for PS2RC's code. If you Distribute the source code of a Derived
        Work, include this LICENSE file and NOTICE.md unchanged. The parts that come from
        PS2RC, and your changes to them, stay under this licence. Your own new code (for
@@ -70,21 +68,7 @@ and no game data may ever be distributed with it.
        strings or encoded blobs), and not as links to copies of it. Every user supplies a
        game from a copy they legally own; translating and building a game happens on the
        user's own machine, for the user's own use.
-   (e) Distribution of work for Listed Discs. You may not Distribute PS2RC, a program
-       built with it, or any Derived Work that runs the game on a Listed Disc in whole
-       or in part, or that is made to work with the files of a Listed Disc (for example
-       a game pack or a modified game pack, a patch, a build or a conversion tool for
-       it), unless SandstoneDev gives you written permission. This applies to every
-       Derived Work Distributed after the disc was first listed in such a notice. One
-       exception: you may keep a fork of a SandstoneDev repository on GitHub, and change
-       it there, only to prepare contributions (pull requests) to that repository; you
-       may not publish releases or builds from such a fork. A Derived Work made for a
-       disc that is not listed, or for software of your own, is not affected. Work for a
-       Listed Disc is distributed only by the PS2RC project (SandstoneDev). This is not
-       a claim of any right in any game. Games, their names and all rights in them
-       belong to their owners. This condition only limits how works based on PS2RC's
-       code may be distributed.
-   (f) Your responsibility. This licence gives no rights to any game, to any trademark,
+   (e) Your responsibility. This licence gives no rights to any game, to any trademark,
        or to third-party code beyond what that code's own licence gives. You are
        responsible for complying with the laws that apply to you, including those on
        copies of software you own.
@@ -138,7 +122,8 @@ and no game data may ever be distributed with it.
 NOTE ON GAME CONTENT
 
 This repository contains only original source code and documentation. It contains no
-game data and grants no rights to any.
+game data and grants no rights to any. This licence is not a claim of any right in any
+game: games, their names and all rights in them belong to their owners.
 
 PS2RC is provided for interoperability, preservation and homebrew use with a copy of a
 game that you legally own. It ships no game code or assets: it works only on a disc
@@ -151,12 +136,12 @@ formal notice: through the repository's issue tracker, the community server
 
 ---
 
-CHANGES FROM VERSION 1.0
+CHANGES FROM VERSION 1.1
 
-Version 1.1 changes only wording, not what the licence requires: the term defined in
-section 0 is now "Listed Disc" and its notice is named DISTRIBUTION.md; condition 2(e)
-now names SandstoneDev's written permission (which SandstoneDev could always give) and
-states that it is not a claim of any right in any game. A notice published under
-version 1.0 still counts. Copies of PS2RC and of Derived Works that were Distributed
-under version 1.0 remain under version 1.0; this version applies to copies Distributed
-with it.
+Version 1.2 removes condition 2(e) of version 1.1 and the term that section 0 defined
+for it; condition 2(f) is now 2(e). Condition 2(b) now says plainly that a Derived Work
+may change or remove the start-up credit screen (the splash screen with the QR code),
+as long as its README keeps the credit with the link to the original repository.
+Copies of PS2RC and of Derived Works that were Distributed under version 1.0 or 1.1
+remain under that version, and their holders may also choose to use them under
+this version; this version applies to copies Distributed with it.

@@ -27,8 +27,18 @@ GAME = os.path.join(PPSSPP_DIR, "memstick", "PSP", "GAME")
 LOCK = os.path.join(PPSSPP_DIR, "ppsspp_run.lock")
 
 
-def kill_ppsspp():
-    subprocess.run(["taskkill", "/F", "/IM", "PPSSPPWindows64.exe"], capture_output=True)
+# Never kill by image name - other programs run their own PPSSPP copies (other folders, own locks).
+# Only the process this runner started (by PID) or a leftover started from EXE (this exact path) is closed.
+def kill_ppsspp(proc=None):
+    if proc is not None and proc.poll() is None:
+        subprocess.run(["taskkill", "/F", "/T", "/PID", str(proc.pid)], capture_output=True)
+        try:
+            proc.wait(10)
+        except subprocess.TimeoutExpired:
+            pass
+    ps = ("Get-CimInstance Win32_Process -Filter \"Name='PPSSPPWindows64.exe'\" | Where-Object { $_.ExecutablePath "
+          "-and $_.ExecutablePath -ieq '%s' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }" % os.path.normpath(EXE))
+    subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", ps], capture_output=True)
 
 
 # A stage may hold GBs of read-only disc data (disc/, movies/, the boot ELF, the ISO metadata); copying it takes
@@ -83,6 +93,7 @@ def main():
                 print("lock timeout")
                 return 3
             time.sleep(2)
+    proc = None
     try:
         kill_ppsspp()
         dst = os.path.join(GAME, app)
@@ -108,7 +119,7 @@ def main():
         print("ppsspp_run: %s after %.0f s" % ("OK" if ok else "TIMEOUT/EXIT", time.time() - t0))
         return 0 if ok else 2
     finally:
-        kill_ppsspp()
+        kill_ppsspp(proc)
         os.lseek(fd, 0, os.SEEK_SET)
         msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
         os.close(fd)
