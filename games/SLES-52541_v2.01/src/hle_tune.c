@@ -371,6 +371,16 @@ static float drive_k(void)
     return k_drive;
 }
 
+/* the controls layer for hle/psp/hle_pad.c (car_* keys, controls_preset=stories): 1 = the player ped is in a
+   vehicle (the same player ped / +0x4A5 bit 0 facts as drive_k above), else 0. Asked only when a vehicle layer
+   exists; reads guest memory only. */
+int hle_pack_pad_context(void);
+int hle_pack_pad_context(void)
+{
+    uint32_t ped = gw(0x0070A260u);
+    return ped >= 0x100000u && ped < hle_ram_end - 0x600u && (gb(ped + 0x4A5) & 1) ? 1 : 0;
+}
+
 static void tune_frame(void)
 {
     float far_game = gf(A_TC_FARCLIP), far_set = far_game, fog_set = gf(A_TC_FOGSTART);
@@ -460,6 +470,7 @@ HLE(00278320)
     GUEST(00278320)(c);
     if (t_any) tune_frame();
     if (hle_bc_tick) hle_bc_tick();                                 /* developer module (not in every checkout): position log / test aids */
+    if (hle_dev_tick) hle_dev_tick();                                 /* developer module (mission watch / replay aid) */
 }
 
 /* the memory manager's emergency paths (the allocator 0x1005E0 when the heap is full; the streaming space maker
@@ -497,6 +508,7 @@ void hle_tune_report(void)
             "stream_free_behind %llu calls\n", (unsigned long long)n_tidy, (double)us_tidy / 1000.0,
             tidy_max_us, (unsigned long long)n_delbehind);
     if (hle_bc_report) hle_bc_report();                               /* developer module (not in every checkout): drive aid counters */
+    if (hle_dev_report) hle_dev_report();
 
     if (o_drivefar > 0 || n_drive_frames)
         LOG("tune: tune_drivefar=%g: %llu frames with a drive factor below 100 %% (mean %.1f %%)\n", o_drivefar,

@@ -180,9 +180,25 @@ static void init(void)
 #endif
 }
 
+/* the in-game menu changes fps_cap (x_fpscap through hle_x_set): the cap and the driver's VBlanks per frame
+   follow from the next iteration (off: the game's own 2); the VBlank rate (25 = the 50 Hz PAL timing) stays the boot's.
+   Nothing happens unless hle_x_set was called (hle_x_gen stays 0). */
+static int bl_gen;
+static void bl_recap(void)
+{
+    bl_gen = hle_x_gen;
+    int raw = hle_x_opt("fpscap", 0);
+    if (raw == o_cap_raw) return;
+    o_cap_raw = raw;
+    o_cap = cap_quant(raw);
+    o_vs = o_cap ? vsyncs_for(o_cap) : 2;
+    LOG("fps cap: x_fpscap=%d -> %d fps at run time (driver VBlanks per frame %d)\n", raw, o_cap, o_vs);
+}
+
 void hle_bl_tick(void)
 {
     if (!inited) init();
+    if (bl_gen != hle_x_gen) bl_recap();
 #ifndef HLE_PSP
     sim_wait();
 #endif

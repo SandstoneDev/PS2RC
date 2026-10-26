@@ -108,6 +108,60 @@ int hle_cdasync_status(uint32_t ch) __attribute__((weak));
 void hle_cdasync_sync(uint32_t ch) __attribute__((weak));
 void hle_cdasync_report(void) __attribute__((weak));
 
+#ifndef HLE_PSP
+/* experiment (host only, env HLE_CF_CDASYNC=N): the PSP's asynchronous disc stream reads modelled on the host -
+   Read only queues (the buffer is filled with a canary byte), GetStatus answers 255 for the next N polls of that
+   channel, the data is copied at completion (GetStatus after N polls, Sync, or a new Read on the channel). A canary
+   byte changed before completion = the game used the buffer while the read was still open (logged). */
+static int cfa_n = -1;
+static struct { int busy, polls; uint32_t lsn, n; uint8_t *dst; } cfa[8];
+static uint64_t cfa_reads, cfa_early, cfa_complete_by_read;
+static void cfa_complete(uint32_t ch)
+{
+    if (!cfa[ch].busy) return;
+    uint32_t bytes = cfa[ch].n * 2048u, changed = 0, first = 0xFFFFFFFFu;
+    for (uint32_t i = 0; i < bytes; i++)
+        if (cfa[ch].dst[i] != 0xCD) { if (!changed) first = i; changed++; }
+    if (changed) {
+        cfa_early++;
+        if (cfa_early <= 40)
+            LOG("CF CDASYNC EARLY USE: ch %u lsn %u (%s) x%u sectors: %u of %u buffer bytes changed before the read "
+                "completed (first at +%u), vtime %.3f\n", ch, cfa[ch].lsn, hle_disc_name_of_lsn(cfa[ch].lsn), cfa[ch].n,
+                changed, bytes, first, (double)hle_vtime / EE_HZ);
+    }
+    hle_disc_read_lsn(cfa[ch].lsn, cfa[ch].n, cfa[ch].dst);
+    cfa[ch].busy = 0;
+}
+int hle_cdasync_read(uint32_t ch, uint32_t lsn, uint32_t n, void *dst)
+{
+    if (cfa_n < 0) { const char *e = getenv("HLE_CF_CDASYNC"); cfa_n = e ? atoi(e) : 0; }
+    if (cfa_n <= 0 || ch >= 8 || !hle_mainloop_iters) return 0;
+    if (cfa[ch].busy) { cfa_complete(ch); cfa_complete_by_read++; }
+    cfa[ch].busy = 1;
+    cfa[ch].polls = cfa_n;
+    cfa[ch].lsn = lsn;
+    cfa[ch].n = n;
+    cfa[ch].dst = dst;
+    memset(dst, 0xCD, (size_t)n * 2048u);
+    cfa_reads++;
+    return 1;
+}
+int hle_cdasync_status(uint32_t ch)
+{
+    if (ch >= 8 || !cfa[ch].busy) return 0;
+    if (cfa[ch].polls-- > 0) return 255;
+    cfa_complete(ch);
+    return 0;
+}
+void hle_cdasync_sync(uint32_t ch) { if (ch < 8) cfa_complete(ch); }
+void hle_cdasync_report(void)
+{
+    if (cfa_n > 0)
+        LOG("CF CDASYNC: %llu reads queued (%d polls each), %llu completed by a new Read on the channel, %llu early uses\n",
+            (unsigned long long)cfa_reads, cfa_n, (unsigned long long)cfa_complete_by_read, (unsigned long long)cfa_early);
+}
+#endif
+
 static int disc_stream(R5900Ctx *c, uint32_t fno, uint32_t send, uint32_t recv, uint32_t rsize)
 {
     switch (fno) {

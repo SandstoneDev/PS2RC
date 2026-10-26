@@ -109,30 +109,54 @@ static int put_str(const char *s)                  /* copy into the pool: offset
     return pool_n - (int)n;
 }
 
-static void set_kv(const char *k, const char *v)
+/* the pool can fill up when the in-game menu changes values many times: the strings the table still
+   uses are moved down (in address order) and the space of replaced values is reused */
+static void pool_compact(void)
+{
+    static unsigned short *ref[2 * HLE_CFG_MAX];
+    int n = 0;
+    for (int i = 0; i < n_tab; i++) { ref[n++] = &tab[i].k; ref[n++] = &tab[i].v; }
+    for (int i = 1; i < n; i++)                    /* insertion sort by offset */
+        for (int j = i; j > 0 && *ref[j - 1] > *ref[j]; j--) { unsigned short *t = ref[j]; ref[j] = ref[j - 1]; ref[j - 1] = t; }
+    int w = 0;
+    for (int i = 0; i < n; i++) {
+        int len = (int)strlen(pool + *ref[i]) + 1;
+        if (*ref[i] != w) memmove(pool + w, pool + *ref[i], (size_t)len);
+        *ref[i] = (unsigned short)w;
+        w += len;
+    }
+    pool_n = w;
+}
+
+static int rt_set;                                 /* inside hle_cfg_set (the menu), not the file load */
+static int set_kv(const char *k, const char *v)    /* 1 = stored */
 {
     int i = find(k);
     if (i >= 0) {                                  /* the later line wins */
-        if (!strcmp(pool + tab[i].v, v)) return;
+        if (!strcmp(pool + tab[i].v, v)) return 1;
+        if (rt_set && strlen(v) <= strlen(pool + tab[i].v)) { strcpy(pool + tab[i].v, v); return 1; }
         int vo = put_str(v);
-        if (vo < 0) { dropped++; return; }
+        if (vo < 0 && rt_set) { pool_compact(); vo = put_str(v); }
+        if (vo < 0) { dropped++; return 0; }
         tab[i].v = (unsigned short)vo;
-        return;
+        return 1;
     }
-    if (n_tab >= HLE_CFG_MAX) { dropped++; return; }
+    if (n_tab >= HLE_CFG_MAX) { dropped++; return 0; }
+    if (rt_set && pool_n + (int)strlen(k) + (int)strlen(v) + 2 > HLE_CFG_POOL) pool_compact();
     int ko = put_str(k), vo = ko < 0 ? -1 : put_str(v);
-    if (vo < 0) { dropped++; return; }
+    if (vo < 0) { if (ko >= 0) pool_n = ko; dropped++; return 0; }
     tab[n_tab].k = (unsigned short)ko;
     tab[n_tab].v = (unsigned short)vo;
     n_tab++;
+    return 1;
 }
 
-static void line_in(char *s)
+static int line_in(char *s)                        /* 1 = stored */
 {
     while (*s == ' ' || *s == '\t') s++;
-    if (!*s || *s == '#' || *s == ';') return;
+    if (!*s || *s == '#' || *s == ';') return 0;
     char *eq = strchr(s, '=');
-    if (!eq || eq == s) return;
+    if (!eq || eq == s) return 0;
     char *ke = eq;
     while (ke > s && (ke[-1] == ' ' || ke[-1] == '\t')) ke--;
     *ke = 0;
@@ -145,15 +169,14 @@ static void line_in(char *s)
     while (n && (v[n - 1] == ' ' || v[n - 1] == '\t')) v[--n] = 0;
 
     const Alias *a = alias_of(s);
-    if (!a) { set_kv(s, v); return; }
+    if (!a) return set_kv(s, v);
     if (a->lo == 0 && a->hi == 0) {                                  /* word key, stored as given */
         if (a->words && a->words[0] == '!') {                        /* ... but only one of its words */
             int x;
             for (char *p = v; *p; p++) if (*p >= 'A' && *p <= 'Z') *p = (char)(*p + 32);
-            if (!word_num(a->words, v, &x)) { note("%s=%s is not a valid value (ignored)%s; ", s, v, ""); return; }
+            if (!word_num(a->words, v, &x)) { note("%s=%s is not a valid value (ignored)%s; ", s, v, ""); return 0; }
         }
-        set_kv(a->key, v);
-        return;
+        return set_kv(a->key, v);
     }
     for (char *p = v; *p; p++) if (*p >= 'A' && *p <= 'Z') *p = (char)(*p + 32);
     int x;
@@ -163,7 +186,7 @@ static void line_in(char *s)
         long l = strtol(v, &end, 10);
         if (end == v || *end || (a->words && a->words[0] == '!')) {
             note("%s=%s is not a valid value (ignored)%s; ", s, v, "");
-            return;
+            return 0;
         }
         x = (int)l;
         if (x < a->lo || x > a->hi) {
@@ -175,7 +198,7 @@ static void line_in(char *s)
     }
     if (a->inv) x = a->lo + a->hi - x;
     snprintf(num, sizeof num, "%d", x);
-    set_kv(a->key, num);
+    return set_kv(a->key, num);
 }
 
 #ifndef HLE_PSP
@@ -336,6 +359,7 @@ const char *hle_cfg_settings_line(void)
     aliases_get();
     for (int i = 0; i < N_ALIAS && o < (int)sizeof out - 48; i++) {
         const Alias *a = &aliases[i];
+        if (a->inv < 0) continue;                  /* logged by its own module */
         const char *v = hle_cfg_get(a->key);
         char buf[40], dv[16];
         if (v) friendly(a, v, buf, sizeof buf);
@@ -378,3 +402,50 @@ void hle_cfg_report(void)
         o += snprintf(out + o, sizeof out - (size_t)o, "%s%s=%.200s", o ? " " : "", k, v);
     }
 }
+
+/* ------------------------------------------------------------------ run-time changes (the in-game menu)
+   hle_cfg_set: one "name = value" as if it were the file's last line (friendly names clamped / converted to their
+   internal key, words checked); the boot notes are not touched. 1 = stored, 0 = not a valid value / table full. */
+int hle_cfg_set(const char *name, const char *value)
+{
+    load();
+    char line[HLE_CFG_LINE];
+    if (snprintf(line, sizeof line, "%s=%s", name, value) >= (int)sizeof line) return 0;
+    int nn = notes_n, dr = dropped;
+    rt_set = 1;
+    int ok = line_in(line);
+    rt_set = 0;
+    notes_n = nn;                                  /* the boot notes stay as they were */
+    notes[nn] = 0;
+    dropped = dr;
+    return ok;
+}
+
+const HleCfgAlias *hle_cfg_alias(const char *name) { return alias_of(name); }
+
+int hle_cfg_friendly(const char *name, char *buf, int n)
+{
+    load();
+    const Alias *a = alias_of(name);
+    if (!a || n <= 0) { if (n > 0) buf[0] = 0; return -1; }
+    const char *v = hle_cfg_get(a->key);
+    if (v) { friendly(a, v, buf, (size_t)n); return 1; }
+    if (a->lo == 0 && a->hi == 0) { buf[0] = 0; return 0; }
+    char dv[16];
+    snprintf(dv, sizeof dv, "%d", a->def);
+    friendly(a, dv, buf, (size_t)n);
+    return 0;
+}
+
+const char *hle_cfg_file(int dev)
+{
+    load();
+    static char def_dev[64];
+    if (dev) {
+        if (found_dev) return dev_name;
+        dev_of(HLE_PACK_CFG, def_dev, sizeof def_dev);
+        return def_dev;
+    }
+    return found_main ? main_name : HLE_PACK_CFG;
+}
+int hle_cfg_file_found(int dev) { load(); return dev ? found_dev : found_main; }

@@ -39,15 +39,41 @@ from ps2rc.xmb import title as xtitle  # noqa: E402
 
 import backend  # noqa: E402
 import cfgform  # noqa: E402
+import controls_model  # noqa: E402
+import controls_profiles  # noqa: E402
+import qt_wheel  # noqa: E402
+
+
+def _legacy_cfg_names():
+    """the older settings file names of the game packs ([runtime] cfg_legacy), read by the runtime as a fallback"""
+    out = []
+    try:
+        from ps2rc import pack as _pk
+        for d in sorted(os.listdir(_pk.games_dir())):
+            try:
+                n = _pk.load(os.path.join(_pk.games_dir(), d)).get("runtime.cfg_legacy")
+            except (SystemExit, Exception):
+                continue
+            if n and n not in out:
+                out.append(n)
+    except OSError:
+        pass
+    return tuple(out)
 import eta as etamod  # noqa: E402
 import i18n  # noqa: E402
 import psp_drives  # noqa: E402
 from qt_widgets import CropDialog, PreviewWidget, qimage_from_pil, state_pixmap  # noqa: E402
 from qt_busy import BusyRow, GalleryDialog, MusicDialog  # noqa: E402
+from qt_controls import ConsolePicture, glyph_pixmap  # noqa: E402
 
 APPDIR = os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~"), "PS2RC")
 SETTINGS = os.path.join(APPDIR, "gui.json")
-WIZARD = ("disc", "output", "customize", "settings", "convert")
+WIZARD = ("disc", "output", "customize", "settings", "controls", "convert")
+# the controls page's suggestions: combinations, right stick values (any other value can be typed)
+COMBO_SUGGEST = ("l+r", "select+l", "select+r", "select+triangle", "select+circle", "r+square", "l+triangle",
+                 "r+triangle", "l+circle", "r+circle", "l+cross", "l+square", "l+analog_left", "l+analog_right",
+                 "l+analog_up", "l+analog_down", "l+left", "l+right", "l+up", "l+down", "l+r+left", "l+r+right")
+RSTICK_SUGGEST = ("select+dpad", "l+dpad", "r+dpad", "l+analog", "r+analog", "none")
 UI_SIZES = (("small", -1), ("normal", 0), ("large", 2))       # View > Interface size: points added to the system font
 CLIP_TYPES = "*.gif *.mp4 *.webm *.mkv *.mov *.avi *.m4v *.pmf"
 MUSIC_TYPES = "*.wav *.mp3 *.ogg *.flac *.m4a *.aac *.opus *.at3"
@@ -229,6 +255,7 @@ class App(QMainWindow):
         self._apply_music_choice()
         self.values = dict(self.s.get("settings_values") or {})
         self.ident, self.template_items, self.template_text = None, None, None
+        self.ctl_folder, self.ctl_folder_vals, self.ctl_folder_items, self.ctl_folder_cfg = None, None, None, None
         self.built, self.icon1_frames = None, None
         self.arts, self.arts_busy = None, False
         self.page, self.preview, self.worker, self.progress, self.conv = None, None, None, None, None
@@ -239,6 +266,7 @@ class App(QMainWindow):
         self.selected_folder = self.s.get("check_folder")
         self.drive_list, self.folders = [], []
         self.next_btn, self.slot_ui = None, {}
+        self._ctl_tab_i, self._ctl_msg, self._ctl_scroll = 0, "", {}
         self._base_font = QFont(QApplication.font())
         self._apply_size()
         self.setWindowTitle("%s %s" % (self.t("app"), VERSION))
@@ -296,6 +324,12 @@ class App(QMainWindow):
             a.triggered.connect(lambda _c=False, c=code: self._set_size(c))
             g.addAction(a)
             sizes.addAction(a)
+        # Tools > EBOOT editor
+        import eboot_editor
+        tools = mb.addMenu(eboot_editor.tr("eb.menu.tools", self.lang))
+        a = QAction(eboot_editor.tr("eb.menu.editor", self.lang), self)
+        a.triggered.connect(lambda: eboot_editor.open_editor(self, self.lang))
+        tools.addAction(a)
         helpm = mb.addMenu(self.t("menu.help"))
         a = QAction(self.t("about.h"), self)
         a.triggered.connect(self._about)
@@ -1335,7 +1369,7 @@ class App(QMainWindow):
         top.addWidget(label(self.t("set.h"), "h1"))
         top.addStretch(1)
         self.body_lay.addLayout(top)
-        self._nav("customize", "convert")
+        self._nav("customize", "controls")
         r = self.ident or {}
         if not r.get("ok"):
             self.add(label(self.t("set.nodisc"), wrap=True))
@@ -1358,12 +1392,17 @@ class App(QMainWindow):
         g.setHorizontalSpacing(10)
         g.setVerticalSpacing(4)
         self.set_widgets = {}
-        row = 0
+        row, group, ctl_done = 0, None, False
         for it in self.template_items:
             if isinstance(it, cfgform.Group):
-                title = (getattr(it, "title_local", None) or it.title).capitalize()
-                g.addWidget(label(title, "h2"), row, 0, 1, 3)
-                row += 1
+                group = (getattr(it, "title_local", None) or it.title).capitalize()
+                continue
+            if group:                                      # a group's title when its first row comes
+                g.addWidget(label(group, "h2"), row, 0, 1, 3)
+                row, group = row + 1, None
+            if controls_model.is_control_key(it.key):      # these are on the controls page
+                if not ctl_done:
+                    row, ctl_done = self._controls_summary_row(g, row), True
                 continue
             row = self._setting_row(g, row, it)
         g.setRowStretch(row, 1)
@@ -1492,7 +1531,501 @@ class App(QMainWindow):
     def overrides(self):
         if not self.template_items:
             return {}
-        return cfgform.overrides(self.template_items, self.values)
+        ov = cfgform.overrides(self.template_items, self.values)
+        keys = {s.key for s in cfgform.settings(self.template_items)}
+        ov.update({k: v for k, v in self.values.items()
+                   if controls_model.is_control_key(k) and k not in keys and v not in ("", None)})
+        return ov
+
+    # --- controls ----------------------------------------------------------------------------------------------
+    def _ctl_items(self):
+        """the template whose words describe the PS2 buttons: the folder's own ps2rc.cfg on the update path"""
+        return self.ctl_folder_items if self.page == "folder_controls" else self.template_items
+
+    def _has_controls(self):
+        """the game's template has the control mapping keys"""
+        items = self._ctl_items()
+        return bool(items) and any(getattr(s, "key", "") == "map_l2" for s in items)
+
+    def _ctl_src(self):
+        """the dict the controls page edits"""
+        return self.ctl_folder_vals if self.page == "folder_controls" else self.values
+
+    def _ctl_layout(self):
+        return controls_model.Layout({k: v for k, v in self._ctl_src().items() if controls_model.is_control_key(k)})
+
+    def _ctl_commit(self):
+        """store the edited controls: the window's settings, or the folder's ps2rc.cfg (written at once)"""
+        if self.page != "folder_controls":
+            self._save()
+            return ""
+        return self._folder_cfg_write()
+
+    def _controls_summary_row(self, g, row):
+        lay = self._ctl_layout()
+        n = len(lay.to_values()) - (lay.preset != "default")
+        txt = self.t("ctl.preset." + lay.preset) + ("" if not n else "  (%s)" % self.t("ctl.changes", n))
+        g.addWidget(label(self.t("ctl.h"), wrap=True), row, 0, Qt.AlignTop)
+        b = QPushButton(self.t("ctl.change"))
+        b.clicked.connect(lambda: self.show_page("controls"))
+        g.addWidget(hbox(b), row, 1, Qt.AlignTop)
+        g.addWidget(label(txt, "hint", wrap=True), row, 2, Qt.AlignTop)
+        return row + 1
+
+    def _ctl_desc(self, inp):
+        """the game's words for a PS2 input: the parenthesis of its map_ line in the template (window language)"""
+        for s in cfgform.settings(self._ctl_items() or []):
+            if s.key == "map_" + inp:
+                text = " ".join(getattr(s, "comment_local", None) or s.comment)
+                m = re.search(r"\(([^()]*)\)", text)
+                return m.group(1).strip() if m else ""
+        return ""
+
+    def _ctl_func_text(self, inp):
+        d = self._ctl_desc(inp)
+        return "%s - %s" % (self.t("ps2." + inp), d) if d else self.t("ps2." + inp)
+
+    def _ctl_apply(self, lay, moved=None, msg=""):
+        src = self._ctl_src()
+        for k in [k for k in src if controls_model.is_control_key(k)]:
+            del src[k]
+        src.update(lay.to_values())
+        if moved:
+            msg = self.t("ctl.moved", ", ".join(self.t("ps2." + m) for m in dict.fromkeys(moved)))
+        err = self._ctl_commit()
+        self._ctl_msg = err or msg
+        tabs = getattr(self, "ctl_tabs", None)
+        if tabs is not None:
+            self._ctl_tab_i = tabs.currentIndex()
+            for L, area in getattr(self, "ctl_areas", {}).items():
+                self._ctl_scroll[L] = area.verticalScrollBar().value()
+        self.show_page(self.page if self.page == "folder_controls" else "controls")
+
+    def _ctl_edit(self, fn, *a):
+        lay = self._ctl_layout()
+        try:
+            moved = getattr(lay, fn)(*a)
+        except ValueError as e:
+            self._ctl_apply(self._ctl_layout(), msg=self.t("ctl.bad", str(e)))
+            return
+        self._ctl_apply(lay, moved if isinstance(moved, list) else None)
+
+    def _ctl_preset(self, preset):
+        lay = self._ctl_layout()
+        lay.set_preset(preset)
+        self._ctl_apply(lay)
+
+    def _ctl_restore(self):
+        lay = self._ctl_layout()
+        lay.restore()
+        self._ctl_apply(lay)
+
+    def _ctl_func_box(self, current, nothing=True):
+        cb = QComboBox()
+        if nothing:
+            cb.addItem(self.t("ctl.nothing"), "")
+        for inp in controls_model.BUTTON_INPUTS:
+            cb.addItem(self._ctl_func_text(inp), inp)
+            cb.setItemData(cb.count() - 1, self._ctl_func_text(inp), Qt.ToolTipRole)
+        i = cb.findData(current or "")
+        cb.setCurrentIndex(max(0, i))
+        cb.setMinimumContentsLength(16)
+        cb.setSizeAdjustPolicy(QComboBox.AdjustToMinimumContentsLengthWithIcon)
+        return cb
+
+    def _ctl_press_box(self, flag):
+        cb = QComboBox()
+        for f in controls_model.FLAGS:
+            cb.addItem(self.t("ctl.press." + (f or "plain")), f)
+        cb.setCurrentIndex(max(0, cb.findData(flag or "")))
+        cb.setMinimumContentsLength(9)
+        cb.setSizeAdjustPolicy(QComboBox.AdjustToMinimumContentsLengthWithIcon)
+        cb.setToolTip(self.t("ctl.combohint"))
+        return cb
+
+    def _page_controls(self):
+        self.add(label(self.t("ctl.h"), "h1"))
+        if self.page == "folder_controls":
+            self._nav("update")
+            self.add(label(self.t("ctl.folder", os.path.join(self.ctl_folder or "", self.ctl_folder_cfg or "")),
+                           "hint", wrap=True))
+        else:
+            self._nav("settings", "convert")
+        if not self._has_controls():
+            self.add(label(self.t("ctl.none"), wrap=True))
+            self.body_lay.addStretch(1)
+            return
+        lay = self._ctl_layout()
+        # row 1: the scheme and Restore defaults, left-aligned so they never fall off the right edge
+        sc = QComboBox()
+        for p in controls_model.PRESETS:
+            sc.addItem(self.t("ctl.preset." + p), p)
+            sc.setItemData(sc.count() - 1, self.t("ctl.preset.tip." + p), Qt.ToolTipRole)
+        sc.setCurrentIndex(controls_model.PRESETS.index(lay.preset))
+        sc.setSizeAdjustPolicy(QComboBox.AdjustToContents)
+        sc.activated.connect(lambda _i: self._ctl_preset(sc.currentData()))
+        rb = QPushButton(self.t("ctl.restore"))
+        rb.setToolTip(self.t("ctl.restore.tip"))
+        rb.clicked.connect(self._ctl_restore)
+        self.add(hbox(label(self.t("ctl.scheme"), "h2"), sc, rb))
+        self.ctl_scheme, self.ctl_restore_btn = sc, rb
+        # row 2: my profiles
+        names = self._ctl_store().names()
+        pc = QComboBox()
+        pc.setMinimumContentsLength(16)
+        pc.setSizeAdjustPolicy(QComboBox.AdjustToMinimumContentsLengthWithIcon)
+        for n in names:
+            pc.addItem(n, n)
+        if not names:
+            pc.addItem(self.t("prof.none"), "")
+        cur = self.s.get("ctl_profile")
+        if cur in names:
+            pc.setCurrentIndex(names.index(cur))
+        self.ctl_prof = pc
+        btns = []
+        for key, fn, need in (("prof.load", self._prof_load, True), ("prof.save", self._prof_save, False),
+                              ("prof.rename", self._prof_rename, True), ("prof.delete", self._prof_delete, True),
+                              ("prof.export", self._prof_export, False), ("prof.import", self._prof_import, False)):
+            b = QPushButton(self.t(key))
+            b.setToolTip(self.t(key + ".tip"))
+            b.clicked.connect(lambda _c=False, f=fn: f())
+            b.setEnabled(bool(names) or not need)
+            btns.append(b)
+        self.ctl_prof_btns = dict(zip(("load", "save", "rename", "delete", "export", "import"), btns))
+        self.add(hbox(QLabel(self.t("prof.h")), pc, *btns))
+        self.add(label(self.t("ctl.sub"), "hint", wrap=True))
+        pic = ConsolePicture()
+        pic.setFixedHeight(140)
+        pic.picked.connect(self._ctl_pick)
+        self.ctl_pic = self.add(pic)
+        tabs = QTabWidget()
+        self.ctl_tabs, self.ctl_areas, self.ctl_boxes = tabs, {}, {0: {}, 1: {}}
+        for L in (0, 1):
+            tabs.addTab(self._ctl_tab(lay, L), self.t("ctl.foot" if L == 0 else "ctl.car"))
+        tabs.setCurrentIndex(self._ctl_tab_i)
+        tabs.currentChanged.connect(lambda i: setattr(self, "_ctl_tab_i", i))
+        self.add(tabs, 1)
+        st = QCheckBox(self.t("ctl.seltap"))
+        st.setChecked(lay.sel_tap)
+        st.toggled.connect(lambda on: self._ctl_edit("set_select_tap", on))
+        self.ctl_seltap = self.add(st)
+        ci = QComboBox()
+        for v in controls_model.CAM_INV:
+            ci.addItem(self.t("ctl.caminv." + v), v)
+        ci.setCurrentIndex(controls_model.CAM_INV.index(lay.cam_inv))
+        ci.setToolTip(self.t("ctl.caminv.tip"))
+        ci.currentIndexChanged.connect(lambda i, c=ci: self._ctl_edit("set_camera_invert", c.itemData(i)))
+        self.ctl_caminv = ci
+        self.add(hbox(QLabel(self.t("ctl.caminv")), ci))
+        self.ctl_status = self.add(label(self._ctl_msg, "warn", wrap=True))
+        self._ctl_msg = ""
+        for L, v in self._ctl_scroll.items():
+            area = self.ctl_areas.get(L)
+            if area is not None:
+                QTimer.singleShot(0, lambda a=area, x=v: a.verticalScrollBar().setValue(x))
+
+    # --- the controls of a converted folder (check / update path) -----------------------------------------------
+    def _folder_cfg_path(self, folder):
+        for n in ("ps2rc.cfg",) + _legacy_cfg_names():      # the player's settings file (older folders: the pack's
+                                                            # [runtime] cfg_legacy name)
+            p = os.path.join(folder or "", n)
+            if os.path.isfile(p):
+                return p
+        return None
+
+    def _open_folder_controls(self, folder):
+        p = self._folder_cfg_path(folder)
+        if not p:
+            return
+        with open(p, encoding="utf-8-sig") as f:
+            text = f.read()
+        self.ctl_folder, self.ctl_folder_cfg = folder, os.path.basename(p)
+        self.ctl_folder_items = cfgform.parse(text)
+        vals = {}
+        for it in cfgform.settings(self.ctl_folder_items):
+            if controls_model.is_control_key(it.key) and not it.commented:
+                vals[it.key] = it.value
+        for ln in text.replace("\r\n", "\n").split("\n"):          # keys the template has no line for (car_*)
+            m = cfgform.SETTING.match(ln.strip())
+            if m and controls_model.is_control_key(m.group(1).lower()):
+                vals[m.group(1).lower()] = m.group(2)
+        self.ctl_folder_vals = controls_model.Layout(vals).to_values()
+        self.show_page("folder_controls")
+
+    def _folder_cfg_write(self):
+        """the folder's ps2rc.cfg with the edited controls: changed keys on their own lines, keys back at the built-in
+        value commented out, other settings untouched; written atomically; '' or the error text"""
+        p = os.path.join(self.ctl_folder, self.ctl_folder_cfg)
+        try:
+            with open(p, encoding="utf-8-sig") as f:
+                text = f.read()
+            vals = dict(self.ctl_folder_vals)
+            lines = text.replace("\r\n", "\n").split("\n")
+            for i, ln in enumerate(lines):
+                m = cfgform.SETTING.match(ln.strip())
+                if m and controls_model.is_control_key(m.group(1).lower()) and m.group(1).lower() not in vals:
+                    lines[i] = "#" + ln.strip()
+            out = cfgform.apply_to_text("\n".join(lines), vals).rstrip("\n") + "\n"
+            tmp = p + ".tmp"
+            with open(tmp, "w", encoding="utf-8", newline="\n") as f:
+                f.write(out)
+            os.replace(tmp, p)
+        except OSError as e:
+            return self.t("prof.bad", str(e))
+        return ""
+
+    def _page_folder_controls(self):
+        self._page_controls()
+
+    # --- control profiles (named, shareable as ps2rc.cfg text) -------------------------------------------------
+    def _ctl_store(self):
+        """profiles live next to the window's own settings file (per user), never in a game folder"""
+        return controls_profiles.Store(os.path.join(os.path.dirname(self.settings_path), "controls_profiles"))
+
+    def _ctl_values(self):
+        return {k: v for k, v in self._ctl_src().items() if controls_model.is_control_key(k)}
+
+    def _prof_selected(self):
+        pc = getattr(self, "ctl_prof", None)
+        return pc.currentData() if pc is not None else None
+
+    def _prof_apply(self, vals, msg):
+        self._ctl_apply(controls_model.Layout(vals), msg=msg)
+
+    def ask_text(self, title, text, value=""):
+        """a line of text from the player, None = cancelled (a method so tests can answer it)"""
+        from PySide6.QtWidgets import QInputDialog
+        v, ok = QInputDialog.getText(self, title, text, QLineEdit.Normal, value)
+        return v if ok else None
+
+    def ask_yes(self, title, text):
+        return QMessageBox.question(self, title, text) == QMessageBox.Yes
+
+    def ask_file(self, save, title, name=""):
+        """a profile file path, None = cancelled"""
+        flt = self.t("prof.files") + " (*.cfg *.txt);;*.*"
+        start = os.path.join(self.s.get("prof_dir") or os.path.expanduser("~"), name)
+        p = (QFileDialog.getSaveFileName if save else QFileDialog.getOpenFileName)(self, title, start, flt)[0]
+        if p:
+            self.s["prof_dir"] = os.path.dirname(p)
+        return p or None
+
+    def _prof_save(self):
+        name = self.ask_text(self.t("prof.save"), self.t("prof.ask.name"), self._prof_selected() or "")
+        if name is None:
+            return
+        st = self._ctl_store()
+        try:
+            name = controls_profiles.clean_name(name)
+            if st.exists(name) and not self.ask_yes(self.t("prof.save"), self.t("prof.ask.replace", name)):
+                return
+            name = st.save(name, self._ctl_values())
+        except (controls_profiles.ProfileError, OSError) as e:
+            self._ctl_apply(self._ctl_layout(), msg=self.t("prof.bad", str(e)))
+            return
+        self.s["ctl_profile"] = name
+        self._ctl_apply(self._ctl_layout(), msg=self.t("prof.saved", name))
+
+    def _prof_load(self):
+        name = self._prof_selected()
+        if not name:
+            return
+        try:
+            vals = self._ctl_store().load(name)
+        except (controls_profiles.ProfileError, OSError) as e:
+            self._ctl_apply(self._ctl_layout(), msg=self.t("prof.bad", str(e)))
+            return
+        self.s["ctl_profile"] = name
+        self._prof_apply(vals, self.t("prof.loaded", name))
+
+    def _prof_rename(self):
+        old = self._prof_selected()
+        if not old:
+            return
+        new = self.ask_text(self.t("prof.rename"), self.t("prof.ask.name"), old)
+        if not new or new.strip() == old:
+            return
+        try:
+            new = self._ctl_store().rename(old, new)
+        except (controls_profiles.ProfileError, OSError) as e:
+            self._ctl_apply(self._ctl_layout(), msg=self.t("prof.bad", str(e)))
+            return
+        self.s["ctl_profile"] = new
+        self._ctl_apply(self._ctl_layout(), msg=self.t("prof.renamed", old, new))
+
+    def _prof_delete(self):
+        name = self._prof_selected()
+        if not name or not self.ask_yes(self.t("prof.delete"), self.t("prof.ask.delete", name)):
+            return
+        try:
+            self._ctl_store().delete(name)
+        except OSError as e:
+            self._ctl_apply(self._ctl_layout(), msg=self.t("prof.bad", str(e)))
+            return
+        self.s.pop("ctl_profile", None)
+        self._ctl_apply(self._ctl_layout(), msg=self.t("prof.deleted", name))
+
+    def _prof_export(self):
+        name = self._prof_selected() or self.t("prof.default_name")
+        path = self.ask_file(True, self.t("prof.export"), name + controls_profiles.EXT)
+        if not path:
+            return
+        try:
+            with open(path, "w", encoding="utf-8", newline="\n") as f:
+                f.write(controls_profiles.to_text(name, self._ctl_values()))
+        except (OSError, controls_profiles.ProfileError) as e:
+            self._ctl_apply(self._ctl_layout(), msg=self.t("prof.bad", str(e)))
+            return
+        self._ctl_apply(self._ctl_layout(), msg=self.t("prof.exported", path))
+
+    def _prof_import(self):
+        path = self.ask_file(False, self.t("prof.import"))
+        if not path:
+            return
+        try:
+            with open(path, encoding="utf-8-sig") as f:
+                text = f.read(256 * 1024)
+            name, vals = controls_profiles.parse_text(text, os.path.splitext(os.path.basename(path))[0])
+            st = self._ctl_store()
+            name = st.save(st.free_name(name), vals)
+        except (OSError, UnicodeDecodeError, controls_profiles.ProfileError) as e:
+            self._ctl_apply(self._ctl_layout(), msg=self.t("prof.badfile", str(e)))   # nothing applied
+            return
+        self.s["ctl_profile"] = name
+        self._prof_apply(vals, self.t("prof.imported", name))
+
+    def _ctl_pick(self, name):
+        """a click on the picture: its row's box gets the focus and the button lights up"""
+        L = self.ctl_tabs.currentIndex()
+        box = self.ctl_boxes[L].get(name)
+        self.ctl_pic.set_marked({name})
+        if box is not None:
+            self.ctl_areas[L].ensureWidgetVisible(box)
+            box.setFocus()
+
+    def _ctl_tab(self, lay, L):
+        area = QScrollArea()
+        area.setWidgetResizable(True)
+        inner = QWidget()
+        v = QVBoxLayout(inner)
+        v.setSpacing(4)
+        ratio = self.devicePixelRatioF() or 1.0
+        if L == 1:
+            v.addWidget(label(self.t("ctl.carnote") if lay.has_car else self.t("ctl.carsame"), "hint", wrap=True))
+            cp = QPushButton(self.t("ctl.copy"))
+            cp.clicked.connect(lambda: self._ctl_edit("copy_foot_to_vehicle"))
+            cp.setEnabled(lay.has_car)
+            v.addWidget(hbox(cp))
+        v.addWidget(label(self.t("ctl.buttons"), "h2"))
+        g = QGridLayout()
+        g.setHorizontalSpacing(8)
+        g.setVerticalSpacing(3)
+        rows = lay.button_rows(L)
+        for n, b in enumerate(controls_model.PSP_BUTTONS):
+            r, col = n % 6, (n // 6) * 5
+            ic = QLabel()
+            ic.setPixmap(glyph_pixmap(b, 18, ratio))
+            g.addWidget(ic, r, col)
+            g.addWidget(QLabel(self.t("psp." + b)), r, col + 1)
+            cur = rows[b]
+            fb = self._ctl_func_box(cur[0] if cur else "")
+            fb.activated.connect(lambda _i, b=b, fb=fb, L=L: self._ctl_button(L, b, fb.currentData(), None))
+            pb = self._ctl_press_box(cur[1] if cur else "")
+            pb.setEnabled(bool(cur))
+            pb.activated.connect(lambda _i, b=b, fb=fb, pb=pb, L=L: self._ctl_button(L, b, fb.currentData(),
+                                                                                 pb.currentData()))
+            g.addWidget(fb, r, col + 2)
+            g.addWidget(pb, r, col + 3)
+            self.ctl_boxes[L][b] = fb
+        g.setColumnStretch(2, 1)
+        g.setColumnStretch(7, 1)
+        g.setColumnMinimumWidth(4, 12)
+        v.addLayout(g)
+        v.addWidget(label(self.t("ctl.combos"), "h2"))
+        v.addWidget(label(self.t("ctl.combohint"), "hint", wrap=True))
+        cg = QGridLayout()
+        cg.setHorizontalSpacing(8)
+        cg.setVerticalSpacing(3)
+        for r, row in enumerate(lay.combo_rows(L)):
+            text, inp, flag = row
+            eb = QComboBox()
+            eb.setEditable(True)
+            eb.addItems(COMBO_SUGGEST)
+            eb.setEditText(text)
+            eb.setMinimumContentsLength(14)
+            fb = self._ctl_func_box(inp, nothing=False)
+            pb = self._ctl_press_box(flag)
+            commit = (lambda *_a, row=row, eb=eb, fb=fb, pb=pb, L=L:
+                      self._ctl_combo(L, row, eb.currentText(), fb.currentData(), pb.currentData()))
+            eb.lineEdit().editingFinished.connect(commit)
+            eb.activated.connect(commit)
+            fb.activated.connect(commit)
+            pb.activated.connect(commit)
+            rm = QPushButton(self.t("ctl.remove"))
+            rm.clicked.connect(lambda _c=False, row=row, L=L: self._ctl_edit("set_combo", L, row, "", None))
+            cg.addWidget(eb, r, 0)
+            cg.addWidget(QLabel("->"), r, 1)
+            cg.addWidget(fb, r, 2)
+            cg.addWidget(pb, r, 3)
+            cg.addWidget(rm, r, 4)
+        cg.setColumnStretch(2, 1)
+        v.addLayout(cg)
+        add = QPushButton(self.t("ctl.add"))
+        add.clicked.connect(lambda _c=False, L=L: self._ctl_add_combo(L))
+        v.addWidget(hbox(add))
+        v.addWidget(label(self.t("ctl.sticks"), "h2"))
+        sg = QGridLayout()
+        sg.setHorizontalSpacing(8)
+        for r, (stick, opts) in enumerate((("lstick", ("analog", "dpad", "none")), ("rstick", RSTICK_SUGGEST))):
+            ic = QLabel()
+            ic.setPixmap(glyph_pixmap("analog", 18, ratio))
+            sg.addWidget(ic, r, 0)
+            sg.addWidget(QLabel(self._ctl_func_text(stick) if self._ctl_desc(stick) else self.t("ps2." + stick)), r, 1)
+            sb = QComboBox()
+            sb.setEditable(stick == "rstick")
+            cur = controls_model.fmt_value(stick, lay.layers[L][stick])
+            for o in opts:
+                sb.addItem(self.t("ctl.stick." + o) if stick == "lstick" else o, o)
+            if sb.findData(cur) < 0:
+                sb.addItem(cur, cur)
+            sb.setCurrentIndex(sb.findData(cur))
+            if stick == "rstick":
+                sb.lineEdit().editingFinished.connect(
+                    lambda sb=sb, L=L, cur=cur: sb.currentText() != cur and
+                    self._ctl_edit("set_stick", L, "rstick", sb.currentText()))
+            sb.activated.connect(lambda _i, sb=sb, L=L, s=stick: self._ctl_edit("set_stick", L, s,
+                                                                                sb.currentData() or sb.currentText()))
+            sg.addWidget(sb, r, 2)
+            self.ctl_boxes[L][stick if stick == "rstick" else "analog"] = sb
+        sg.setColumnStretch(3, 1)
+        v.addLayout(sg)
+        v.addStretch(1)
+        area.setWidget(inner)
+        self.ctl_areas[L] = area
+        return area
+
+    def _ctl_button(self, L, button, inp, flag):
+        lay = self._ctl_layout()
+        if flag is None:                                   # a new function: keep the row's press kind when it had one
+            cur = lay.button_rows(L).get(button)
+            flag = cur[1] if cur and inp else ""
+        self._ctl_edit("set_button", L, button, inp or None, flag or "")
+
+    def _ctl_combo(self, L, row, text, inp, flag):
+        text = "".join((text or "").split()).lower()
+        if (text, inp, flag or "") == (row[0], row[1], row[2]):
+            return
+        self._ctl_edit("set_combo", L, row, text, inp, flag or "")
+
+    def _ctl_add_combo(self, L):
+        """a free combination for the new row (L + R first), mapped to nothing useful until the player picks"""
+        lay = self._ctl_layout()
+        used = {c for c, _o in controls_model._entries(lay.layers[L])}
+        text = next((s for s in COMBO_SUGGEST if controls_model.parse_combo(s) not in used), None)
+        if text is None:
+            return
+        free = [i for i in controls_model.BUTTON_INPUTS if not lay.layers[L][i]]
+        self._ctl_edit("set_combo", L, None, text, free[0] if free else "l2", "")
 
     # --- convert ----------------------------------------------------------------------------------------------
     def _page_convert(self):
@@ -1514,7 +2047,7 @@ class App(QMainWindow):
         self.body_lay.addLayout(form)
         self._advanced()
         self._progress_area(self.t("conv.go"), self._start_convert)
-        self._nav("settings")
+        self._nav("controls")
 
     def _advanced(self):
         box = QGroupBox(self.t("adv.h"))
@@ -2076,6 +2609,11 @@ class App(QMainWindow):
         self.disc_row = self.add(hbox(label(self.t("upd.needdisc"), "warn"), pick, self.upd_disc))
         self.disc_row.setVisible(False)
         self.add(label(self.t("upd.saves"), "hint"))
+        cb = QPushButton(self.t("ctl.change"))
+        cb.setToolTip(self.t("ctl.folder.tip"))
+        cb.clicked.connect(lambda: self._open_folder_controls(f))
+        cb.setEnabled(self._folder_cfg_path(f) is not None)
+        self.upd_controls = self.add(hbox(cb))
         self._progress_area(self.t("upd.go"), self._start_update)
         self.btn_go.setEnabled(False)
         self._nav("folders")
@@ -2181,6 +2719,7 @@ def make_app(argv=None):
         except ImportError:
             pass
     app = QApplication.instance() or QApplication(argv or sys.argv)
+    qt_wheel.install(app)                                  # the wheel scrolls pages, never changes a value by itself
     try:
         import app_icon
         app.setWindowIcon(app_icon.qicon(load_settings().get("icon_variant") or app_icon.DEFAULT))

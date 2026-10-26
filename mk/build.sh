@@ -102,6 +102,15 @@ cp -pu "$SRC/runtime/r5900_rt.c" "$B/hle/"
 cp -pu "$PACK_HOOKS" "$B/hle/hooks.def"                 # the pack's hook list (hle_traces.c includes it)
 if [ "$TARGET" = psp ]; then
   copy_dir "$SRC/hle/psp"
+  # the in-game settings menu = Dear ImGui + lib/psp_imgui (C++, partial-linked with --gc-sections into one
+  #   object by Makefile.psp) + hle/psp/hle_menu.cpp; MENU=0 leaves all of it out (the pad / flip hooks are weak)
+  rm -f "$B"/hle/*.cpp "$B"/hle/imgui*.h "$B"/hle/imstb*.h "$B"/hle/pimgui*.h "$B"/hle/psp_imgui.h
+  if [ "${MENU:-1}" != 0 ]; then
+    for f in "$SRC"/hle/psp/*.cpp "$SRC"/lib/psp_imgui/*.cpp "$SRC"/lib/psp_imgui/*.h "$SRC"/lib/psp_imgui/third_party/imgui/imgui*.cpp              "$SRC"/lib/psp_imgui/third_party/imgui/*.h; do cp -p "$f" "$B/hle/"; done
+  else
+    rm -f "$B/hle/hle_menu_psp.c"
+  fi
+  echo "menu: MENU=${MENU:-1}"
   cp -pu "$SRC/psp_exc/exc_user.c" "$SRC/psp_exc/ps2rc_exc.h" "$B/hle/"   # the user side of the kernel PRX
   rm -f "$B/hle/rmb_check.c"
 else

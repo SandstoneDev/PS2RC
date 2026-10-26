@@ -2,7 +2,9 @@
  *   padmap_t line  [key=value ...]   -> the "controls:" line and the notes
  *   padmap_t equiv [key=value ...]   -> compares the mapping with the original fixed code (below) for every button
  *                                       combination and a few stick positions: "equiv ok N" or the first mismatch
- *   padmap_t seq   [key=value ...]   -> stdin lines "FRAME BUTTONS(hex) LX LY" -> "MASK RX RY LX LY" (hex)
+ *   padmap_t seq   [key=value ...]   -> stdin lines "FRAME BUTTONS(hex) LX LY [CTX]" -> "MASK RX RY LX LY" (hex;
+ *                                       CTX 0 on foot, 1 in a vehicle)
+ *   padmap_t car   [key=value ...]   -> the "controls in a vehicle:" line
  * The keys are the internal ones (pad_l2, pad_mod, ...), as hle_cfg.c stores them. */
 #include <stdio.h>
 #include <stdlib.h>
@@ -10,7 +12,7 @@
 #include "hle_padmap.h"
 
 static int n_kv;
-static char *kv_k[32], *kv_v[32];
+static char *kv_k[64], *kv_v[64];
 static const char *get(const char *k)
 {
     for (int i = n_kv - 1; i >= 0; i--)
@@ -63,7 +65,7 @@ static uint16_t old_map(uint32_t b, unsigned lx, unsigned ly, uint16_t sel_up_bi
 int main(int argc, char **argv)
 {
     if (argc < 2) return 2;
-    for (int i = 2; i < argc && n_kv < 32; i++) {
+    for (int i = 2; i < argc && n_kv < 64; i++) {
         char *eq = strchr(argv[i], '=');
         if (!eq) continue;
         *eq = 0;
@@ -74,6 +76,10 @@ int main(int argc, char **argv)
     padmap_config(&pm, get);
     if (!strcmp(argv[1], "line")) {
         printf("%s\nnotes: %s\n", pm.line, pm.notes);
+        return 0;
+    }
+    if (!strcmp(argv[1], "car")) {
+        printf("%s\nnotes: %s\n", pm.car_line, pm.notes);
         return 0;
     }
     if (!strcmp(argv[1], "equiv")) {
@@ -90,13 +96,14 @@ int main(int argc, char **argv)
             if (c & 1u) b |= 0x20000u;                       /* the HOLD switch bit: ignored by both */
             for (unsigned x = 0; x < sizeof sv / sizeof sv[0]; x++)
                 for (unsigned y = 0; y < sizeof sv / sizeof sv[0]; y++) {
-                    PadTap tap;
+                    static PadTap tap;
                     memset(&tap, 0, sizeof tap);
-                    uint8_t a[4], o[4];
-                    uint16_t ma = padmap_apply(&pm, &tap, b, sv[x], sv[y], 1, a);
+                    uint8_t a[4], o[4], a1[4];
+                    uint16_t ma = padmap_apply(&pm, &tap, b, sv[x], sv[y], 1, 0, a);
                     uint16_t mo = old_map(b, sv[x], sv[y], sub, o);
+                    uint16_t m1 = padmap_apply(&pm, &tap, b, sv[x], sv[y], 1, 1, a1);   /* "in a vehicle" too */
                     n++;
-                    if (ma != mo || memcmp(a, o, 4)) {
+                    if (ma != mo || memcmp(a, o, 4) || m1 != mo || memcmp(a1, o, 4)) {
                         printf("MISMATCH buttons %05x stick %02x,%02x: new %04x %02x %02x %02x %02x old %04x %02x %02x "
                                "%02x %02x\n", (unsigned)b, sv[x], sv[y], ma, a[0], a[1], a[2], a[3], mo, o[0], o[1],
                                o[2], o[3]);
@@ -108,13 +115,17 @@ int main(int argc, char **argv)
         return 0;
     }
     if (!strcmp(argv[1], "seq")) {
-        PadTap tap;
+        static PadTap tap;
         memset(&tap, 0, sizeof tap);
         unsigned long long f;
         unsigned b, lx, ly;
-        while (scanf("%llu %x %x %x", &f, &b, &lx, &ly) == 4) {
+        int ctx;
+        char ln[128];
+        while (fgets(ln, sizeof ln, stdin)) {
+            ctx = 0;
+            if (sscanf(ln, "%llu %x %x %x %d", &f, &b, &lx, &ly, &ctx) < 4) continue;
             uint8_t s[4];
-            uint16_t m = padmap_apply(&pm, &tap, b, lx, ly, f, s);
+            uint16_t m = padmap_apply(&pm, &tap, b, lx, ly, f, ctx, s);
             printf("%04x %02x %02x %02x %02x\n", m, s[0], s[1], s[2], s[3]);
         }
         return 0;

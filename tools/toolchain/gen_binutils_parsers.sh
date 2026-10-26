@@ -31,5 +31,5 @@ for f in binutils/arparse.[ch] binutils/arlex.c binutils/defparse.[ch] binutils/
   cp "$f" "$T/out/$TOP/$f"
   n=$((n + 1))
 done
-tar -C "$T/out" -cf "$OUT" "$TOP"
+tar -C "$T/out" --owner=0 --group=0 --numeric-owner -cf "$OUT" "$TOP"   # no user names in the archive
 echo "$n generated files -> $OUT"

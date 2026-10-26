@@ -8,6 +8,13 @@ HLE_C   := $(sort $(wildcard hle/*.c))
 HLE_O   := $(patsubst hle/%.c,obj/hle/%.o,$(HLE_C))
 HLE_S   := $(sort $(wildcard hle/*.S))
 OBJS     = $(GEN_O) $(HLE_O) $(patsubst hle/%.S,obj/hle/%.o,$(HLE_S))
+# C++ units (the in-game menu: hle_menu.cpp + lib/psp_imgui + Dear ImGui) -> one object, partial-linked with
+#   --gc-sections from the menu's entry point, so only the ImGui code the menu really uses is in the EBOOT
+HLE_CPP := $(sort $(wildcard hle/*.cpp))
+CPP_O   := $(patsubst hle/%.cpp,obj/cpp/%.o,$(HLE_CPP))
+ifneq ($(HLE_CPP),)
+OBJS    += obj/hle_ui.o
+endif
 INCDIR   = hle/rt hle gen
 FPFLAGS  = -fno-fast-math -fno-math-errno -frounding-math -ffp-contract=off
 CFLAGS   = -O2 -G0 -std=gnu11 $(FPFLAGS)
@@ -54,3 +61,11 @@ obj/hle/%.o: hle/%.c $(wildcard hle/*.h) hle/hooks.def hle/rt/r5900_rt.h
 obj/hle/%.o: hle/%.S
 	@mkdir -p obj/hle
 	$(CC) $(CFLAGS) -c $< -o $@
+
+# psp-g++, no exceptions / RTTI / thread-safe statics; Dear ImGui's configuration: pimgui_imconfig.h
+CPPFLAGS_UI = -Os -G0 -fno-exceptions -fno-rtti -fno-threadsafe-statics -ffunction-sections -fdata-sections -w               -DHLE_PSP '-DIMGUI_USER_CONFIG="pimgui_imconfig.h"' -I hle -I hle/rt -I $(PSPSDK)/include $(HLE_DEFS)
+obj/cpp/%.o: hle/%.cpp $(wildcard hle/*.h)
+	@mkdir -p obj/cpp
+	$(CXX) $(CPPFLAGS_UI) -c $< -o $@
+obj/hle_ui.o: $(CPP_O)
+	psp-ld -r --gc-sections -u hle_menu_ui -o $@ $(CPP_O)

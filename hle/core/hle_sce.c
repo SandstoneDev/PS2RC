@@ -348,6 +348,7 @@ HLE_SCE(_sceCdSetTimeout) { RET(0); }                                     /* _sc
 /* ================================================================== libpad: one DualShock 2 on port 0 (build 25: the
    player's controls through hle_plat_pad_read - PSP buttons/stick, host nothing pressed) */
 static uint32_t pad_buttons = 0xFFFF;                         /* active low */
+uint16_t hle_dev_pad(uint8_t sticks[4]) __attribute__((weak));   /* optional developer test aid (weak) */
 HLE_SCE(scePadInit) { hle_trace_call("scePadInit", HLE_ADDR(scePadInit), c); RET(1); }
 HLE_SCE(scePadInit2) { RET(1); }                                     /* scePadInit2 */
 HLE_SCE(scePadEnd) { RET(1); }                                     /* scePadEnd */
@@ -360,7 +361,9 @@ HLE_SCE(scePadRead)                                                 /* scePadRea
     memset(d, 0, sizeof d);
     if (ARG(0) != 0 || ARG(1) != 0) { RET(0); return; }
     uint8_t st[4] = {0x80, 0x80, 0x80, 0x80};
-    pad_buttons = ~(uint32_t)hle_plat_pad_read(st) & 0xFFFFu;
+    uint16_t pad_m = hle_plat_pad_read(st);
+    if (hle_dev_pad) pad_m |= hle_dev_pad(st);                       /* a test aid of a developer module (weak) */
+    pad_buttons = ~(uint32_t)pad_m & 0xFFFFu;
     d[0] = 0;
     d[1] = 0x73;
     d[2] = (uint8_t)pad_buttons;

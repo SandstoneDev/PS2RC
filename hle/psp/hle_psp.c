@@ -760,6 +760,10 @@ static void exit_sequence(const char *who)
         say("exit 5/6: clock back to 333 MHz if it was raised (no card I/O during the ramp)\n");
         if (hle_aw_clock_down("at exit", cl, sizeof cl) > 0) say("%s", cl);
     }
+    {                                              /* the clock as the game leaves it */
+        char cx[400];
+        if (hle_aw_clock_exit_line(cx, sizeof cx) > 0) say("%s", cx);
+    }
     SceCtrlData pad;
     for (int i = 0; i < 40; i++) {                 /* at most 2 s */
         sceCtrlPeekBufferPositive(&pad, 1);
@@ -975,6 +979,11 @@ static int watchdog(SceSize args, void *argp)
             char al[200];
             int an = hle_aw_auto_tick(al, sizeof al);
             if (an > 0) log_commit_timed(al, (unsigned)an, 500000);
+        }
+        {                                                  /* clock samples at 1..60 s after the start */
+            char cw[400];
+            int cn = hle_aw_clock_watch(cw, sizeof cw);
+            if (cn > 0) log_commit_timed(cw, (unsigned)cn, 500000);
         }
         if (++tick % 2 == 0) log_commit_async();           /* pending log lines reach the card within ~2 s */
         if (hle_progress != last) { last = hle_progress; still = 0; continue; }
@@ -1298,10 +1307,13 @@ int main(int argc, char **argv)
     strncpy(dir, argc > 0 ? argv[0] : "", sizeof dir - 1);
     char *slash = strrchr(dir, '/');
     if (slash) slash[1] = 0; else dir[0] = 0;
+    hle_aw_clock_entry((unsigned)t0_us);           /* the clock log's first sample (read-only) */
     hle_aw_auto_boot(dir, (unsigned)t0_us);        /* cpu_auto (nothing without the key / at 0) */
     hle_aw_preclock(dir, 0, (unsigned)t0_us);      /* cpu_clock_at=main (nothing without the key) */
     pspDebugScreenInit();
-    scePowerSetClockFrequency(333, 333, 166);
+    hle_aw_clock_policy();                         /* was scePowerSetClockFrequency(333, 333, 166) at every
+                                                      start - now only where the system left less than 333 and the CFW
+                                                      has no clock setting of its own (cpu_clock_base, hle_aw_psp.c C) */
     /* build 30: the exit callback thread first (priority above the game thread, so HOME is served while it runs) */
     SceUID cbt = sceKernelCreateThread("hle_exit_cb", exit_cb_thread, 0x11, 0x4000, THREAD_ATTR_USER, NULL);
     if (cbt < 0 || sceKernelStartThread(cbt, 0, NULL) < 0) exit_cb_status = cbt < 0 ? cbt : -1;
@@ -1416,6 +1428,7 @@ static int game_main(SceSize args, void *argp)
     log_run_info();
     hle_aw_preclock_report(say_line);              /* what cpu_clock_at did (nothing without it) */
     hle_aw_auto_report(say_line);                  /* what cpu_auto did (nothing without it) */
+    hle_aw_clock_policy_report(say_line);          /* the clock policy + the first clock samples */
     if (opt_az_marker) az_marker_report();
     {
         char prx[320], detail[256];
@@ -1431,6 +1444,8 @@ static int game_main(SceSize args, void *argp)
         say("crash handler: %s (%s)\n", er >= 0 ? "armed" : "NOT armed", detail);
         say("exit callback (HOME -> Exit): %s (%08x)\n", exit_cb_status == 0 ? "registered" : "NOT registered",
             (unsigned)exit_cb_status);
+        hle_aw_clock_mark("after ps2rc_exc.prx", say_line);   /* a module start is where ARK applies its
+                                                                 CPU clock setting */
         if (perf) {
             char st[256];
             hle_psp_perf_status(st, sizeof st);

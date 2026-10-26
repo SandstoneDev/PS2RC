@@ -272,6 +272,7 @@ int hle_pack_host_arg(int argc, char **argv, int *i) __attribute__((weak));   /*
 void hle_pack_hitch_report(void) __attribute__((weak));   /* hitch report lines of the pack's timed hooks */
 void hle_pack_frame_tick(void) __attribute__((weak));      /* a main-loop iteration starts */
 void hle_pack_timing_report(void) __attribute__((weak));  /* end of run: after the main-loop timing lines */
+void hle_pack_crash_report(R5900Ctx *c) __attribute__((weak));   /* crash dump, the pack's lines */
 /* real-time pacing of the main loop (the pack's frame cap / game-time modes): the core counts time charges while
    hle_rtpace_mode == 2 and calls hle_pack_rt_sync every hle_rtpace_per of them; hle_pack_pace runs at idle points
    before the platform's pacing; hle_pack_vblank_pal50 decides the VBlank rate at the graphics reset (default: the

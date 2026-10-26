@@ -29,6 +29,7 @@
 #include "hle_xgame.h"                              /* speed switches (hle_fast.c) */
 #include "hle_postfx.h"                            /* the PS2 colour filter (hle_postfx.c) */
 #include "hle_water.h"                             /* water surfaces (hle_water.c) */
+#include "hle_hud.h"                               /* HUD transform (hle_hud.c) */
 #ifdef HLE_PSP
 #include "hle_ge.h"
 #else
@@ -127,8 +128,8 @@ static void log_ret(int h, R5900Ctx *c)
 static void im2d_vertex(uint32_t base, uint32_t i, RndVtx *o)
 {
     uint32_t p = base + 0x40u * i;
-    o->x = gf(p);
-    o->y = gf(p + 4);
+    o->x = hle_hud_x(gf(p));                              /* HUD transform (identity outside the HUD) */
+    o->y = hle_hud_y(gf(p + 4));
     o->u = gf(p + 0x10);
     o->v = gf(p + 0x14);
     o->r = gf(p + 0x20);
@@ -208,9 +209,20 @@ static void rbuf_emit(uint32_t buf, uint32_t n)
                 "blend %u/%u filter %u\n", i, n, x1, y1, x2, y2, gf(e + 8), u1, v1, u2, v2, r, g, b, a, st.raster,
                 rs[RS_SRCBLEND], rs[RS_DESTBLEND], rs[RS_TEXTUREFILTER]);
         }
+        x1 = hle_hud_x(x1); x2 = hle_hud_x(x2); y1 = hle_hud_y(y1); y2 = hle_hud_y(y2);   /* HUD */
+        static const int tri[6] = {0, 1, 2, 0, 2, 3};
+        if (hle_hud_on && hle_hud_outline && (r >= 48 || g >= 48 || b >= 48)) {   /* outline, 1 PSP px */
+            static const float d[4][2] = {{-640.0f / 480, 0}, {640.0f / 480, 0}, {0, -448.0f / 272}, {0, 448.0f / 272}};
+            for (int o = 0; o < 4; o++) {
+                float ox = d[o][0], oy = d[o][1];
+                RndVtx s[4] = {{x1 + ox, y1 + oy, u1, v1, 0, 0, 0, a}, {x2 + ox, y1 + oy, u2, v1, 0, 0, 0, a},
+                               {x2 + ox, y2 + oy, u2, v2, 0, 0, 0, a}, {x1 + ox, y2 + oy, u1, v2, 0, 0, 0, a}};
+                if (k + 6 > MAXV) { hle_raster_tris(tv, k, &st); k = 0; }
+                for (int j = 0; j < 6; j++) tv[k++] = s[tri[j]];
+            }
+        }
         RndVtx q[4] = {{x1, y1, u1, v1, r, g, b, a}, {x2, y1, u2, v1, r, g, b, a}, {x2, y2, u2, v2, r, g, b, a},
                        {x1, y2, u1, v2, r, g, b, a}};
-        static const int tri[6] = {0, 1, 2, 0, 2, 3};
         if (k + 6 > MAXV) { hle_raster_tris(tv, k, &st); k = 0; }
         for (int j = 0; j < 6; j++) tv[k++] = q[tri[j]];
     }
@@ -487,6 +499,7 @@ HLE_FN(drv_set_state)
 {
     uint32_t s = ARG(0), v = ARG(1);
     if (s < RS_COUNT) {
+        if (hle_sky_spr_pend && rs[s] != v) hle_sky_spr_state();   /* the corona batch first */
         rs[s] = v;
         if (s == RS_TEXTUREADDRESS) rs[RS_TEXTUREADDRESSU] = rs[RS_TEXTUREADDRESSV] = v;
     }
@@ -594,6 +607,8 @@ void hle_render_report(void)
     if (hle_farcol_report) hle_farcol_report();            /* x_farcol (a developer module, when present) */
     hle_ag_report();                                       /* x_ag* game-logic cuts (hle_ag.c) */
     hle_far_report();                                      /* far-entity policy (hle_far.c) */
+    if (hle_ce_report) hle_ce_report();                    /* night levers (hle_ce.c) */
+    hle_hud_report();                                      /* HUD on the PSP screen (hle_hud.c) */
     LOG("render boundary (driver hooks): %llu flips\n", (unsigned long long)flips);
     for (int h = 0; h < H_N; h++)
         if (calls[h]) LOG("  %-30s %08x %12llu calls\n", hooks[h].name, hooks[h].addr, (unsigned long long)calls[h]);

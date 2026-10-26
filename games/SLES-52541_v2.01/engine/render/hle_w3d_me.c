@@ -39,6 +39,9 @@
 
 /* the one word both cores read to find the control block: alone in its 64-byte line, always accessed uncached */
 uint32_t w3dme_gaddr[16] __attribute__((aligned(64)));
+/* the dither policy of the state encoder (psp/hle_ge.c ge_dither: 0 off, 1 opaque meshes only, 2 every
+   draw but additive; 0 with ge_p32), set by hle_ge.c on the main core, sent to the ME in each batch's opts bits 24-25 */
+int w3dme_dpol = 1;
 #ifdef HLE_PSP
 #define ME_CTL() ((volatile W3mCtl *)(uintptr_t)UNC(w3dme_gaddr)[0])
 #define ME_PTR(c, f, T) ((T)(uintptr_t)(c)->f)            /* the ME reads the addresses from the control block */
@@ -228,12 +231,12 @@ uint32_t *w3dme_enc_bones(uint32_t *o, int n, const float (*m)[12])
     return o;
 }
 
-/* hle_ge.c hle_ge_3d_blend -> set_blend */
-uint32_t *w3dme_enc_blend(uint32_t *o, int on, int sb, int db)
+/* hle_ge.c hle_ge_3d_blend -> set_blend; dpol = the dither policy (hle_ge.c dith_want with ge3d_active) */
+uint32_t *w3dme_enc_blend(uint32_t *o, int on, int sb, int db, int dpol)
 {
     if (!on) {
         *o++ = GEN(0x21, 0);                                   /* sceGuDisable(GU_BLEND) */
-        *o++ = GEN(0x20, 1);                                   /* sceGuEnable(GU_DITHER) */
+        *o++ = GEN(0x20, dpol != 0);                           /* GU_DITHER (was always on) */
         return o;
     }
     int a = GU_FIX, b = GU_FIX;
@@ -262,12 +265,13 @@ uint32_t *w3dme_enc_blend(uint32_t *o, int on, int sb, int db)
         *o++ = GC(0xE1, fb);
     }
     *o++ = GEN(0x22, sb == 5 || sb == 11);                     /* alpha test */
-    *o++ = GEN(0x20, db != 2);                                 /* dither */
+    *o++ = GEN(0x20, dpol == 2 ? db != 2 : dpol == 1 && sb == 2 && db == 1);   /* dither (policy) */
     return o;
 }
 
 /* psp/hle_ge3d.c send_state; prev = what was sent (all = 1: nothing); amb = the game's ambient light of the lit pipelines'
-   lights (sent with every lit state, as send_state does) */
+   lights (sent with every lit state, as send_state does); front: bit 0 = w3d_front, bits 1-2 = the dither policy
+   (w3dme_dpol) */
 uint32_t *w3dme_enc_state(uint32_t *o, const W3dState *st, const W3dState *prev, int all, float far_z, float fog_z,
                           int front, const float *amb)
 {
@@ -283,7 +287,7 @@ uint32_t *w3dme_enc_state(uint32_t *o, const W3dState *st, const W3dState *prev,
     }
     if (all || st->cull != sn->cull) {
         if (st->cull) {
-            int ccw_front = !front;
+            int ccw_front = !(front & 1);
             if (st->cull == 2) ccw_front = !ccw_front;
             *o++ = GC(0x9B, (ccw_front ? GU_CCW : GU_CW) ? 0 : 1);     /* sceGuFrontFace */
             *o++ = GEN(0x1D, 1);
@@ -292,7 +296,7 @@ uint32_t *w3dme_enc_state(uint32_t *o, const W3dState *st, const W3dState *prev,
     }
     if (all || st->blend != sn->blend || st->src_blend != sn->src_blend || st->dst_blend != sn->dst_blend ||
         st->atest != sn->atest) {
-        o = w3dme_enc_blend(o, st->blend, st->src_blend, st->dst_blend);
+        o = w3dme_enc_blend(o, st->blend, st->src_blend, st->dst_blend, front >> 1 & 3);
         if (st->atest == 1) { *o++ = GEN(0x22, 1); *o++ = GC(0xDB, GU_GREATER | 0 << 8 | 0xFF << 16); }
         else if (st->atest == 2) { *o++ = GEN(0x22, 1); *o++ = GC(0xDB, GU_GEQUAL | 0x80 << 8 | 0xFF << 16); }
         else if (st->atest == 3) { *o++ = GEN(0x22, 1); *o++ = GC(0xDB, GU_LESS | 0x80 << 8 | 0xFF << 16); }
@@ -635,7 +639,8 @@ static void emit_state(W3mPriv *p)
 #ifdef HLE_PSP
     uint32_t tmp[96];
     float far_z = p->cam[p->rec_cam][17], fog_z = p->cam[p->rec_cam][18];
-    uint32_t *e = w3dme_enc_state(tmp, &p->st, &p->sent, !p->sent_ok, far_z, fog_z, (int)(p->opts >> 5 & 1), p->lamb);
+    int fr = (int)((p->opts >> 5 & 1) | (p->opts >> 24 & 3) << 1);   /* front + the dither policy */
+    uint32_t *e = w3dme_enc_state(tmp, &p->st, &p->sent, !p->sent_ok, far_z, fog_z, fr, p->lamb);
     outn(p, tmp, (uint32_t)(e - tmp));
 #else
     if (p->sent_ok && !wne(&p->sent, &p->st, W3M_STATE_WORDS)) return;

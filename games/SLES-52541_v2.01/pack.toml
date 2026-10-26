@@ -182,7 +182,8 @@ movies = ["MOVIES/VCPAL.PSS", "MOVIES/OPEN1PAL.PSS"]
 # files the runtime writes into the folder (saves, logs, overclock state): never touched by an update, not "extra"
 # files for the folder check
 runtime_files = ["memcard/*", "session*.log", "io.log", "prof*.bin", "run_counter.txt", "oc_state.txt",
-                 "results_*.txt", "*.bmp", "az_preclock.txt", "audio_dump.wav", "splash_test_home"]
+                 "results_*.txt", "*.bmp", "az_preclock.txt", "audio_dump.wav", "splash_test_home",
+                 "*.cfg.bak", "*.cfg.new"]          # the in-game menu's save keeps the previous cfg as .bak
 
 [cfg]                        # the run options files the converter writes next to the EBOOT
 # the player's settings file ([runtime] cfg): commented template per language (the comments differ, the values are

@@ -65,18 +65,103 @@ __asm__(
     "    .word 0xCC9ADCF8\n"
     "    .end at_sctrlHENSetSpeed\n"
     "    .size at_sctrlHENSetSpeed, .-at_sctrlHENSetSpeed\n"
+    /* two read-only functions for the clock log / the PS Vita check (hle_aw_psp.c), same entry, appended in
+       order. sctrlArkGetConfig (NID 0xB00B1E55) is exported here by ARK-4 only; sctrlHENGetSpeed by ARK-5 only (ARK-5
+       sources: SystemControl/exports.exp). A NID the CFW does not export stays unlinked (the stub returns at once and
+       writes nothing): callers judge only the buffer's magic / a plausible value, never the return value. */
+    "    .globl at_sctrlArkGetConfig4\n"
+    "    .type at_sctrlArkGetConfig4, @function\n"
+    "    .ent at_sctrlArkGetConfig4, 0\n"
+    "at_sctrlArkGetConfig4:\n"
+    "    .word at_sctrl_stub_entry\n"
+    "    .word 0xB00B1E55\n"
+    "    .end at_sctrlArkGetConfig4\n"
+    "    .size at_sctrlArkGetConfig4, .-at_sctrlArkGetConfig4\n"
+    "    .globl at_sctrlHENGetSpeed\n"
+    "    .type at_sctrlHENGetSpeed, @function\n"
+    "    .ent at_sctrlHENGetSpeed, 0\n"
+    "at_sctrlHENGetSpeed:\n"
+    "    .word at_sctrl_stub_entry\n"
+    "    .word 0xFD6E46EC\n"
+    "    .end at_sctrlHENGetSpeed\n"
+    "    .size at_sctrlHENGetSpeed, .-at_sctrlHENGetSpeed\n"
     "    .popsection\n"
     "    .pushsection .rodata.sceNid, \"a\"\n"
     "    .word 0x16C3B7EE\n"
     "    .word 0xCC9ADCF8\n"
+    "    .word 0xB00B1E55\n"
+    "    .word 0xFD6E46EC\n"
     "    .popsection\n"
     "    .set pop\n");
+
+/* ARK-5 exports sctrlArkGetConfig in its own library ArkCtrl (weak import like the one above: the EBOOT
+   loads without it on any other CFW) */
+int at_sctrlArkGetConfig5(void *conf);
+__asm__(
+    "    .set push\n"
+    "    .pushsection .rodata.sceResident, \"a\"\n"
+    "    .word 0\n"
+    "at_arkctrl_libname:\n"
+    "    .asciz \"ArkCtrl\"\n"
+    "    .align 2\n"
+    "    .popsection\n"
+    "    .pushsection .lib.stub, \"a\", @progbits\n"
+    "    .global at_arkctrl_stub_entry\n"
+    "at_arkctrl_stub_entry:\n"
+    "    .word at_arkctrl_libname\n"
+    "    .word 0x40090000\n"
+    "    .word 0x5\n"
+    "    .word __executable_start\n"
+    "    .word __executable_start\n"
+    "    .popsection\n"
+    "    .set pop\n"
+    "    .set push\n"
+    "    .set noreorder\n"
+    "    .pushsection .sceStub.text, \"ax\", @progbits\n"
+    "    .globl at_sctrlArkGetConfig5\n"
+    "    .type at_sctrlArkGetConfig5, @function\n"
+    "    .ent at_sctrlArkGetConfig5, 0\n"
+    "at_sctrlArkGetConfig5:\n"
+    "    .word at_arkctrl_stub_entry\n"
+    "    .word 0xB00B1E55\n"
+    "    .end at_sctrlArkGetConfig5\n"
+    "    .size at_sctrlArkGetConfig5, .-at_sctrlArkGetConfig5\n"
+    "    .popsection\n"
+    "    .pushsection .rodata.sceNid, \"a\"\n"
+    "    .word 0xB00B1E55\n"
+    "    .popsection\n"
+    "    .set pop\n");
+int at_sctrlArkGetConfig4(void *conf);
+int at_sctrlHENGetSpeed(void);
 
 int hle_mem_seconfig(uint8_t *buf, unsigned n)
 {
     memset(buf, 0xA5, n);
     if (hle_psp_is_emulator()) return 0x7FFFFFFF;
     return at_sctrlSEGetConfig(buf);
+}
+
+/* ARK's runtime configuration (ARKConfig: magic, path, exploit id, launcher, exec_mode at +144) through
+   ARK-5's ArkCtrl (which = 5) or ARK-4's SystemCtrlForUser (which = 4). The buffer is zeroed first; a CFW without the
+   function leaves it zero. Call only when sctrlSEGetConfig showed ARK's magic. Returns 1 = the buffer holds ARK's magic. */
+int hle_mem_arkconfig(uint8_t *buf, unsigned n, int which)
+{
+    if (n < 160u) return 0;
+    memset(buf, 0, n);
+    if (hle_psp_is_emulator()) return 0;
+    if (which == 5) at_sctrlArkGetConfig5(buf);
+    else at_sctrlArkGetConfig4(buf);
+    uint32_t m;
+    memcpy(&m, buf, 4);
+    return m == 0xB00B1E55u;
+}
+
+/* ARK-5's own view of the CPU clock (its overclock module answers the frequency it climbed to, else the
+   scePower value). Only meaningful when ARK-5 was identified (hle_mem_arkconfig(.., 5)); -1 = not called */
+int hle_mem_hen_speed(void)
+{
+    if (hle_psp_is_emulator()) return -1;
+    return at_sctrlHENGetSpeed();
 }
 
 /* ------------------------------------------------------------------ the volatile partition */

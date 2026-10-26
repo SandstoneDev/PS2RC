@@ -127,6 +127,7 @@ void hle_backtrace_dump(R5900Ctx *c)
             (uint32_t)c->r[6].d[0], (uint32_t)c->r[7].d[0], (uint32_t)c->r[8].d[0], (uint32_t)c->r[16].d[0],
             (uint32_t)c->r[17].d[0], (uint32_t)c->r[18].d[0]);
     }
+    if (hle_pack_crash_report) hle_pack_crash_report(c);    /* the pack's view (e.g. the script state) */
 }
 
 /* main-loop timing: real time between consecutive calls of the main-loop function (the pack's [runtime] main_loop) -

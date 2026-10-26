@@ -671,7 +671,7 @@ int w3d_be_me_selftest(char *why, int why_n)
         cap_on();
         send_state();
         n = cap_off();
-        ne = (int)(w3dme_enc_state(enc, &T[i], &T[i], 1, cam.far_z, cam.fog_z, w3d_opt_front, lights_cur.amb) - enc);
+        ne = (int)(w3dme_enc_state(enc, &T[i], &T[i], 1, cam.far_z, cam.fog_z, w3d_opt_front | w3dme_dpol << 1, lights_cur.amb) - enc);
         checks++;
         if (!cap_cmp(enc, ne, n, "state (all)", i, why, why_n)) ok = 0;
     }
@@ -682,7 +682,7 @@ int w3d_be_me_selftest(char *why, int why_n)
         cap_on();
         send_state();
         n = cap_off();
-        ne = (int)(w3dme_enc_state(enc, &T[i], &T[i - 1], 0, cam.far_z, cam.fog_z, w3d_opt_front, lights_cur.amb) -
+        ne = (int)(w3dme_enc_state(enc, &T[i], &T[i - 1], 0, cam.far_z, cam.fog_z, w3d_opt_front | w3dme_dpol << 1, lights_cur.amb) -
                    enc);
         checks++;
         if (!cap_cmp(enc, ne, n, "state (change)", i, why, why_n)) ok = 0;
@@ -737,7 +737,7 @@ int w3d_be_me_selftest(char *why, int why_n)
         cap_on();
         send_state();
         n = cap_off();
-        ne = (int)(w3dme_enc_state(enc, &L[i], &L[i], 1, cam.far_z, cam.fog_z, w3d_opt_front, lights_cur.amb) - enc);
+        ne = (int)(w3dme_enc_state(enc, &L[i], &L[i], 1, cam.far_z, cam.fog_z, w3d_opt_front | w3dme_dpol << 1, lights_cur.amb) - enc);
         checks++;
         if (!cap_cmp(enc, ne, n, "lit state (all)", i, why, why_n)) ok = 0;
         if (ok && i) {
@@ -747,7 +747,7 @@ int w3d_be_me_selftest(char *why, int why_n)
             cap_on();
             send_state();
             n = cap_off();
-            ne = (int)(w3dme_enc_state(enc, &L[i], &L[i - 1], 0, cam.far_z, cam.fog_z, w3d_opt_front, lights_cur.amb) -
+            ne = (int)(w3dme_enc_state(enc, &L[i], &L[i - 1], 0, cam.far_z, cam.fog_z, w3d_opt_front | w3dme_dpol << 1, lights_cur.amb) -
                        enc);
             checks++;
             if (!cap_cmp(enc, ne, n, "lit state (change)", i, why, why_n)) ok = 0;

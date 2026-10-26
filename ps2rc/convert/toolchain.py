@@ -21,7 +21,10 @@ from concurrent.futures import ThreadPoolExecutor
 from .steps import ConvertError
 
 EXE = ".exe" if os.name == "nt" else ""
-TOOLS = ("psp-gcc", "psp-as", "psp-ld", "psp-strip", "psp-fixup-imports", "psp-prxgen", "psp-size", "psp-objcopy")
+# psp-g++ (in-game menu) must resolve to the selected toolchain too - an unlisted name is found by
+# CreateProcess through the CONVERTER's own PATH (here: an old MinPSPW psp-g++ without cc1plus -> "CreateProcess:
+# No such file"; on a player's PC: none, the version probe fails and the EBOOT silently has no menu)
+TOOLS = ("psp-gcc", "psp-g++", "psp-as", "psp-ld", "psp-strip", "psp-fixup-imports", "psp-prxgen", "psp-size", "psp-objcopy")
 _NOWIN = 0x08000000 if os.name == "nt" else 0
 # compilers run below normal priority (Windows) / nice 10 (WSL, Docker): the PC stays usable and other work on a
 # shared machine keeps its share

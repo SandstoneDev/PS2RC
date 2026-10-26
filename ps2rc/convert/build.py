@@ -213,6 +213,23 @@ def _dir_files(d, target="psp"):
     return [(f, os.path.basename(f)) for f in out if os.path.isfile(f)]
 
 
+# the in-game settings menu - C++ (hle/psp/*.cpp, lib/psp_imgui, Dear ImGui in lib/psp_imgui/third_party/imgui), compiled
+# with psp-g++ and these flags (= mk/Makefile.psp CPPFLAGS_UI), then partial-linked into obj/hle_ui.o with --gc-sections
+# from the menu's entry point (only the ImGui code the menu uses is linked)
+CPP_FLAGS = ["-Os", "-G0", "-fno-exceptions", "-fno-rtti", "-fno-threadsafe-statics", "-ffunction-sections",
+             "-fdata-sections", "-w", "-DHLE_PSP", '-DIMGUI_USER_CONFIG="pimgui_imconfig.h"']
+CPP_ENTRY = "hle_menu_ui"
+
+
+def _cpp_files(repo):
+    out = []
+    for d in (os.path.join(repo, "hle", "psp"), os.path.join(repo, "lib", "psp_imgui"),
+              os.path.join(repo, "lib", "psp_imgui", "third_party", "imgui")):
+        for ext in ("*.cpp", "*.h"):
+            out += sorted(glob.glob(os.path.join(d, ext)))
+    return [(f, os.path.basename(f)) for f in out if os.path.isfile(f)]
+
+
 def profile_sources(copies, defs, pack, profile, repo):
     """A pack build profile ([profile.<name>] of pack.toml): exclude_sources (paths relative to the pack) leave the
     build, extra_sources ({repo}/... or pack-relative files / folders) join it, include_sources go on the include path
@@ -256,6 +273,8 @@ def hle_sources_base(repo, audio_model, pack=None):
             copies += _dir_files(pack.expand(d))
         copies.append((os.path.join(repo, "runtime", "r5900_rt.c"), "r5900_rt.c"))
         copies += _dir_files(os.path.join(repo, "hle", "psp"))
+        if os.path.isdir(os.path.join(repo, "lib", "psp_imgui")):   # the in-game menu
+            copies += _cpp_files(repo)
         for f in ("exc_user.c", "ps2rc_exc.h"):
             copies.append((os.path.join(repo, "psp_exc", f), f))
         copies = [(s, n) for s, n in copies if n != "rmb_check.c"]
@@ -510,6 +529,7 @@ class Builder:
             self.hle_defs = json.load(open(os.path.join(b, "prepare.json")))["hle_defs"]
         gen_extra, hle_extra, _ = self.extras()
         cf = self.cflags()
+        self._menu_check()
         gen_c = sorted(fn for fn in os.listdir(os.path.join(b, "gen")) if fn.endswith(".c"))
         hle_c = sorted(fn for fn in os.listdir(os.path.join(b, "hle")) if fn.endswith(".c"))
         rt_h = os.path.join(b, "hle", "rt", "r5900_rt.h")
@@ -529,12 +549,46 @@ class Builder:
         for fn in sorted(f for f in os.listdir(os.path.join(b, "hle")) if f.endswith(".S")):   # hle_ctx.S, own imports
             o = "obj/hle/%s.o" % fn[:-2]
             jobs.append((Job(["psp-gcc"] + cf + ["-c", "hle/" + fn, "-o", o], o), "hle/" + fn, hle_dep))
+        cxf = self.cflags(incdir=("hle", "hle/rt"), base=CPP_FLAGS)       # the in-game menu (C++)
+        for fn in sorted(f for f in os.listdir(os.path.join(b, "hle")) if f.endswith(".cpp")):
+            o = "obj/cpp/%s.o" % fn[:-4]
+            jobs.append((Job(["psp-g++"] + cxf + self.hle_defs + ["-c", "hle/" + fn, "-o", o], o), "hle/" + fn, hle_dep))
         return jobs, len(gen_c)
+
+    def _menu_check(self):
+        """The in-game menu is C++ - a toolchain without psp-g++ builds without it (the pad / flip hooks of
+        the runtime are weak): its sources leave the build dir and the log says so."""
+        hd = os.path.join(self.bdir, "hle")
+        cpp = [f for f in os.listdir(hd) if f.endswith(".cpp")]
+        if os.path.exists(os.path.join(hd, "hle_menu_psp.c")) and "psp_imgui.cpp" not in cpp:
+            # the runtime has the menu's glue (it calls the C++ entry point) but the menu library (lib/psp_imgui) is
+            # not in this converter's tree: the glue and any menu C++ leave the build (the pad / flip hooks are
+            # weak, the game runs without the menu) instead of an undefined reference at the link - and the log says so
+            for f in cpp + ["hle_menu_psp.c"]:
+                os.remove(os.path.join(hd, f))
+            self.progress.warn("this converter's source tree has no lib/psp_imgui: the build has NO in-game settings "
+                               "menu (L + R + Cross + Down); use a complete PS2RC release or checkout")
+            return
+        if not cpp:
+            return
+        if getattr(self, "_have_cxx", None) is None:
+            try:
+                j = self.tc.run_one(["psp-g++", "--version"], self.bdir, "g++")
+                self._have_cxx = j.rc == 0
+            except (OSError, ValueError, NotImplementedError):
+                self._have_cxx = False
+        if self._have_cxx:
+            return
+        for f in cpp + ["hle_menu_psp.c"]:
+            if os.path.exists(os.path.join(hd, f)):
+                os.remove(os.path.join(hd, f))
+        self.progress.warn("the toolchain has no psp-g++: the build has no in-game settings menu (L + R + Cross + Down)")
 
     def compile(self):
         b = self.bdir
         os.makedirs(os.path.join(b, "obj", "gen"), exist_ok=True)
         os.makedirs(os.path.join(b, "obj", "hle"), exist_ok=True)
+        os.makedirs(os.path.join(b, "obj", "cpp"), exist_ok=True)
         jobs, ngen = self.compile_jobs()
         try:
             stamps = json.load(open(self._stamp_path(), encoding="utf-8"))
@@ -595,6 +649,12 @@ class Builder:
         objs = ["obj/gen/%s.o" % fn[:-2] for fn in sorted(os.listdir(os.path.join(b, "gen"))) if fn.endswith(".c")]
         objs += ["obj/hle/%s.o" % fn[:-2] for fn in sorted(os.listdir(os.path.join(b, "hle"))) if fn.endswith(".c")]
         objs += ["obj/hle/%s.o" % fn[:-2] for fn in sorted(os.listdir(os.path.join(b, "hle"))) if fn.endswith(".S")]
+        cpp = ["obj/cpp/%s.o" % fn[:-4] for fn in sorted(os.listdir(os.path.join(b, "hle"))) if fn.endswith(".cpp")]
+        if cpp:                                        # the in-game menu, dead ImGui code removed
+            pl = [Job(["psp-ld", "-r", "--gc-sections", "-u", CPP_ENTRY, "-o", "obj/hle_ui.o"] + cpp, "ui_link")]
+            self.tc.run_batch(pl, b, 1, None, "ui_link")
+            self._check(pl[0], "psp-ld -r (in-game menu)")
+            objs.append("obj/hle_ui.o")
         ld = ["-L.", "-L" + self._psplib(), "-L" + self._sdk("lib")]
         ld += list(self.pack.get("build.psp_ldflags", []) or [])
         if has_order:

@@ -1,6 +1,6 @@
 #!/bin/bash
-# build_windows.sh - a native Windows (MinGW-w64, UCRT) PSP C toolchain for the converter bundle: psp binutils and
-# the psp-gcc C compiler built as plain Windows programs (statically linked: no MSYS2 or MinGW DLL at run time), the
+# build_windows.sh - a native Windows (MinGW-w64, UCRT) PSP C/C++ toolchain for the converter bundle: psp binutils
+# and the psp-gcc / psp-g++ compilers built as plain Windows programs (statically linked: no MSYS2 or MinGW DLL at run time), the
 # target files (newlib, libgcc, pspsdk) copied from a Linux build of the SAME source commits (they do not depend on
 # the host), and the pspsdk host tools the build needs (psp-fixup-imports, psp-prxgen, psp-build-exports).
 #
@@ -17,7 +17,8 @@
 #   --binutils / --gcc      source archives (one top-level directory each), e.g. the pinned commits fetched by
 #                           tools/toolchain/fetch_sources.py
 #   --target-files          tar of the target side of a Linux pspdev install of the same commits:
-#                           psp/ (newlib, pthread, pspsdk) and lib/gcc/psp/<version>/ (libgcc, crt files)
+#                           psp/ (newlib, pthread, pspsdk, libstdc++ / libsupc++ and their headers) and
+#                           lib/gcc/psp/<version>/ (libgcc, crt files)
 #                           (tools/toolchain/pack_target_files.sh makes it)
 #   --pspsdk-tools          tar holding tools/*.c, tools/*.h of the pspsdk commit
 #   --prefix                the toolchain directory to create (bin/, libexec/, lib/, psp/); must not exist
@@ -174,7 +175,8 @@ fi
 # MSYS form of prefix and sysroot: libtool rejects a drive-letter path as a sysroot; the sysroot below the prefix keeps gcc
 # relocatable (it finds both from its own location)
 # zstd: the LTO sections in pspdev's libpthread.a are zstd-compressed (the Linux gcc has zstd). Languages c,c++ as
-# pspdev's build (the converter compiles C only: the C++ programs are deleted after the install).
+# pspdev's build: the in-game menu (lib/psp_imgui, Dear ImGui) is C++, so psp-g++ / cc1plus are installed too; the
+# C++ run-time libraries and headers come with the target files (pspdev's Linux build of the same gcc commit).
 G_CONF="$COMMON --prefix=$PREFIX --with-sysroot=$PREFIX/psp --with-native-system-header-dir=/include --with-float=hard --with-newlib \
   --disable-libssp --disable-multilib --enable-threads=posix --disable-tls --enable-languages=c,c++ \
   --with-zstd=$SYSROOT_DEPS --with-gmp=$SYSROOT_DEPS --with-mpfr=$SYSROOT_DEPS --with-mpc=$SYSROOT_DEPS --with-isl=$SYSROOT_DEPS"
@@ -204,8 +206,10 @@ make -j"$JOBS" all-gcc MAKEINFO=true >> "$LOG" 2>&1
 grep -q "define HAVE_LTO_PLUGIN [12]" gcc/auto-host.h || { echo "gcc configured without LTO plugin support" >&2; exit 2; }
 make install-strip-gcc MAKEINFO=true >> "$LOG" 2>&1
 install -m 755 lto-plugin/liblto_plugin.dll "$PREFIX/libexec/gcc/psp/$GCC_VER/" && strip "$PREFIX/libexec/gcc/psp/$GCC_VER/liblto_plugin.dll"
-rm -f "$PREFIX/libexec/gcc/psp/$GCC_VER/cc1plus.exe" "$PREFIX/libexec/gcc/psp/$GCC_VER/g++-mapper-server.exe" \
-      "$PREFIX/bin/psp-g++.exe" "$PREFIX/bin/psp-c++.exe"
+rm -f "$PREFIX/libexec/gcc/psp/$GCC_VER/g++-mapper-server.exe"       # C++ modules only
+for f in bin/psp-g++.exe libexec/gcc/psp/$GCC_VER/cc1plus.exe psp/lib/libsupc++.a psp/include/c++/$GCC_VER/new; do
+  [ -f "$PREFIX/$f" ] || { echo "no $f: the converter would build EBOOTs without the in-game menu" >&2; exit 2; }
+done
 [ -f "$PREFIX/libexec/gcc/psp/$GCC_VER/liblto_plugin.dll" ] || { echo "no liblto_plugin.dll: LTO members of the target libraries would link differently from the Linux toolchain" >&2; exit 2; }
 say "gcc: done"
 
@@ -253,3 +257,4 @@ say "build info"
 rm -rf "$PREFIX/share/info" "$PREFIX/share/man" "$PREFIX/share/doc"
 say "toolchain: $PREFIX ($(du -sh "$PREFIX" | cut -f1)); log $LOG"
 "$PREFIX/bin/psp-gcc.exe" --version | head -1 | tee -a "$LOG"
+"$PREFIX/bin/psp-g++.exe" --version | head -1 | tee -a "$LOG"

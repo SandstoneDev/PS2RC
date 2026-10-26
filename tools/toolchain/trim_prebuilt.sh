@@ -1,9 +1,9 @@
 #!/bin/bash
 # trim_prebuilt.sh - the part of a prebuilt pspdev release (Linux / macOS) that a converter bundle ships: the same set
-# as the native Windows toolchain of build_windows.sh. Host side: binutils, the gcc driver and its cc1 / lto, and the
-# three pspsdk host tools the converter calls. Target side: newlib, the pthread glue, libgcc / crt files and pspsdk
+# as the native Windows toolchain of build_windows.sh. Host side: binutils, the gcc / g++ drivers with cc1, cc1plus
+# (the in-game menu is C++) and lto, and the three pspsdk host tools the converter calls. Target side: newlib, the pthread glue, libgcc / crt files and pspsdk
 # (pack_target_files.sh). Left out: third-party psp-packages (SDL, Lua, psp-cfw-sdk, unrar ...), psp-gdb, the psplink
-# tools, pacman, C++ (cc1plus) and the documentation - so the source offer of a bundle is the pinned archives of
+# tools, pacman and the documentation - so the source offer of a bundle is the pinned archives of
 # toolchain.lock.toml plus the host libraries listed in BUILDINFO.txt.
 #
 #   bash tools/toolchain/trim_prebuilt.sh PSPDEV_DIR OUT_DIR [--sources DIR] [--bundle-host-libs]
@@ -44,20 +44,21 @@ copy() {   # copy one file (links resolved) if it exists
 }
 
 # --- host programs (the Windows toolchain's set, ps2rc/convert/toolchain.py TOOLS + what the gcc driver runs)
-for t in addr2line ar as c++filt cpp elfedit gcc gcc-ar gcc-nm gcc-ranlib ld ld.bfd nm objcopy objdump ranlib readelf \
+for t in addr2line ar as c++filt cpp elfedit gcc g++ gcc-ar gcc-nm gcc-ranlib ld ld.bfd nm objcopy objdump ranlib readelf \
          size strings strip fixup-imports prxgen build-exports; do
   copy "$SRC/bin/psp-$t" "$OUT/bin/"
 done
 for t in ar as ld ld.bfd nm objcopy objdump ranlib readelf strip; do
   copy "$SRC/psp/bin/$t" "$OUT/psp/bin/"
 done
-for f in cc1 collect2 lto-wrapper lto1 liblto_plugin.so liblto_plugin.dylib; do
+for f in cc1 cc1plus collect2 lto-wrapper lto1 liblto_plugin.so liblto_plugin.dylib; do
   copy "$SRC/libexec/gcc/psp/$VER/$f" "$OUT/libexec/gcc/psp/$VER/"
 done
 if [ -d "$SRC/lib/bfd-plugins" ]; then mkdir -p "$OUT/lib/bfd-plugins" && cp -pL "$SRC"/lib/bfd-plugins/* "$OUT/lib/bfd-plugins/"; fi
-for t in psp-gcc psp-as psp-ld psp-strip psp-fixup-imports psp-prxgen psp-size psp-objcopy; do
+for t in psp-gcc psp-g++ psp-as psp-ld psp-strip psp-fixup-imports psp-prxgen psp-size psp-objcopy; do
   [ -x "$OUT/bin/$t" ] || { echo "missing bin/$t in $SRC" >&2; exit 2; }
 done
+[ -x "$OUT/libexec/gcc/psp/$VER/cc1plus" ] || { echo "no cc1plus under $SRC/libexec/gcc/psp/$VER (in-game menu)" >&2; exit 2; }
 
 # --- target files (no host binaries, no psp-packages)
 TMP=$(mktemp -d)

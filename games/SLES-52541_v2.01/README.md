@@ -84,20 +84,71 @@ for its own menu.
 
 ### Change the controls
 
-The table above is the built-in layout. Every PS2 button the PSP lacks can be moved to other buttons in
-`ps2rc.cfg` (section CONTROLS; the converter's settings page shows the same choices as lists). A combination is
-two or three buttons joined with `+`: `select start l r up down left right triangle circle cross square`.
+The table above is the built-in layout (`controls_preset=default`). Every PS2 button can be moved to any PSP
+button or combination, on foot and in a vehicle separately: in the converter (page **Controls**, after the
+settings: a control scheme, a picture of the console, a function for every PSP button, combinations, the sticks)
+or later in `ps2rc.cfg` (section CONTROLS).
+
+- A combination is one to three buttons joined with `+`: `select start l r up down left right triangle circle
+  cross square`, and the analog stick: `analog` (moved any way), `analog_left`, `analog_right`, `analog_up`,
+  `analog_down` (pushed far that way). `+tap` = only a short press with nothing else; `+hold` = a short press, or
+  held alone for a moment (about a quarter of a second). Two or three ways to press one PS2 button: join them with `/`.
+- `map_<button>` works on foot and in a vehicle; `car_<button>` only in a vehicle. Buttons: `l2 r2 l3 r3 l1 r1
+  select start cross circle square triangle up down left right`; sticks: `map_rstick` (`select+dpad`, `l+dpad`,
+  `l+analog`, `r+analog`, `none`), `map_lstick` (`analog`, `dpad`, `none`).
+- A value the game does not understand, two keys on the same buttons, L + R + SELECT, HOME or L + R + Down + START:
+  that key keeps its built-in value. `session.log` shows the layout in effect in the lines `controls: ...` and
+  `controls in a vehicle: ...` and the reason for every value that was not used.
+
 Examples:
 
 - `select_to_game=tap` - SELECT reaches the game only when pressed and released alone, so combinations no longer
   change the camera view.
 - `map_l2=l+r` and `map_r2=r+square` - L2 on L and R together, R2 on R and Square.
-- `map_rstick=r+analog` - hold R and use the analog stick to move the right stick (camera, hydraulics).
+- `map_rstick=l+analog` - hold L and use the analog stick to turn the camera.
+- `map_cross=square` and `map_square=cross` - Cross and Square swapped.
+- `car_l2=l+analog_left` - in a vehicle, hold L and push the stick left to look left.
 
-Other keys: `modifier` (`select`, `l`, `r` or `none`: the button the built-in combinations use), `map_l3`,
-`map_r3`, `map_l1`, `map_r1`, `map_select`, `map_start`. A value the game does not understand, two keys on the
-same buttons, L + R + SELECT, HOME or L + R + Down + START: that key keeps its built-in value. `session.log` shows
-the layout in effect in the line `controls: ...` and the reason for every value that was not used.
+### The `stories` layout (`controls_preset=stories`)
+
+The classic layout of the PSP's own open-world games: hold **L** and move the analog stick to turn the camera;
+the D-pad changes weapons on foot and the radio in a vehicle. Functions those games do not have are on the
+remaining buttons. Single keys can still be changed on top of it (`map_...`, `car_...`).
+
+On foot:
+
+| PSP | PS2 | Action |
+|---|---|---|
+| analog stick | left stick | walk, run |
+| L + analog stick | right stick | camera (with R held: free aim) |
+| Cross / Square / Triangle / Circle | the same | sprint / jump / enter a vehicle / attack |
+| R | R1 | aim, lock on |
+| D-pad Left / Right | L2 / R2 | previous / next weapon or target (zoom while aiming a scope) |
+| D-pad Down | L3 | crouch |
+| D-pad Up | D-pad Up | gang: recruit (aim at the member with R first) |
+| L + R, held a moment | R3 | look behind |
+| L, short press or held alone | L1 | centre the camera |
+| L + D-pad | D-pad | the D-pad itself: yes / no answers, dancing, gang: stop (L + Down), menus |
+| SELECT / START | SELECT / START | camera view / pause menu |
+
+In a vehicle (car, bike, boat, aircraft):
+
+| PSP | PS2 | Action |
+|---|---|---|
+| analog stick | left stick | steer |
+| Cross / Square / Triangle / Circle | the same | accelerate / brake, reverse / exit / car weapon |
+| R | R1 | handbrake |
+| L + analog Left / Right | L2 / R2 | look left / right (rudder in aircraft) |
+| L + analog Down | L2 + R2 | look behind |
+| D-pad Left / Right | D-pad Down / Up | radio station |
+| D-pad Down | L3 | horn, siren, hover in a helicopter |
+| D-pad Up | R3 | side mission, landing gear |
+| L, short press or held alone | L1 | car weapon, nitrous, bunnyhop, helicopter gun |
+| L + D-pad | right stick | turret, hydraulics, jet thrust direction, lowrider contest |
+| L + R + D-pad Left / Right | D-pad Left / Right | skip a trip |
+
+While L is held, the analog stick works the camera or the look direction, not walking or steering. In menus that
+need the D-pad left / right on foot (or up / down in a vehicle), hold L.
 
 ### What the game's button prompts mean on the PSP
 

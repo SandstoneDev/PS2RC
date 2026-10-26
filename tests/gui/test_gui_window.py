@@ -152,7 +152,8 @@ def test_every_page_both_languages(gui):
     app.show_page("settings")
     assert "Grafika" in texts(app.centralWidget())              # the Russian template's group names
     menus = [a.text() for a in app.menuBar().actions()]
-    assert menus == [i18n.tr("menu.view", "ru"), i18n.tr("menu.help", "ru")]
+    import eboot_editor                                         # Tools > EBOOT editor between View and Help
+    assert menus == [i18n.tr("menu.view", "ru"), eboot_editor.tr("eb.menu.tools", "ru"), i18n.tr("menu.help", "ru")]
 
 
 def test_interface_size_and_compact_fonts(gui):
@@ -205,47 +206,104 @@ def test_settings_reach_the_converter(gui, monkeypatch):
     assert app.overrides() == {}
 
 
-def test_controls_mapping_as_dropdowns(gui, monkeypatch):
-    """the game pack's real templates: the control mapping settings are drop-downs of combinations in both languages,
-    a choice reaches the converter as the cfg key"""
-    app, mod, qapp, tmp, _mp = gui
+def _real_templates(tmp):
+    """the game pack's real templates (found by content: no game named here) as the window's template"""
     import glob
     import shutil
-    from PySide6.QtWidgets import QComboBox, QScrollArea
     pat = os.path.join(os.path.dirname(__file__), "..", "..", "games", "*", "cfg", "player_en.cfg")
     tpls = [p for p in sorted(glob.glob(pat)) if "#map_l2=" in open(p, encoding="utf-8").read()]
     if not tpls:
         pytest.skip("no game pack template with the control keys")
-    cfg = os.path.dirname(tpls[0])                                   # found by content: no game named here
+    cfg = os.path.dirname(tpls[0])
     for lang in ("en", "ru"):
         shutil.copyfile(os.path.join(cfg, "player_%s.cfg" % lang), str(tmp / ("tpl_%s.cfg" % lang)))
-    want = {"modifier": ["", "select", "l", "r", "none"], "select_to_game": ["", "always", "tap"],
-            "map_l2": ["", "select+l", "l+r", "select+square", "none"],
-            "map_rstick": ["", "select+dpad", "l+dpad", "r+dpad", "r+analog", "analog", "none"]}
+
+
+def test_controls_mapping_page(gui, monkeypatch):
+    """the control keys have their own page (scheme, picture, a function per PSP button, combinations,
+    sticks, a vehicle tab) in both languages; the settings page shows a summary and a button instead; the choices
+    reach the converter as cfg keys (vehicle keys appended)"""
+    app, mod, qapp, tmp, _mp = gui
+    from PySide6.QtWidgets import QComboBox, QTabWidget
+    _real_templates(tmp)
     for lang in ("en", "ru"):
         app._set_lang(lang)
         app._identify_async(app.s["source"])
         pump(qapp, lambda: app.ident and not app.ident.get("busy"))
         app.show_page("settings")
         pump(qapp, timeout=0.2)
-        combos = app.centralWidget().findChildren(QComboBox)
-        lists = [[c.itemData(i) for i in range(c.count())] for c in combos]
-        for key, opts in want.items():
-            assert opts in lists, (lang, key, lists)
-        t = texts(app.centralWidget())
-        assert ("L2" in t) and (("SELECT" in t) or lang == "ru")
-        area = app.centralWidget().findChildren(QScrollArea)[0]
-        box = [c for c, li in zip(combos, lists) if li == want["map_l2"]][0]
-        area.ensureWidgetVisible(box)
+        lists = [[c.itemData(i) for i in range(c.count())] for c in app.centralWidget().findChildren(QComboBox)]
+        assert not any("select+l" in li for li in lists)                    # no mapping drop-downs here any more
+        assert app.t("ctl.change") in texts(app.centralWidget())
+        assert app.next_btn is not None
+        app.next_btn.click()                                                # settings -> controls
         pump(qapp, timeout=0.2)
-        shots = os.environ.get("PS2RC_TEST_SHOTS")                 # a developer looks at the page
+        assert app.page == "controls"
+        t = texts(app.centralWidget())
+        for key in ("ctl.buttons", "ctl.combos", "ctl.sticks", "psp.cross", "psp.select"):
+            assert app.t(key) in t, (lang, key)
+        tabs = app.centralWidget().findChildren(QTabWidget)[0]
+        assert tabs.count() == 2 and tabs.tabText(1) == app.t("ctl.car")
+        fb = app.ctl_boxes[0]["cross"]
+        assert fb.currentData() == "cross" and fb.count() == 17           # (nothing) + 16 PS2 buttons
+        desc = fb.itemText(fb.findData("square"))                         # the game's words from the template
+        assert desc.startswith(app.t("ps2.square") + " - ") and len(desc) > len(app.t("ps2.square")) + 5
+        shots = os.environ.get("PS2RC_TEST_SHOTS")                        # a developer looks at the page
         if shots:
-            app.grab().save(os.path.join(shots, "settings_controls_%s.png" % lang))
-    items = {i.key: i for i in app.template_items if hasattr(i, "key")}
-    app._set_value(items["map_l2"], "l+r")
-    app._set_value(items["select_to_game"], "tap")
-    assert app.overrides() == {"map_l2": "l+r", "select_to_game": "tap"}
+            app.resize(1000, 700)
+            pump(qapp, timeout=0.3)
+            app.grab().save(os.path.join(shots, "controls_%s.png" % lang))
+    # the stories scheme, one button moved, a vehicle-only change
+    app._ctl_preset("stories")
+    assert app.overrides() == {"controls_preset": "stories"}
+    assert app.ctl_scheme.currentData() == "stories"
+    assert app.ctl_boxes[0]["left"].currentData() == "l2" and app.ctl_boxes[1]["left"].currentData() == "down"
+    box = app.ctl_boxes[0]["triangle"]
+    box.setCurrentIndex(box.findData("circle"))
+    box.activated.emit(box.currentIndex())
+    pump(qapp, timeout=0.2)
+    ov = app.overrides()
+    assert ov["map_triangle"] == "none" and ov["map_circle"] == "circle/triangle"
+    app.ctl_tabs.setCurrentIndex(1)
+    app._ctl_button(1, "up", "r1", None)
+    ov = app.overrides()
+    assert ov["car_r3"] == "none" and ov["car_r1"] == "r/up" and app.ctl_tabs.currentIndex() == 1
+    assert app.ctl_status.text() == app.t("ctl.moved", app.t("ps2.r3"))
+    if os.environ.get("PS2RC_TEST_SHOTS"):
+        pump(qapp, timeout=0.3)
+        app.grab().save(os.path.join(os.environ["PS2RC_TEST_SHOTS"], "controls_car_ru.png"))
+    app._ctl_pick("square")                                                # the picture: the row gets the focus
+    assert app.ctl_pic.marked == {"square"}
+    app._ctl_edit("set_combo", 0, None, "l+r+select", "l3", "")            # refused, nothing changes
+    assert app.ctl_status.text().startswith(app.t("ctl.bad", "")[:6]) and app.overrides() == ov
+    app._ctl_restore()
+    assert app.overrides() == {"controls_preset": "stories"}
     app._restore_settings()
+    assert app.overrides() == {}
+
+
+def test_controls_picture_paints(gui):
+    """the hand-drawn console outline: every control has a place, a click names it, both palettes draw"""
+    app, mod, qapp, _tmp, _mp = gui
+    from qt_controls import ConsolePicture, glyph_pixmap
+    from PySide6.QtCore import QPointF, Qt
+    from PySide6.QtGui import QImage
+    pic = ConsolePicture()
+    pic.resize(460, 180)
+    img = QImage(460, 180, QImage.Format_ARGB32)
+    img.fill(0)
+    pic.render(img)
+    assert len({img.pixel(x, y) for x in range(0, 460, 7) for y in range(0, 180, 7)}) > 3
+    got = []
+    pic.picked.connect(got.append)
+    for name in ("cross", "l", "start", "up", "analog"):
+        r = pic.areas[name]
+        from PySide6.QtTest import QTest
+        QTest.mouseClick(pic, Qt.LeftButton, Qt.NoModifier, r.center().toPoint())
+    assert got == ["cross", "l", "start", "up", "analog"]
+    assert pic._at(QPointF(2, 2)) is None
+    for name in ("cross", "circle", "square", "triangle", "up", "l", "select", "analog"):
+        assert not glyph_pixmap(name, 18).isNull()
 
 
 def test_convert_passes_exact_assets_and_shows_progress(gui, monkeypatch):
@@ -706,3 +764,150 @@ def test_disc_buttons_on_with_the_generic_provider(gui):
     assert app.ident["pack"] == "example" and disc_art.find_provider(app._pack_dir()) is not None
     app.show_page("customize")
     assert app._disc_art_possible() and app.art_btn.isEnabled()
+
+
+def test_controls_is_its_own_wizard_step(gui):
+    """Disc > Output > Customize > Settings > Controls > Convert, Back / Next both ways, both languages"""
+    app, mod, qapp, tmp, _mp = gui
+    _real_templates(tmp)
+    assert mod.WIZARD == ("disc", "output", "customize", "settings", "controls", "convert")
+    for lang in ("en", "ru"):
+        app._set_lang(lang)
+        assert len(app.t("steps")) == len(mod.WIZARD)
+    app._set_lang("en")
+    assert app.t("steps")[4] == "Controls"
+    app._identify_async(app.s["source"])
+    pump(qapp, lambda: app.ident and not app.ident.get("busy"))
+    app.show_page("controls")
+    pump(qapp, timeout=0.3)
+    assert "5 Controls" in texts(app.centralWidget())
+    assert app.ctl_restore_btn.isVisible() and app.ctl_scheme.isVisible()
+    app.resize(860, 560)                                   # the smallest window: scheme + restore still on screen
+    pump(qapp, timeout=0.3)
+    r = app.ctl_restore_btn.mapTo(app, app.ctl_restore_btn.rect().topRight())
+    assert r.x() <= app.width()
+    assert [app.ctl_scheme.itemText(i) for i in range(2)] == ["Standard (SELECT combinations)",
+                                                               "Stories (L + analog = camera)"]
+    app.next_btn.click()
+    assert app.page == "convert"
+    back = [b for b in app.centralWidget().findChildren(mod.QPushButton) if b.text() == app.t("back")][0]
+    back.click()
+    assert app.page == "controls"
+
+
+def _wheel(w, dy=-120):
+    from PySide6.QtCore import QPoint, QPointF, Qt
+    from PySide6.QtGui import QWheelEvent
+    from PySide6.QtWidgets import QApplication
+    c = QPointF(w.rect().center())
+    ev = QWheelEvent(c, QPointF(w.mapToGlobal(c.toPoint())), QPoint(0, 0), QPoint(0, dy), Qt.NoButton,
+                     Qt.NoModifier, Qt.NoScrollPhase, False)
+    QApplication.sendEvent(w, ev)
+
+
+def test_wheel_never_changes_a_value_by_itself(gui):
+    """over a drop-down / slider without the keyboard focus the wheel scrolls the page; with the focus it changes it"""
+    app, mod, qapp, tmp, _mp = gui
+    from PySide6.QtCore import Qt
+    from PySide6.QtWidgets import QComboBox, QSlider
+    _real_templates(tmp)
+    app._identify_async(app.s["source"])
+    pump(qapp, lambda: app.ident and not app.ident.get("busy"))
+    for page in ("settings", "controls"):
+        app.show_page(page)
+        pump(qapp, timeout=0.2)
+        boxes = [c for c in app.centralWidget().findChildren(QComboBox) if c.count() > 2 and c.isEnabled()]
+        sliders = app.centralWidget().findChildren(QSlider)
+        for w in boxes[:4] + sliders[:2]:
+            assert w.focusPolicy() == Qt.StrongFocus
+            before = w.currentIndex() if isinstance(w, QComboBox) else w.value()
+            _wheel(w, -120)
+            _wheel(w, 120)
+            _wheel(w, -120)
+            after = w.currentIndex() if isinstance(w, QComboBox) else w.value()
+            assert after == before, (page, type(w).__name__)
+    box = app.ctl_boxes[0]["cross"]
+    box.setFocus()
+    pump(qapp, lambda: box.hasFocus(), timeout=1.0)
+    if box.hasFocus():                                     # offscreen focus works: the wheel changes it now
+        i = box.currentIndex()
+        _wheel(box, -120)
+        assert box.currentIndex() != i
+
+
+def test_control_profiles_on_the_page(gui, tmp_path):
+    """save, rename, load, delete, export, import (a good file and a bad one that changes nothing)"""
+    app, mod, qapp, tmp, _mp = gui
+    import controls_profiles as cp
+    _real_templates(tmp)
+    app._identify_async(app.s["source"])
+    pump(qapp, lambda: app.ident and not app.ident.get("busy"))
+    app.show_page("controls")
+    answers = {}
+    app.ask_text = lambda title, text, value="": answers.get("text")
+    app.ask_yes = lambda title, text: answers.get("yes", True)
+    app.ask_file = lambda save, title, name="": answers.get("file")
+    app._ctl_preset("stories")
+    app._ctl_button(0, "cross", "square", None)
+    mine = app.overrides()
+    answers["text"] = "Driving"
+    app._prof_save()
+    store = app._ctl_store()
+    assert store.names() == ["Driving"] and app.ctl_prof.currentData() == "Driving"
+    assert os.path.dirname(store.folder) == os.path.dirname(app.settings_path)     # per user, not in the output
+    answers["text"] = "Race"
+    app._prof_rename()
+    assert store.names() == ["Race"] and app.ctl_status.text() == app.t("prof.renamed", "Driving", "Race")
+    app._ctl_restore()
+    app._ctl_preset("default")
+    assert app.overrides() == {}
+    app._prof_load()
+    assert app.overrides() == mine
+    out = tmp_path / "race.cfg"
+    answers["file"] = str(out)
+    app._prof_export()
+    text = out.read_text(encoding="utf-8")
+    assert text.startswith("# PS2RC controls profile: Race\n") and "controls_preset=stories" in text
+    app._ctl_preset("default")
+    app._prof_import()                                     # the shared file: same mapping, saved as "Race (2)"
+    assert app.overrides() == mine and store.names() == ["Race", "Race (2)"]
+    bad = tmp_path / "bad.cfg"
+    bad.write_text("# PS2RC controls profile: Bad\nmap_l2=select+l\ndraw_distance=100\n", encoding="utf-8")
+    answers["file"] = str(bad)
+    app._ctl_preset("default")
+    app._prof_import()
+    assert app.overrides() == {} and store.names() == ["Race", "Race (2)"]
+    assert app.ctl_status.text().startswith(app.t("prof.badfile", "")[:20]) and "draw_distance" in \
+        app.ctl_status.text()
+    answers["yes"] = True
+    app._prof_delete()
+    assert len(store.names()) == 1
+    assert cp.parse_text(text)[0] == "Race"
+
+
+def test_update_path_edits_the_folder_controls(gui, tmp_path):
+    """check / update: a converted folder's ps2rc.cfg gets the controls page; other settings stay untouched"""
+    app, mod, qapp, tmp, _mp = gui
+    import glob
+    _real_templates(tmp)
+    folder = tmp_path / "PS2RC_TEST"
+    folder.mkdir()
+    src = glob.glob(os.path.join(os.path.dirname(__file__), "..", "..", "games", "*", "cfg", "player_en.cfg"))
+    tpl = [p for p in src if "#map_l2=" in open(p, encoding="utf-8").read()][0]
+    text = open(tpl, encoding="utf-8").read() + "\npeds=50\nmap_l2=l+r\n"
+    (folder / "ps2rc.cfg").write_text(text, encoding="utf-8")
+    app.selected_folder = str(folder)
+    app.show_page("update")
+    assert app.upd_controls.findChildren(mod.QPushButton)[0].isEnabled()
+    app._open_folder_controls(str(folder))
+    assert app.page == "folder_controls" and app.ctl_folder_vals == {"map_l2": "select+l/l+r"} or \
+        app.ctl_folder_vals == {"map_l2": "l+r"}
+    app._ctl_preset("stories")
+    app._ctl_button(1, "up", "r1", None)                    # a vehicle key: appended to the file
+    new = (folder / "ps2rc.cfg").read_text(encoding="utf-8")
+    assert "\ncontrols_preset=stories\n" in new and "\ncar_r1=r/up\n" in new and "\npeds=50\n" in new
+    assert "\n#map_l2=" in new and "\nmap_l2=" not in new  # back at the preset's value: commented out
+    assert app.values == {} or "controls_preset" not in app.values   # the wizard's own settings unchanged
+    back = [b for b in app.centralWidget().findChildren(mod.QPushButton) if b.text() == app.t("back")][0]
+    back.click()
+    assert app.page == "update"

@@ -48,5 +48,7 @@ int hle_tune_set(const char *key, const char *value);   /* run-time far / farmax
                                                           (in-run A/B); 1 = applied, 0 = not a run-time key */
 void hle_bc_report(void) __attribute__((weak));      /* optional developer module (not in every checkout): drive aid counters (from hle_tune_report) */
 void hle_bc_tick(void) __attribute__((weak));        /* the same developer module: position log / test aids, once per game_process */
+void hle_dev_tick(void) __attribute__((weak));        /* optional developer module (mission watch / replay aid), once per game_process */
+void hle_dev_report(void) __attribute__((weak));      /* its counters (from hle_tune_report) */
 
 #endif

@@ -64,6 +64,8 @@
 #include "texconv.h"
 #include "hle_hitch.h"                                     /* hitch sources texconv / ge-sync */
 #include "hle_fast.h"                                      /* x_aflip (hle_x_opt) */
+#include "hle_hud.h"                                       /* HUD transform (hle_hud.c) */
+#include "hle_menu.h"                                      /* the in-game settings menu */
 
 int hle_ge_on;
 int hle_ge_guest_im2d = 0;                 /* default 0 (ps2rc.cfg im2d_guest=1 = the old behaviour) */
@@ -73,6 +75,20 @@ static int opt_render_ge = 1, opt_text_rows = 12, opt_tex_kb = 2048, opt_clear =
 static uint32_t opt_dump[16];
 static uint32_t opt_trace;               /* ge_trace=<flip>: log every 2D draw of that flip (diagnostics) */
 static int opt_zmask = 1;                /* ge_zmask=0: 2D draws without depth (the radar is then square) */
+/* dither: the GE's 4x4 ordered dither adds the SAME offset at the same screen pixel in every draw, so with
+   stacked semi-transparent layers (smoke, haze, the colour filter pass) each 5/6-bit truncation at that pixel is biased
+   the same way and the error builds up (up to ~7/alpha levels) into a fixed dot pattern on the PSP (PPSSPP's hardware
+   renderers draw at 8 bits per channel without the dither table, so it shows nothing). ge_dither (player key dither):
+   0 off, 1 opaque = only opaque draws are dithered (ONE/ZERO, or SRCALPHA/INVSRCALPHA with opaque vertices and an opaque
+   texture; 3D: the meshes without blending), 2 on = every draw but additive (builds up to 53); ge_dither_mx=1: the
+   matrix halved (-2..+1, a 2x2 pattern); ge_p32=1 (player key color_depth=32): the picture P in 8888 - blending at 8
+   bits, no dither inside P, one dithered 565 conversion at the flip (ge_dither=0: undithered). In-run A/B keys
+   (the developer build's in-run A/B tester). */
+static int opt_dither = 1, opt_dither_mx = 0, opt_p32 = 1;
+static int p32;                          /* P is 8888 now (opt_p32, taken over at a frame start) */
+static int cur_dith = -1;                /* GU_DITHER as last sent (-1 = unknown) */
+static int dith_opq;                     /* the 2D / FX draw being set up is opaque by its vertices and texture */
+extern int w3dme_dpol;                   /* hle_w3d_me.c: the policy the ME's state encoder uses (0 with ge_p32) */
 static int opt_ndump;
 
 /* ------------------------------------------------------------------ display / VRAM */
@@ -83,6 +99,9 @@ static int opt_ndump;
 #define P_OFF (3u * FB_BYTES)             /* the persistent picture the guest draws into (never displayed) */
 #define ZB_OFF (4u * FB_BYTES)            /* reserved for the 3D Z buffer */
 #define T_OFF (5u * FB_BYTES)             /* the debug console after a takeover (CPU-written, never a GE target) */
+#define P32_OFF (5u * FB_BYTES)           /* ge_p32: P in 8888 (2 x FB_BYTES, 0x154000..0x1DC000) over the 565
+                                             layout's T + radiosity targets + free; T then takes the 565 P's place and
+                                             the radiosity targets follow P32 (0x1DC000..0x1F1500) */
 #define VRAM_UNCACHED 0x44000000u
 static const uint32_t fb_off[3] = {0, FB_BYTES, 2u * FB_BYTES};
 static int p_ready;                       /* P cleared once */
@@ -90,6 +109,9 @@ static int disp = -1, pend = -1;          /* displayed / pending (latched at the
 static unsigned pend_vc;                  /* vblank count read right after the pending buffer was set */
 static int first_present = 1;
 static int draw_buf = 2;
+static inline uint32_t p_off(void) { return p32 ? P32_OFF : P_OFF; }          /* where P is now */
+static inline int p_psm(void) { return p32 ? GU_PSM_8888 : GU_PSM_5650; }
+static inline uint32_t t_off(void) { return p32 ? P_OFF : T_OFF; }
 
 /* screen owner: the debug console (boot, end of run, stall) or the GE frames */
 enum { SCR_TEXT = 0, SCR_GE, SCR_STALL, SCR_FINAL };
@@ -231,7 +253,7 @@ static void text_takeover(int final)
 {
     int locked = ge_lock(200000);
     if (scr == SCR_GE) {
-        pspDebugScreenInitEx((void *)(VRAM_UNCACHED + T_OFF), PSP_DISPLAY_PIXEL_FORMAT_565, 1);
+        pspDebugScreenInitEx((void *)(VRAM_UNCACHED + t_off()), PSP_DISPLAY_PIXEL_FORMAT_565, 1);
         static char rows[33][CON_COLS];
         static uint8_t lens[33];
         int partial = 0, n = con_snapshot(33, rows, lens, &partial);
@@ -686,10 +708,41 @@ static int cur_zmode = -1;                /* 2D depth, bit 0 Z test (GEQUAL), bi
 static int zclear_pending = 1;            /* the guest cleared Z (camera clear mode 2): done before the next 2D Z draw */
 static uint64_t st_zdraws, st_zclears_done;
 
+/* the dither policy (opt_dither above); dith_send = the one place GU_DITHER is switched */
+static void dith_send(int on)
+{
+    if (on) sceGuEnable(GU_DITHER); else sceGuDisable(GU_DITHER);
+    cur_dith = on;
+}
+static int dith_base(void) { return !p32 && opt_dither != 0; }   /* opaque draws, clears, a list start */
+static int dith_want(int sb, int db)
+{
+    if (p32 || opt_dither == 0) return 0;
+    if (opt_dither == 2) return db != 2;                   /* builds up to 53: every draw but additive */
+    return (sb == 2 && db == 1) || ((sb == 5 || sb == 11) && db == 6 && dith_opq && !ge3d_active);
+}
+
+/* ge_dither / ge_dither_mx / ge_p32 from ps2rc.cfg (boot) and the in-run A/B (developer builds, between
+   two main-loop iterations); returns 1 for a known key. The matrix is sent at the next list start, P's format changes
+   at the next frame start (frame_begin), the ME encoder's policy at its next batch. */
+int hle_ge_dither_cfg(const char *k, const char *v)
+{
+    int n = atoi(v);
+    if (!strcmp(k, "ge_dither")) opt_dither = n < 0 ? 0 : n > 2 ? 2 : n;
+    else if (!strcmp(k, "ge_dither_mx")) opt_dither_mx = n != 0;
+    else if (!strcmp(k, "ge_p32")) opt_p32 = n != 0;
+    else return 0;
+    w3dme_dpol = p32 ? 0 : opt_dither;
+    cur_dith = -1;
+    cur_sb = cur_db = -1;                                  /* the next draw sends its blend + dither again */
+    return 1;
+}
+
 static void state_reset(void)
 {
     static const ScePspIMatrix4 dither = {{-4, 0, -3, 1}, {2, -2, 3, -1}, {-3, 1, -4, 0}, {3, -1, 2, -2}};
-    sceGuDrawBufferList(GU_PSM_5650, (void *)P_OFF, FB_STRIDE);
+    static const ScePspIMatrix4 dither_weak = {{-2, 0, -2, 0}, {1, -1, 1, -1}, {-2, 0, -2, 0}, {1, -1, 1, -1}};
+    sceGuDrawBufferList(p_psm(), (void *)p_off(), FB_STRIDE);
     sceGuDepthBuffer((void *)ZB_OFF, FB_STRIDE);
     sceGuOffset(2048 - SCR_W / 2, 2048 - SCR_H / 2);
     sceGuViewport(2048, 2048, SCR_W, SCR_H);
@@ -707,8 +760,8 @@ static void state_reset(void)
     sceGuDisable(GU_COLOR_LOGIC_OP);
     sceGuDisable(GU_COLOR_TEST);
     sceGuDisable(GU_STENCIL_TEST);
-    sceGuSetDither(&dither);
-    sceGuEnable(GU_DITHER);
+    sceGuSetDither(opt_dither_mx ? &dither_weak : &dither);
+    dith_send(dith_base());
     sceGuShadeModel(GU_SMOOTH);
     sceGuPixelMask(0);
     sceGuTexFunc(GU_TFX_MODULATE, GU_TCC_RGBA);
@@ -772,13 +825,15 @@ static void set_blend(int sb, int db)
     if (sb == 2 && db == 1) sceGuDisable(GU_BLEND);       /* ONE / ZERO: opaque */
     else { sceGuEnable(GU_BLEND); sceGuBlendFunc(GU_ADD, a, b, fa, fb); }
     if (sb == 5 || sb == 11) sceGuEnable(GU_ALPHA_TEST); else sceGuDisable(GU_ALPHA_TEST);
-    if (db == 2) sceGuDisable(GU_DITHER); else sceGuEnable(GU_DITHER);   /* additive: no dither speckles */
+    dith_send(dith_want(sb, db));                         /* on: additive without dither, as before */
 }
 
 static void apply_state(const RndState *st, GeTex *t)
 {
     int sb = st->src_blend ? st->src_blend : 5, db = st->dst_blend ? st->dst_blend : 6;
     if (sb != cur_sb || db != cur_db) { set_blend(sb, db); cur_sb = sb; cur_db = db; }
+    if (opt_dither == 1 && !p32 && !ge3d_active && dith_want(sb, db) != cur_dith)   /* the per-draw hint */
+        dith_send(dith_want(sb, db));
     if (!t) {
         if (cur_texon != 0) { sceGuDisable(GU_TEXTURE_2D); cur_texon = 0; }
         return;
@@ -954,6 +1009,8 @@ static void frame_begin(void)
         }
     }
     open_t0 = sceKernelGetSystemTimeLow();
+    if (p32 != opt_p32) { p32 = opt_p32; p_ready = 0; }    /* P's format (the pending list is settled) */
+    w3dme_dpol = p32 ? 0 : opt_dither;
     list_begin();
     if (opt_clear || !p_ready) clear_rect(0xFF000000u, GU_COLOR_BUFFER_BIT);
     p_ready = 1;
@@ -1134,6 +1191,7 @@ void hle_ge_im2d(int type, uint32_t verts, int nv, uint32_t gidx, const uint16_t
     float tw = t ? (float)t->w : 0.0f, th = t ? (float)t->h : 0.0f;
     GeV *v = sceGuGetMemory(n * (int)sizeof(GeV));
     int outside = 0;
+    uint32_t ca = 0xFFFFFFFFu;                             /* AND of the vertex colours */
     for (int i = 0; i < n; i++) {
         uint32_t j = gidx ? gh(gidx + 2u * (uint32_t)i) : hidx ? hidx[i] : (uint32_t)i;
         if (j >= (uint32_t)nv) j = 0;
@@ -1142,12 +1200,14 @@ void hle_ge_im2d(int type, uint32_t verts, int nv, uint32_t gidx, const uint16_t
         o.u = gfl(p + 0x10) * tw;
         o.v = gfl(p + 0x14) * th;
         o.c = abgr(gfl(p + 0x20), gfl(p + 0x24), gfl(p + 0x28), gfl(p + 0x2C));
-        o.x = gfl(p) * sx;
-        o.y = gfl(p + 4) * sy;
+        o.x = hle_hud_x(gfl(p)) * sx;                     /* HUD transform (identity outside the HUD) */
+        o.y = hle_hud_y(gfl(p + 4)) * sy;
         o.z = zmap(gfl(p + 8));
         outside |= gb_out(&o);
         v[i] = o;
+        ca &= o.c;
     }
+    dith_opq = (ca >> 24) == 0xFFu && (!t || t->aclass == TC_ALPHA_OPAQUE);   /* dither policy */
     int ntri = prim == GU_TRIANGLES ? n / 3 : prim == GU_TRIANGLE_STRIP || prim == GU_TRIANGLE_FAN ? n - 2 : 0;
     if (outside && ntri > 0 && ntri <= 256) {
         /* clip to the guard band: each triangle -> a clipped fan -> a triangle list (v is read back from the uncached
@@ -1202,11 +1262,17 @@ void hle_ge_rbuf(uint32_t buf, uint32_t n, const RndState *st)
     }
     frame_begin();
     ge3d_leave();
-    list_room(n * 2u * sizeof(GeV) + 256u);
+    int ol = hle_hud_on && hle_hud_outline;                /* HUD text outline (4 black copies first) */
+    uint32_t nv = n * (ol ? 10u : 2u);
+    list_room(nv * sizeof(GeV) + 256u);
+    uint32_t ca = 0xFFu;                                   /* the glyphs' alpha (dither policy) */
+    for (uint32_t i = 0; i < n && opt_dither == 1; i++) ca &= gb(buf + 16u + 40u * i + 31u);
+    dith_opq = ca == 0xFFu && (!t || t->aclass == TC_ALPHA_OPAQUE);
     apply_state(st, t);
     apply_depth(0);                                        /* the glyph quads: no depth (as before) */
     float tw = t ? (float)t->w : 0.0f, th = t ? (float)t->h : 0.0f;
-    GeV *v = sceGuGetMemory((int)(n * 2u * sizeof(GeV)));
+    GeV *vo = sceGuGetMemory((int)(nv * sizeof(GeV)));
+    GeV *v = ol ? vo + 8u * n : vo;                         /* the glyphs after the outline copies */
     int k = 0;
     for (uint32_t i = 0; i < n; i++) {
         uint32_t e = buf + 16u + 40u * i;
@@ -1218,10 +1284,10 @@ void hle_ge_rbuf(uint32_t buf, uint32_t n, const RndState *st)
         b.u = (int16_t)gh(e + 24) / 4096.0f * tw;
         b.v = (int16_t)gh(e + 26) / 4096.0f * th;
         a.c = b.c = c;                                     /* a sprite takes its colour from the second vertex */
-        a.x = (cx - hw) * sx;
-        a.y = (cy - hh) * sy;
-        b.x = (cx + hw) * sx;
-        b.y = (cy + hh) * sy;
+        a.x = hle_hud_x(cx - hw) * sx;                    /* HUD transform (identity outside the HUD) */
+        a.y = hle_hud_y(cy - hh) * sy;
+        b.x = hle_hud_x(cx + hw) * sx;
+        b.y = hle_hud_y(cy + hh) * sy;
         a.z = b.z = 0.0f;
         if (gb_out(&a) || gb_out(&b)) {                    /* guard band: clip the rectangle, UV follows */
             float *pa[2] = {&a.x, &a.y}, *pb[2] = {&b.x, &b.y}, *ta[2] = {&a.u, &a.v}, *tb[2] = {&b.u, &b.v};
@@ -1242,6 +1308,23 @@ void hle_ge_rbuf(uint32_t buf, uint32_t n, const RndState *st)
         }
         v[k++] = a;
         v[k++] = b;
+    }
+    if (ol && k) {                                         /* outline = the glyph in black, 1 px around */
+        static const float d[4][2] = {{-1.0f, 0.0f}, {1.0f, 0.0f}, {0.0f, -1.0f}, {0.0f, 1.0f}};
+        int m = 0;
+        for (int i = 0; i + 1 < k; i += 2) {
+            uint32_t col = v[i + 1].c;
+            if ((col & 0xFFu) < 48u && (col >> 8 & 0xFFu) < 48u && (col >> 16 & 0xFFu) < 48u) continue;   /* shadow */
+            for (int j = 0; j < 4; j++) {
+                GeV a = v[i], b = v[i + 1];
+                a.x += d[j][0]; b.x += d[j][0];
+                a.y += d[j][1]; b.y += d[j][1];
+                a.c = b.c = col & 0xFF000000u;
+                vo[m++] = a;
+                vo[m++] = b;
+            }
+        }
+        if (m) sceGuDrawArray(GU_SPRITES, GEV_FMT, m, NULL, vo);
     }
     if (k) sceGuDrawArray(GU_SPRITES, GEV_FMT, k, NULL, v);
     if (opt_trace && st_flips + 1 == opt_trace)
@@ -1277,6 +1360,7 @@ static void w_tris(const RndVtx *tv, const float *zv, int n, const RndState *st)
     float tw = t ? (float)t->w : 0.0f, th = t ? (float)t->h : 0.0f;
     GeV *v = sceGuGetMemory(n * (int)sizeof(GeV));
     int outside = 0;
+    uint32_t ca = 0xFFFFFFFFu;                             /* AND of the vertex colours */
     for (int i = 0; i < n; i++) {
         GeV o;
         o.u = tv[i].u * tw;
@@ -1287,7 +1371,9 @@ static void w_tris(const RndVtx *tv, const float *zv, int n, const RndState *st)
         o.z = zv ? zv[i] : 0.0f;
         outside |= gb_out(&o);
         v[i] = o;
+        ca &= o.c;
     }
+    dith_opq = (ca >> 24) == 0xFFu && (!t || t->aclass == TC_ALPHA_OPAQUE);   /* dither policy */
     if (outside) {
         int ntri = n / 3;
         list_room((uint32_t)ntri * 15u * sizeof(GeV) + 256u);
@@ -1349,6 +1435,9 @@ void hle_ge_tris_packed(const void *pv, int n, const RndState *st, int depth)
     list_room((uint32_t)n * sizeof(GeV) + 256u);
     GeV *v = sceGuGetMemory(n * (int)sizeof(GeV));
     memcpy(v, pv, (size_t)n * sizeof(GeV));
+    uint32_t ca = 0xFFFFFFFFu;                             /* dither policy (from the cached source) */
+    for (int i = 0; i < n && opt_dither == 1; i++) ca &= ((const GeV *)pv)[i].c;
+    dith_opq = (ca >> 24) == 0xFFu && (!t || t->aclass == TC_ALPHA_OPAQUE);
     apply_state(st, t);
     apply_depth(depth != 0);
     sceGuDrawArray(GU_TRIANGLES, GEV_FMT, n, NULL, v);
@@ -1394,7 +1483,7 @@ int hle_ge_postfx_mul(const float k[3], int dither)
             apply_depth(0);
             sceGuDisable(GU_ALPHA_TEST);
             sceGuEnable(GU_BLEND);
-            if (dither) sceGuEnable(GU_DITHER); else sceGuDisable(GU_DITHER);
+            dith_send(dither && opt_dither == 2 && !p32);   /* dithered only in the "on" policy */
         }
         sceGuBlendFunc(GU_ADD, GU_OTHER_COLOR, GU_FIX, 0, fix);         /* Cd x src + Cd x FIX */
         struct PV { uint32_t c; int16_t x, y, z, pad; } *v = sceGuGetMemory(2 * sizeof(struct PV));
@@ -1420,7 +1509,7 @@ int hle_ge_postfx_mul(const float k[3], int dither)
    filter_passes 0 / 1 (the darkness
    filter's call) are drawn with the two levels. Returns the number of composite passes (0 = nothing, -1 = not the
    screen). */
-#define RAD1_OFF 0x198000u                                  /* 240x136, stride 256 */
+#define RAD1_OFF (p32 ? P32_OFF + 2u * FB_BYTES : 0x198000u)   /* 240x136, stride 256 (after P32) */
 #define RAD2_OFF (RAD1_OFF + 256u * 136u * 2u)              /* 120x68 (+ a zero row / columns), stride 128 */
 
 static void rad_strips(int dw, int dh, float sw, float sh)
@@ -1437,14 +1526,14 @@ static void rad_strips(int dw, int dh, float sw, float sh)
 
 static void rad_target(uint32_t off, int stride, int w, int h, uint32_t tex_off, int tw, int tbw)
 {
-    sceGuDrawBufferList(GU_PSM_5650, (void *)off, stride);
+    sceGuDrawBufferList(off == p_off() ? p_psm() : GU_PSM_5650, (void *)off, stride);   /* P may be 8888 */
     sceGuScissor(0, 0, w, h);
     sceGuDisable(GU_DEPTH_TEST);
     sceGuDepthMask(GU_TRUE);
     sceGuDisable(GU_ALPHA_TEST);
-    sceGuDisable(GU_DITHER);
+    dith_send(0);
     sceGuEnable(GU_TEXTURE_2D);
-    sceGuTexMode(GU_PSM_5650, 0, 0, 0);
+    sceGuTexMode(tex_off == p_off() ? p_psm() : GU_PSM_5650, 0, 0, 0);
     sceGuTexImage(0, tw, tw, tbw, (void *)((uintptr_t)sceGeEdramGetAddr() + tex_off));
     sceGuTexFunc(GU_TFX_REPLACE, GU_TCC_RGB);
     sceGuTexFilter(GU_LINEAR, GU_LINEAR);
@@ -1479,7 +1568,7 @@ int hle_ge_postfx_radiosity(int limit, int filter_passes, int render_passes, int
     if (fence) resync();                                   /* P complete in VRAM before it is sampled */
     list_room(4096);
     /* 1. P 480x272 -> R1 240x136 */
-    rad_target(RAD1_OFF, 256, 240, 136, P_OFF, 512, FB_STRIDE);
+    rad_target(RAD1_OFF, 256, 240, 136, p_off(), 512, FB_STRIDE);
     sceGuDisable(GU_BLEND);
     rad_strips(240, 136, (float)SCR_W, (float)SCR_H);
     if (fence) resync();
@@ -1494,7 +1583,7 @@ int hle_ge_postfx_radiosity(int limit, int filter_passes, int render_passes, int
     rad_strips(120, 68, 240.0f, 136.0f);
     if (fence) resync();
     /* 3. P += min(255, 2 R2) x fix / 128 (GE: ((2c+1)(2f+1)) >> 10, f = 2 fix ~ fix / 128) */
-    rad_target(P_OFF, FB_STRIDE, SCR_W, SCR_H, RAD2_OFF, 128, 128);
+    rad_target(p_off(), FB_STRIDE, SCR_W, SCR_H, RAD2_OFF, 128, 128);
     sceGuEnable(GU_FRAGMENT_2X);
     unsigned f = (unsigned)(2 * fix) > 255u ? 255u : (unsigned)(2 * fix);
     sceGuEnable(GU_BLEND);
@@ -1503,7 +1592,7 @@ int hle_ge_postfx_radiosity(int limit, int filter_passes, int render_passes, int
     sceGuDisable(GU_FRAGMENT_2X);
     /* back to hle_ge.c's 2D state (state_reset's texture function, everything re-sent by the next draw) */
     sceGuTexFunc(GU_TFX_MODULATE, GU_TCC_RGBA);
-    sceGuEnable(GU_DITHER);
+    dith_send(dith_base());                                /* was: dither on */
     cur_tex = NULL;
     cur_sb = cur_db = cur_filter = cur_wrap = -1;
     cur_texon = 1;
@@ -1607,13 +1696,14 @@ void hle_ge_3d_forget(void)
 {
     cur_tex = NULL;
     cur_sb = cur_db = cur_filter = cur_wrap = cur_texon = -1;
+    cur_dith = -1;                                         /* the ME's words may have switched it */
 }
 
 void hle_ge_3d_blend(int on, int sb, int db)
 {
     if (!on) {
         sceGuDisable(GU_BLEND);
-        sceGuEnable(GU_DITHER);
+        dith_send(dith_base());                            /* was: dither on */
         cur_sb = 2;                                        /* ONE / ZERO = what apply_state would call opaque */
         cur_db = 1;
         return;
@@ -1693,7 +1783,7 @@ static void overlay(void)
     sceGuDepthMask(GU_TRUE);
     cur_zmode = 0;
     sceGuDisable(GU_ALPHA_TEST);
-    sceGuDisable(GU_DITHER);
+    dith_send(0);
     sceGuEnable(GU_BLEND);
     sceGuBlendFunc(GU_ADD, GU_SRC_ALPHA, GU_ONE_MINUS_SRC_ALPHA, 0, 0);
     sceGuDisable(GU_TEXTURE_2D);
@@ -1786,7 +1876,7 @@ static void fps_draw(void)
     sceGuDepthMask(GU_TRUE);
     cur_zmode = 0;
     sceGuDisable(GU_ALPHA_TEST);
-    sceGuDisable(GU_DITHER);
+    dith_send(0);
     sceGuEnable(GU_BLEND);
     sceGuBlendFunc(GU_ADD, GU_SRC_ALPHA, GU_ONE_MINUS_SRC_ALPHA, 0, 0);
     sceGuDisable(GU_TEXTURE_2D);
@@ -1823,6 +1913,19 @@ static void fps_draw(void)
     cur_sb = cur_db = cur_filter = cur_wrap = cur_texon = -1;
 }
 
+/* the in-game menu switches the fps counter and the log text live (ps2rc.cfg show_fps / ge_text) */
+void hle_ge_show_fps(int on)
+{
+    opt_fps = on != 0;
+    fps_t0 = 0;
+    fps_len = 0;
+}
+void hle_ge_text_rows(int rows)
+{
+    text_rows_on = rows > 0 ? rows : 12;
+    text_on = rows > 0;
+}
+
 /* ------------------------------------------------------------------ frame dumps (ps2rc.cfg ge_dump=..., PPSSPP checks)
    The frame is read back with a GE block transfer into RAM (a temporary arena block): PPSSPP's hardware backends keep
    GE output on the host GPU and only write it back to emulated VRAM for such transfers, so a CPU read of VRAM sees
@@ -1832,16 +1935,18 @@ static void dump_frame(uint32_t src_off, const char *name, uint64_t flip)
     char path[320];
     uint32_t off;
     af_settle();
-    if (frame_open || !arena_get(FB_BYTES, &off)) { LOG("GE dump: flip %llu skipped (no room)\n", (unsigned long long)flip); return; }
+    int x32 = p32 && src_off == P32_OFF;                  /* an 8888 P */
+    uint32_t nb = x32 ? 2u * FB_BYTES : FB_BYTES;
+    if (frame_open || !arena_get(nb, &off)) { LOG("GE dump: flip %llu skipped (no room)\n", (unsigned long long)flip); return; }
     uint8_t *ram = arena + off;
-    sceKernelDcacheWritebackInvalidateRange(ram, FB_BYTES);
+    sceKernelDcacheWritebackInvalidateRange(ram, nb);
     sceGuStart(GU_DIRECT, list_u[cur_list]);
-    sceGuCopyImage(GU_PSM_5650, 0, 0, SCR_W, SCR_H, FB_STRIDE, (void *)((uintptr_t)sceGeEdramGetAddr() + src_off),
-                   0, 0, FB_STRIDE, ram);
+    sceGuCopyImage(x32 ? GU_PSM_8888 : GU_PSM_5650, 0, 0, SCR_W, SCR_H, FB_STRIDE,
+                   (void *)((uintptr_t)sceGeEdramGetAddr() + src_off), 0, 0, FB_STRIDE, ram);
     sceGuTexSync();
     sceGuFinish();
     sceGuSync(GU_SYNC_FINISH, GU_SYNC_WAIT);
-    sceKernelDcacheInvalidateRange(ram, FB_BYTES);
+    sceKernelDcacheInvalidateRange(ram, nb);
     snprintf(path, sizeof path, "%s%s_%06llu.bmp", hle_plat_disc_root(), name, (unsigned long long)flip);
     SceUID fd = sceIoOpen(path, PSP_O_WRONLY | PSP_O_CREAT | PSP_O_TRUNC, 0777);
     if (fd < 0) { LOG("GE dump: cannot create %s (%08x)\n", path, (unsigned)fd); arena_free(off); return; }
@@ -1861,6 +1966,11 @@ static void dump_frame(uint32_t src_off, const char *name, uint64_t flip)
         int k = 0;
         for (int y = y0; y > y0 - 16 && y >= 0; y--)
             for (int x = 0; x < SCR_W; x++) {
+                if (x32) {                                                       /* ABGR 8888 */
+                    uint32_t q = ((const uint32_t *)ram)[y * FB_STRIDE + x];
+                    rows[k++] = (uint8_t)(q >> 16); rows[k++] = (uint8_t)(q >> 8); rows[k++] = (uint8_t)q;
+                    continue;
+                }
                 unsigned p = fb[y * FB_STRIDE + x];
                 rows[k++] = (uint8_t)((p >> 11) << 3 | (p >> 13));            /* B */
                 rows[k++] = (uint8_t)(((p >> 5) & 63) << 2 | ((p >> 9) & 3));  /* G */
@@ -1874,7 +1984,84 @@ static void dump_frame(uint32_t src_off, const char *name, uint64_t flip)
     LOG("GE dump: flip %llu -> %s\n", (unsigned long long)flip, path);
 }
 
+static void present(int b);
+static void p32_present(uintptr_t vram);
+
+/* ------------------------------------------------------------------ the in-game settings menu
+   hle/psp/hle_menu.h: the flip below opens the menu when the pad read saw its combination (hle_menu_req); the game
+   thread then stays in the flip (the game is paused) while the menu shows its frames: each one = the last game picture
+   P copied into the display buffer drawn next, the menu drawn over it (lib/psp_imgui's GE renderer), the list synced and
+   the buffer presented. Weak: a build without the menu only clears the request. */
+void hle_menu_run(const HleMenuGe *ge) __attribute__((weak));
+static int menu_frame_begin(void)
+{
+    if (!hle_ge_on || scr == SCR_FINAL) return 0;
+    af_settle();
+    if (frame_open) { list_sync(); frame_open = 0; }
+    draw_buf = next_draw_buffer();
+    list_begin();
+    uintptr_t vram = (uintptr_t)sceGeEdramGetAddr();
+    if (p32) p32_present(vram);                            /* color_depth=32: the picture is the 8888 P at P32_OFF */
+    else {                                                 /* (P_OFF is then T: old boot-screen pixels / scratch) */
+        sceGuCopyImage(GU_PSM_5650, 0, 0, SCR_W, SCR_H, FB_STRIDE, (void *)(vram + P_OFF), 0, 0, FB_STRIDE,
+                       (void *)(vram + fb_off[draw_buf]));
+        sceGuTexSync();
+    }
+    sceGuDrawBufferList(GU_PSM_5650, (void *)fb_off[draw_buf], FB_STRIDE);
+    return 1;
+}
+static void menu_frame_end(int shot)
+{
+    list_sync();
+    cur_tex = NULL;
+    cur_sb = cur_db = cur_filter = cur_wrap = cur_texon = -1;
+    if (shot > 0) {                                        /* menu_script shot (PPSSPP checks) + the game picture P */
+        dump_frame(fb_off[draw_buf], "menu_shot", (uint64_t)shot);
+        dump_frame(p_off(), "menu_game", (uint64_t)shot);
+    }
+    present(draw_buf);
+}
+static void menu_poll(void)
+{
+    static const HleMenuGe ge = {menu_frame_begin, menu_frame_end};
+    if (hle_menu_run) hle_menu_run(&ge);
+    hle_menu_req = 0;
+}
+
 /* ------------------------------------------------------------------ flip */
+/* ge_p32: P (8888) drawn into the 565 display buffer draw_buf as a texture in 64-pixel strips (the texture
+   cache; the movie path's pattern), dithered once unless ge_dither=0 - the frame's only 5/6-bit quantisation */
+static void p32_present(uintptr_t vram)
+{
+    sceGuDrawBufferList(GU_PSM_5650, (void *)fb_off[draw_buf], FB_STRIDE);
+    sceGuDisable(GU_DEPTH_TEST);
+    sceGuDepthMask(GU_TRUE);
+    sceGuDisable(GU_ALPHA_TEST);
+    sceGuDisable(GU_BLEND);
+    dith_send(opt_dither != 0);
+    sceGuEnable(GU_TEXTURE_2D);
+    sceGuTexMode(GU_PSM_8888, 0, 0, 0);
+    sceGuTexImage(0, 512, 512, FB_STRIDE, (void *)(vram + P32_OFF));
+    sceGuTexFunc(GU_TFX_REPLACE, GU_TCC_RGB);
+    sceGuTexFilter(GU_NEAREST, GU_NEAREST);
+    sceGuTexWrap(GU_CLAMP, GU_CLAMP);
+    sceGuTexFlush();
+    sceGuTexSync();
+    struct SV { int16_t u, v, x, y, z; } *v = sceGuGetMemory(16 * (int)sizeof(struct SV));
+    int n = 0;
+    for (int x = 0; x < SCR_W; x += 64) {
+        int x1 = x + 64 > SCR_W ? SCR_W : x + 64;
+        v[n].u = (int16_t)x; v[n].v = 0; v[n].x = (int16_t)x; v[n].y = 0; v[n].z = 0; n++;
+        v[n].u = (int16_t)x1; v[n].v = SCR_H; v[n].x = (int16_t)x1; v[n].y = SCR_H; v[n].z = 0; n++;
+    }
+    sceGuDrawArray(GU_SPRITES, GU_TEXTURE_16BIT | GU_VERTEX_16BIT | GU_TRANSFORM_2D, n, NULL, v);
+    sceGuTexFunc(GU_TFX_MODULATE, GU_TCC_RGBA);           /* back to the 2D state (state_reset's texture function) */
+    cur_tex = NULL;
+    cur_sb = cur_db = cur_filter = cur_wrap = -1;
+    cur_texon = 1;
+    cur_zmode = 0;
+}
+
 static void present(int b)
 {
     int locked = ge_lock(0);
@@ -1945,9 +2132,12 @@ void hle_ge_flip(uint32_t raster)
     draw_buf = next_draw_buffer();
     list_room(1024);
     uintptr_t vram = (uintptr_t)sceGeEdramGetAddr();
-    sceGuCopyImage(GU_PSM_5650, 0, 0, SCR_W, SCR_H, FB_STRIDE, (void *)(vram + P_OFF), 0, 0, FB_STRIDE,
-                   (void *)(vram + fb_off[draw_buf]));
-    sceGuTexSync();
+    if (p32) p32_present(vram);                            /* P 8888 -> the 565 buffer, dithered once */
+    else {
+        sceGuCopyImage(GU_PSM_5650, 0, 0, SCR_W, SCR_H, FB_STRIDE, (void *)(vram + P_OFF), 0, 0, FB_STRIDE,
+                       (void *)(vram + fb_off[draw_buf]));
+        sceGuTexSync();
+    }
     sceGuDrawBufferList(GU_PSM_5650, (void *)fb_off[draw_buf], FB_STRIDE);
     overlay();
     fps_draw();
@@ -1965,6 +2155,7 @@ void hle_ge_flip(uint32_t raster)
         SceUInt fdt = sceKernelGetSystemTimeLow() - f0;
         flip_us += fdt;
         if (fdt > flip_us_max) flip_us_max = fdt;
+        if (hle_menu_req) menu_poll();                     /* the in-game menu (the game waits here) */
         return;
     }
     list_sync();
@@ -1986,13 +2177,14 @@ void hle_ge_flip(uint32_t raster)
     }
     for (int i = 0; i < opt_ndump; i++)
         if (opt_dump[i] == st_flips) {
-            dump_frame(P_OFF, "ge_frame", st_flips);               /* the game picture */
+            dump_frame(p_off(), "ge_frame", st_flips);             /* the game picture */
             dump_frame(fb_off[draw_buf], "ge_disp", st_flips);     /* what the screen shows (+ the log text) */
         }
     present(draw_buf);
     SceUInt fdt = sceKernelGetSystemTimeLow() - f0;
     flip_us += fdt;
     if (fdt > flip_us_max) flip_us_max = fdt;
+    if (hle_menu_req) menu_poll();                         /* the in-game menu (the game waits here) */
     if (st_flips <= 4 || (st_flips & 1023) == 0) {
         LOG("GE time after %llu flips: waiting for the GE %.3f ms/flip (max %u us, incl. mid-frame resyncs), flip "
             "%.3f ms/flip (max %u us: copy to the display buffer, log text, sync, present)\n",
@@ -2035,6 +2227,7 @@ void hle_ge_movie_frame(const void *pic, int rgba8888, uint32_t dump)
     int b = next_draw_buffer();
     list_begin();
     sceGuDrawBufferList(GU_PSM_5650, (void *)fb_off[b], FB_STRIDE);
+    if (p32) dith_send(opt_dither != 0);                   /* the 565 buffer, not the 8888 P */
     if (!pic) {
         clear_rect(0xFF000000u, GU_COLOR_BUFFER_BIT);
     } else if (!rgba8888) {
@@ -2082,6 +2275,7 @@ static void read_cfg(void)
             else if (!strcmp(k, "ge_zmask")) opt_zmask = atoi(v);
             else if (!strcmp(k, "ge_ser")) opt_ser = atoi(v);          /* GE serial probe */
             else if (!strcmp(k, "ge_aflip")) opt_aflip = atoi(v);      /* async flip machinery */
+            else if (!strncmp(k, "ge_dither", 9) || !strcmp(k, "ge_p32")) hle_ge_dither_cfg(k, v);
             else if (!strncmp(k, "tex_half", 8) || !strncmp(k, "tex_mip", 7)) hle_ge_tex_cfg(k, v);   /* texture resolution / mipmaps */
             else if (!strncmp(k, "w3d_", 4) || !strcmp(k, "world3d") || !strcmp(k, "mesh_guest")) w3d_cfg(k, v);
             else if (!strcmp(k, "sky") || !strncmp(k, "sky_", 4)) hle_sky_cfg(k, v);   /* the sky */
@@ -2137,6 +2331,10 @@ int hle_ge_init(void)
             LOG("GE async flip: presenter thread on (priority 0x1E); x_aflip (default 1, A/B key) decides "
                 "per flip\n");
     }
+    w3dme_dpol = opt_p32 ? 0 : opt_dither;                 /* p32 itself follows at the first frame */
+    LOG("render: dither ge_dither=%d (%s) ge_dither_mx=%d (%s) ge_p32=%d (picture %s)\n", opt_dither,
+        opt_dither == 0 ? "off" : opt_dither == 1 ? "opaque draws only" : "on: every draw but additive",
+        opt_dither_mx, opt_dither_mx ? "weak -2..+1" : "4x4 -4..+3", opt_p32, opt_p32 ? "8888, 565 at the flip" : "565");
     if (opt_ser > 0)
         LOG("GE serial probe: ge_ser=%d - %s\n", opt_ser,
             "the last settle iteration of every A/B window (or every N-th frame without an A/B) is built in GU_SEND mode "

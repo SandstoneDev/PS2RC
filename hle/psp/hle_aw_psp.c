@@ -12,6 +12,10 @@
  *    GE output on the host GPU: a GE frame read this way is stale or black there - booleans only.) Card space: at most
  *    results_keep (default 20) results_*.txt and as many shot_*.bmp per folder; the oldest sequence numbers go first.
  *
+ * 2026-10-20: the game bakes no clock any more (section C: the clock policy + the clock log). Of B below,
+ *    only ARK's own ladder (cpu_clock_method=ark, cpu_auto, cpu_clock_at) is left; our own PLL writes (the method,
+ *    the walk-back at exit / on a hot battery) are removed - they switched consoles off. No clock change on a PS Vita.
+ *
  * B. cpu_clock_mhz=N (at the user's own risk; absent = nothing, the default stays at 333). The method
  *    of the PLL multiplier numerator of
  *    0xBC1000FC, written from kernel mode (kubridge kuKernelCall) one step at a time with interrupts off, RAM-only, reset
@@ -204,7 +208,6 @@ int hle_aw_shot(const char *dir, unsigned seq, const char *tag, int keep, char *
 /* ================================================================== B. CPU clock (cpu_clock_mhz) */
 #define HW(a) (*((volatile unsigned int *)(a)))
 #define CK_NUM_REST 73u                     /* family B (09g): numerator of 333 MHz */
-#define CK_NUM_MAX 88u                      /* family B: 401 MHz, the developer's measured ceiling */
 #define CK_NUM_ARK 80u                      /* ARK-5's ladder ends at num(483) = 483*2/12 = 80 = 365 MHz */
 static int ck_req;                          /* cpu_clock_mhz (0 = key absent: nothing at all) */
 static int ck_log_s = 10, ck_maxtemp = 50;
@@ -262,32 +265,9 @@ static int k_pll_read(unsigned dst, unsigned z)
     return 0;
 }
 
-/* KERNEL: ONE numerator unit, in the shape of ARK-5's ladder (Compat/PSP/src/overclock.c:244-270, 0 deaths in ~28
-   ladders on the developer's 3008): interrupts off; first the CURRENT value again (the code of the write + settle is then
-   in the I-cache when the generator re-locks - ARK starts every step with num(defaultFreq), the value already there),
-   then cur +- 1; settle 0x2ffff x 10 instructions (~6 ms at 333, ARK's number); interrupts back. The first ramp wrote up
-   to 5 units back to back (73 -> 78 = +23 MHz at once) - the first step of the ramp that switched the console off.
-   Only the numerator field of 0xBC1000FC is written; no syscall, no I/O, no FPU in here. */
-static int k_pll_walk(unsigned from, unsigned to)
-{
-    unsigned int st;
-    unsigned keep = HW(0xbc1000fc) & 0xffff00ffu;
-    unsigned nx = to > from ? from + 1u : to < from ? from - 1u : from;   /* never more than one unit */
-    __asm__ volatile(".set push\n.set noreorder\n"
-                     "mfc0 %0, $12\nsync\n"
-                     "li $t0, 0xfffffffe\nand $t0, %0, $t0\nmtc0 $t0, $12\nsync\nnop\nnop\nnop\n"
-                     ".set pop\n" : "=r"(st) : : "$t0", "memory");
-    HW(0xbc1000fc) = keep | (from << 8);
-    __asm__ volatile("sync");
-    HW(0xbc1000fc) = keep | (nx << 8);
-    __asm__ volatile(".set push\n.set noreorder\n.set nomacro\n"
-                     "sync\nlui $t0, 0x02\nori $t0, $t0, 0xffff\n"
-                     "1: nop\nnop\nnop\nnop\nnop\nnop\nnop\naddiu $t0, $t0, -1\nbnez $t0, 1b\nnop\n"
-                     ".set pop\n" : : : "$t0", "memory");
-    __asm__ volatile(".set push\n.set noreorder\n"
-                     "mtc0 %0, $12\nsync\nnop\nnop\nnop\n.set pop\n" : : "r"(st) : "memory");
-    return (int)(HW(0xbc1000fc) & 0xffff);
-}
+/* The own one-unit PLL walk and its ramp are REMOVED. Every own write of 0xBC1000FC switched a test console off
+   (four different write shapes, 5 of 5 runs); the only multiplier change this runtime may still cause is
+   ARK's own ladder through sctrlHENSetSpeed, and only when the player asks for it (overclock / cpu_clock_* keys). */
 
 static int kcall2(void *fn, unsigned a1, unsigned a2, unsigned *ret)
 {
@@ -307,6 +287,62 @@ static int is_emulator(void)
 }
 
 static int mhz_of(unsigned num) { return (int)((333u * num + 36u) / 73u); }
+
+/* ================================================================== where are we running (read-only)
+ * The CFW's SE configuration (sctrlSEGetConfig) tells the CFW and its CPU-clock setting for games; ARK's runtime
+ * configuration (sctrlArkGetConfig) tells PSP or PS Vita. Layouts from the public ARK-4 / ARK-5 / psp-cfw-sdk sources
+ * (include/systemctrl_se.h, systemctrl_ark.h): ARK SEConfig magic 0xB00B1E55, cpubus_clock at +12 (ARK-5: 0 default,
+ * 1 133, 2 222, 3 333, 4 383, 5 403, 6 423, 7 443, 8 custom = custom_cpu_clock u16 at +36; ARK-4: 1 333, 2 133,
+ * 3 222); Adrenaline's SEConfig starts with 0x192EFC3C 0x17BEB6AA; ARKConfig exec_mode at +144, (mode & 0x0C) == 0x08
+ * = PS Vita. Nothing here writes anything. */
+static int cp_env_done, cp_emu, cp_vita, cp_ark, cp_cpubus = -1, cp_custom_cpu, cp_exec_mode = -1;
+static unsigned cp_semagic;
+static char cp_env[200] = "not read";
+
+static void cp_env_read(void)
+{
+    if (cp_env_done) return;
+    cp_env_done = 1;
+    cp_emu = is_emulator();
+    if (cp_emu) { snprintf(cp_env, sizeof cp_env, "emulator"); return; }
+    uint8_t b[256], a[256];
+    int r = hle_mem_seconfig(b, sizeof b);
+    uint32_t m2;
+    memcpy(&cp_semagic, b, 4);
+    memcpy(&m2, b + 4, 4);
+    if (cp_semagic == 0x192EFC3Cu && m2 == 0x17BEB6AAu) {
+        cp_vita = 1;
+        snprintf(cp_env, sizeof cp_env, "Adrenaline (PS Vita) - SE config magic %08x %08x", cp_semagic, (unsigned)m2);
+        return;
+    }
+    if (cp_semagic != 0xB00B1E55u) {
+        snprintf(cp_env, sizeof cp_env, "CFW not ARK (sctrlSEGetConfig %08x, magic %08x%s)", (unsigned)r, cp_semagic,
+                 b[0] == 0xA5 && b[1] == 0xA5 ? ": buffer untouched" : "");
+        return;
+    }
+    cp_cpubus = b[12];
+    cp_ark = hle_mem_arkconfig(a, sizeof a, 5) ? 5 : hle_mem_arkconfig(a, sizeof a, 4) ? 4 : 1;
+    if (cp_ark == 5) cp_custom_cpu = b[36] | b[37] << 8;
+    if (cp_ark != 1) {
+        cp_exec_mode = a[144];
+        cp_vita = (cp_exec_mode & 0x0C) == 0x08;
+    }
+    snprintf(cp_env, sizeof cp_env, "%s, exec_mode %d (%s), SE config cpubus_clock %d%s", cp_ark == 5 ? "ARK-5"
+             : cp_ark == 4 ? "ARK-4" : "ARK (version unknown: no sctrlArkGetConfig)", cp_exec_mode,
+             cp_exec_mode < 0 ? "?" : cp_vita ? "PS Vita" : (cp_exec_mode & 0x0C) == 0x04 ? "PSP" : "unknown device",
+             cp_cpubus, cp_ark == 5 && cp_cpubus == 8 ? " (custom)" : "");
+}
+
+/* the CPU MHz the CFW applies to games by its own setting: 0 = none (its default: the game decides), -1 = a value we
+   cannot name */
+static int cp_cfw_clock(void)
+{
+    static const int ark5[8] = {0, 133, 222, 333, 383, 403, 423, 443}, ark4[4] = {0, 333, 133, 222};
+    if (cp_cpubus <= 0) return 0;
+    if (cp_ark == 5) return cp_cpubus < 8 ? ark5[cp_cpubus] : cp_cpubus == 8 && cp_custom_cpu > 0 ? cp_custom_cpu : -1;
+    if (cp_ark == 4) return cp_cpubus < 4 ? ark4[cp_cpubus] : -1;
+    return -1;
+}
 
 /* a register-only loop (fits in the I-cache, touches no memory): its time scales with the CPU clock alone.
    it is inline asm now - the C loop it replaces was a pure function of a constant, which gcc
@@ -375,23 +411,6 @@ static int board_ok(char *why, unsigned n)
     return 1;
 }
 
-/* ramp from ck_num_cur to `to` ONE unit (~4.6 MHz) per kernel call with 100 us pauses, like ARK-5's ladder (the first
-   ramp: 5 units per call, a vblank wait before each, 100 ms pauses) - no I/O in here */
-static int ramp_to(unsigned to, unsigned *got_num)
-{
-    unsigned got = 0;
-    while (ck_num_cur != to) {
-        unsigned nx = to > ck_num_cur ? ck_num_cur + 1u : ck_num_cur - 1u;
-        if (!kcall2((void *)k_pll_walk, ck_num_cur, to, &got)) { *got_num = 0; return 0; }
-        ck_num_cur = (got >> 8) & 0xffu;
-        if (ck_num_cur != nx) { *got_num = ck_num_cur; return 0; }
-        sceKernelDelayThread(100);                                 /* ARK: sceKernelDelayThread(100) between steps */
-    }
-    *got_num = ck_num_cur;
-    return 1;
-}
-
-
 /* cpu_clock_at=main|thread - ARK's sctrlHENSetSpeed(
    cpu_clock_ark_req, req / 2) at the very first line of main() (before the debug screen, threads, log) or of the game
    thread (after its FCR31 setup, before the log rotation): the bisection between the tiny test EBOOT (342 MHz lived 3
@@ -436,6 +455,8 @@ void hle_aw_preclock(const char *dir, int stage, unsigned t0_us)
     if (pc_stage != stage) return;
     pc_done = 1;
     if (is_emulator()) { pc_done = 2; return; }
+    cp_env_read();                                                 /* PS Vita: never */
+    if (cp_vita) { pc_done = 3; return; }
     char l[200];
     pc_spin0 = pc_spin();
     pc_t_call = (int)((sceKernelGetSystemTimeLow() - t0_us) / 1000u);
@@ -454,6 +475,7 @@ void hle_aw_preclock_report(void (*logf)(const char *line))
     char l[400];
     if (!pc_done) return;
     if (pc_done == 2) { logf("clock pre-clock: REFUSED - emulator\n"); return; }
+    if (pc_done == 3) { snprintf(l, sizeof l, "clock pre-clock: REFUSED - PS Vita (%s)\n", cp_env); logf(l); return; }
     unsigned r[4] = {0, 0, 0, 0};
     int rd = kcall2((void *)k_pll_read, (unsigned)(uintptr_t)r, 0, NULL);
     snprintf(l, sizeof l, "clock pre-clock at %s: sctrlHENSetSpeed(%d, %d) called at %d ms, returned at %d ms; "
@@ -561,6 +583,16 @@ void hle_aw_auto_boot(const char *dir, unsigned t0_us)
     if (sr < 0 || magic != 0xB00B1E55u) {
         snprintf(au_why, sizeof au_why, "REFUSED - ARK not detected (sctrlSEGetConfig %08x, magic %08x)", (unsigned)sr,
                  (unsigned)magic);
+        return;
+    }
+    cp_env_read();                                                 /* PS Vita: never */
+    if (cp_vita) {
+        snprintf(au_why, sizeof au_why, "REFUSED - PS Vita (%s): the game never sets the clock there", cp_env);
+        return;
+    }
+    if (cp_cfw_clock() > 333 || cp_cfw_clock() < 0) {
+        snprintf(au_why, sizeof au_why, "SKIPPED - ARK's own CPU clock setting for games (%s) decides; the game does "
+                 "not call anything (set ARK's game clock to Default to use overclock=%d instead)", cp_env, au_cfg);
         return;
     }
     if (!kcall2((void *)k_pll_read, (unsigned)(uintptr_t)au_regs, 0, NULL)) {
@@ -671,7 +703,11 @@ void hle_aw_clock_boot(void (*logf)(const char *line))
         return;
     }
     ck_state = CK_REFUSED;
+    cp_env_read();                                                 /* PS Vita / ARK's own setting */
     if (ck_emu) snprintf(ck_why, sizeof ck_why, "emulator (PPSSPP has no PLL)");
+    else if (cp_vita) snprintf(ck_why, sizeof ck_why, "PS Vita (%s): the game never sets the clock there", cp_env);
+    else if (!ck_ark) snprintf(ck_why, sizeof ck_why, "cpu_clock_method=own is disabled: own PLL writes switched the "
+                               "console off every time; only cpu_clock_method=ark remains");
     else if (!ck_kcall_ok) snprintf(ck_why, sizeof ck_why, "kernel call refused");
     else if (!ck_board) snprintf(ck_why, sizeof ck_why, "%s", bw);
     else if (ck_ark) {                                             /* ARK's ladder ends at 80 whatever we ask */
@@ -679,41 +715,26 @@ void hle_aw_clock_boot(void (*logf)(const char *line))
         else if (!ark_num(ck_ark_req) || ark_num(ck_ark_req) > CK_NUM_ARK)
             snprintf(ck_why, sizeof ck_why, "cpu_clock_ark_req=%d is not a request ARK-5 ladders (343..483)", ck_ark_req);
         else ck_num_target = ark_num(ck_ark_req);                  /* 483 -> 80, 454 -> 75 */
-    } else {
-        unsigned num = ((unsigned)ck_req * 73u + 166u) / 333u;
-        if (num > CK_NUM_MAX || ck_req > 401)
-            snprintf(ck_why, sizeof ck_why, "%d MHz is above 401 MHz (numerator 88), the ceiling measured on this "
-                     "board (452 MHz switched it off)", ck_req);
-        else if (num <= CK_NUM_REST) snprintf(ck_why, sizeof ck_why, "%d MHz is not above 333", ck_req);
-        else ck_num_target = num;
     }
     if (!ck_num_target) {
         snprintf(l, sizeof l, "clock: REFUSED - %s; the game runs at 333 MHz\n", ck_why);
         logf(l);
         return;
     }
-    if (ck_ark)
-        snprintf(l, sizeof l, "clock: ARK-5 ladder: sctrlHENSetSpeed(%d, %d) -> ARK writes numerator 55 "
+    snprintf(l, sizeof l, "clock: ARK-5 ladder: sctrlHENSetSpeed(%d, %d) -> ARK writes numerator 55 "
                  "(251 MHz), then climbs to %u = %d MHz in its own steps (the ladder with 0 deaths on this 3008); %s; no "
                  "card I/O until it is done - if this is the last line, the ladder switched the console off\n",
                  ck_ark_req, ck_ark_req / 2, ck_num_target, mhz_of(ck_num_target), ck_early
                  ? "EARLY - before the crash-handler module, the volatile partition, audio, ME, GE"
                  : "after the crash-handler module");
-    else
-        snprintf(l, sizeof l, "clock: ramp 333 -> %d MHz (numerator %u -> %u, ONE unit per step in ARK's "
-                 "ladder shape, ~6 ms settle + 100 us pause each, no card I/O until it is done) - if this is the last "
-                 "line, the ramp switched the console off\n", mhz_of(ck_num_target), CK_NUM_REST, ck_num_target);
     logf(l);
     sceKernelDelayThread(300000);                                  /* the card driver's background work ends */
     unsigned got = 0;
     int ok;
-    if (ck_ark) {
-        at_sctrlHENSetSpeed(ck_ark_req, ck_ark_req / 2);           /* ARK's overclockHandler: currFreq < req <= 483 */
-        ok = read_regs();
-        got = ck_num_cur = ok ? (ck_regs[1] >> 8) & 0xffu : 0u;
-        if (ok && (ck_regs[1] >> 16) != 0x0122u) ok = 0, ck_num_cur = 0;  /* not ours to walk back */
-    } else
-        ok = ramp_to(ck_num_target, &got);
+    at_sctrlHENSetSpeed(ck_ark_req, ck_ark_req / 2);               /* ARK's overclockHandler: currFreq < req <= 483 */
+    ok = read_regs();
+    got = ck_num_cur = ok ? (ck_regs[1] >> 8) & 0xffu : 0u;
+    if (ok && (ck_regs[1] >> 16) != 0x0122u) ok = 0, ck_num_cur = 0;
     sceKernelDelayThread(300000);
     int mhz = bench_mhz(9), want = mhz_of(ck_num_target);
     float vb1 = vblank_hz(500);
@@ -733,12 +754,10 @@ void hle_aw_clock_boot(void (*logf)(const char *line))
              !ok ? "the register did not take a step" : !rd ? "register not readable after the ramp"
              : reg_num != ck_num_target ? "register mismatch" : "CPU loop outside +-8 %",
              ok ? "done" : "STOPPED", got, rd ? "reads" : "unread", reg_num, mhz, want);
-    unsigned g2 = 0;
-    if (ck_num_cur != CK_NUM_REST && ck_num_cur) ramp_to(CK_NUM_REST, &g2);
-    ck_state = CK_FALLBACK;
+    ck_state = CK_FALLBACK;                                        /* no own walk-back any more */
     ck_boot_mhz = bench_mhz(9);
-    snprintf(l, sizeof l, "clock: FALLBACK to 333 - %s; numerator back to %u, CPU loop %d MHz\n", ck_why,
-             ck_num_cur, ck_boot_mhz);
+    snprintf(l, sizeof l, "clock: NOT VERIFIED - %s; left as ARK set it (numerator %u, CPU loop %d MHz; own PLL "
+             "writes are disabled, nothing walks it back)\n", ck_why, ck_num_cur, ck_boot_mhz);
     logf(l);
 }
 
@@ -784,19 +803,13 @@ int hle_aw_clock_down(const char *who, char *out, unsigned n)
     if (!rd || num == CK_NUM_REST || (ck_regs[1] >> 16) != 0x0122u)
         return snprintf(out, n, "clock %s: nothing to restore (%s, numerator %u)\n", who,
                         rd ? "register at 333 or not the measured board" : "register not read", num);
-    if (!ck_restore && !strcmp(who, "at exit"))                     /* ARK itself never walks back */
-        return snprintf(out, n, "clock %s: numerator %u left as it is (cpu_clock_restore=0): the XMB keeps "
-                        "%d MHz until sleep / power off / the next game\n", who, num, mhz_of(num));
+    /* The walk back was our own PLL write (the path that switched consoles off) - removed. ARK keeps its
+       clock until sleep / power off / the next game; cpu_clock_restore no longer does anything. */
     ck_num_cur = num;
-    sceKernelDelayThread(200000);
-    unsigned got = 0;
-    int ok = ramp_to(CK_NUM_REST, &got);
-    sceKernelDelayThread(200000);
-    int mhz = bench_mhz(5);
     ck_emerg_done = 1;
-    if (ok && ck_state == CK_OC) ck_state = CK_FALLBACK;
-    return snprintf(out, n, "clock %s: numerator %u -> %u (%s), CPU loop now %d MHz\n", who, num, got,
-                    ok ? "ok" : "a step did NOT take", mhz);
+    return snprintf(out, n, "clock %s: numerator %u = %d MHz left as ARK set it (own PLL writes are disabled; "
+                    "cpu_clock_restore=%d has no effect)%s\n", who, num, mhz_of(num), ck_restore,
+                    strcmp(who, "at exit") ? " - the game cannot lower it: let the console cool down" : "");
 }
 
 void hle_aw_clock_report(void)
@@ -806,4 +819,188 @@ void hle_aw_clock_report(void)
         "checks during the run: CPU loop min %d / max %d MHz; battery %d C at the start, max %d, last %d\n", ck_req,
         ck_state_name[ck_state], ck_why[0] ? " - " : "", ck_why, ck_boot_mhz, ck_checks,
         ck_checks ? ck_min_mhz : 0, ck_max_mhz, ck_temp0, ck_temp_max, ck_temp_last);
+}
+
+/* ================================================================== C. clock policy + clock log
+ * The game no longer bakes a clock. Builds <= 53 called scePowerSetClockFrequency(333, 333, 166) at the start of every
+ * run. Now, at the same place (main(), before the debug screen and the threads), hle_aw_clock_policy decides:
+ *   - an overclock the player asked for (overclock / cpu_clock_at) already ran: ARK's ladder owns the clock -> no call;
+ *   - cpu_clock_base=off: never any call;  PS Vita (Adrenaline, or ARK in Vita mode): never any call;
+ *   - cpu_clock_base=333: the old behaviour (one scePowerSetClockFrequency(333, 333, 166));
+ *   - default cpu_clock_base=auto: the emulator keeps the old call (PPSSPP times the emulated CPU by it, nothing on the
+ *     hardware); the CFW has its own CPU-clock setting for games (ARK's menu, SE config cpubus_clock != 0) -> no call,
+ *     the CFW decides (it applies its setting at the end of the boot and, for an overclock, turns the scePower clock
+ *     setters into no-ops: ARK-5 SystemControl/src/cpuclock.c, Compat/PSP/src/overclock.c); no CFW setting and the
+ *     system left the CPU below 333 (a game starts at 222 / bus 111; PPSSPP's Core/HLE/scePower.cpp models the
+ *     same) -> ONE scePowerSetClockFrequency(333, 333, 166): Sony's own maximum, guaranteed on every PSP, never
+ *     an overclock; already at 333 or more -> no call.
+ * Clock log (clock_log=0 turns it off): one sample at the first line of main(), one after the policy, one after the
+ * crash-handler module loads (a module start is where ARK applies its setting), then from the watchdog at 1, 2, 3, 5,
+ * 10, 20 s and 60 s after the start, and at exit. A sample = scePower's CPU / bus MHz (it cannot see a PLL change made
+ * by ARK's ladder), ARK-5's own sctrlHENGetSpeed (the frequency its ladder climbed to), the PLL registers read in
+ * kernel mode (ARK on a PSP only; read-only) and a CPU loop timed in user mode (~MHz; calibrated on a PSP-3000:
+ * 2 000 000 iterations = 22.064 ms at 333 MHz). */
+static int cp_base, cp_log = 1, cp_called, cp_call_rc, cp_cur0, cp_have_cfg;
+static unsigned cp_t0;
+static char cp_act[300];
+typedef struct { const char *tag; unsigned t_ms; int cpu, bus, hen, pll, spin; unsigned ctl, mul; } CpSample;
+static CpSample cp_s[3], cp_last;
+static int cp_ns, cp_have_last, cp_wi;
+static const char *const cp_base_name[] = {"auto", "333", "off"};
+
+static int cp_spin_mhz(void)                         /* best of 3 x 500 000 iterations, ~5.5 ms each at 333 MHz */
+{
+    unsigned best = 0xFFFFFFFFu;
+    for (int i = 0; i < 3; i++) {
+        unsigned t0 = sceKernelGetSystemTimeLow();
+        bench_sink = bench_loop(500000u);
+        unsigned d = sceKernelGetSystemTimeLow() - t0;
+        if (d && d < best) best = d;
+    }
+    return best && best != 0xFFFFFFFFu ? (int)((333u * 5516u + best / 2u) / best) : 0;
+}
+
+static void cp_take(CpSample *s, const char *tag, int spin)
+{
+    s->tag = tag;
+    s->t_ms = (sceKernelGetSystemTimeLow() - cp_t0) / 1000u;
+    s->cpu = scePowerGetCpuClockFrequencyInt();
+    s->bus = scePowerGetBusClockFrequencyInt();
+    s->hen = cp_ark == 5 ? hle_mem_hen_speed() : -1;
+    s->pll = 0;
+    s->ctl = s->mul = 0;
+    if (!cp_emu && !cp_vita && cp_ark) {                          /* kubridge is ARK's; a PSP only */
+        unsigned r[4] = {0, 0, 0, 0};
+        if (kcall2((void *)k_pll_read, (unsigned)(uintptr_t)r, 0, NULL)) { s->pll = 1; s->ctl = r[0]; s->mul = r[1]; }
+    }
+    s->spin = spin ? cp_spin_mhz() : 0;
+}
+
+static int cp_fmt(char *out, unsigned n, const CpSample *s)
+{
+    char h[48] = "", p[112] = "", c[32] = "", d[96] = "";
+    if (s->hen != -1) snprintf(h, sizeof h, ", ARK-5 sctrlHENGetSpeed %d", s->hen);
+    if (s->pll) {
+        unsigned num = (s->mul >> 8) & 0xffu;
+        int fam_b = (s->mul >> 16) == 0x0122u && (s->mul & 0xffu) == 2u;
+        int k = snprintf(p, sizeof p, ", PLL ctl %08x mul %08x", s->ctl, s->mul);
+        if (fam_b && k > 0 && k < (int)sizeof p)
+            snprintf(p + k, sizeof p - (unsigned)k, " (09g numerator %u = %d MHz)", num, mhz_of(num));
+    } else if (cp_emu) snprintf(p, sizeof p, ", PLL not read (emulator)");
+    else if (cp_vita) snprintf(p, sizeof p, ", PLL not read (PS Vita)");
+    else if (!cp_ark) snprintf(p, sizeof p, ", PLL not read (not ARK)");
+    else snprintf(p, sizeof p, ", PLL not read (kuKernelCall refused)");
+    if (s->spin) snprintf(c, sizeof c, ", CPU loop ~%d MHz", s->spin);
+    if (cp_have_last && (s->cpu != cp_last.cpu || s->bus != cp_last.bus || s->hen != cp_last.hen ||
+                         (s->pll && cp_last.pll && s->mul != cp_last.mul)))
+        snprintf(d, sizeof d, " - CHANGED since %s (t=%u.%02u s)", cp_last.tag, cp_last.t_ms / 1000u,
+                 (cp_last.t_ms % 1000u) / 10u);
+    return snprintf(out, n, "clock %s t=%u.%02u s: scePower cpu %d / bus %d MHz%s%s%s%s\n", s->tag, s->t_ms / 1000u,
+                    (s->t_ms % 1000u) / 10u, s->cpu, s->bus, h, p, c, d);
+}
+
+/* main(), the first line: before cpu_auto / cpu_clock_at */
+void hle_aw_clock_entry(unsigned t0_us)
+{
+    cp_t0 = t0_us;
+    const char *k = hle_cfg_get("clock_log");
+    cp_log = !(k && atoi(k) == 0);
+    k = hle_cfg_get("cpu_clock_base");
+    cp_have_cfg = k != NULL;
+    cp_base = !k ? 0 : !strncmp(k, "333", 3) ? 1 : (!strncmp(k, "off", 3) || !strcmp(k, "0")) ? 2 : 0;
+    cp_env_read();
+    if (cp_log) cp_take(&cp_s[cp_ns++], "main entry", 1);
+}
+
+/* main(), where builds <= 53 called scePowerSetClockFrequency(333, 333, 166) */
+void hle_aw_clock_policy(void)
+{
+    int cur = cp_cur0 = scePowerGetCpuClockFrequencyInt(), cfw = cp_cfw_clock(), want = 0;
+    if (hle_aw_auto_active() || pc_done == 1)
+        snprintf(cp_act, sizeof cp_act, "an overclock the player asked for already ran (%s): ARK's ladder owns the "
+                 "clock", hle_aw_auto_active() ? "overclock" : "cpu_clock_at");
+    else if (cp_base == 2) snprintf(cp_act, sizeof cp_act, "cpu_clock_base=off: the game never sets the clock");
+    else if (cp_vita) snprintf(cp_act, sizeof cp_act, "PS Vita: the game never sets the clock there");
+    else if (cp_base == 1)
+        want = 1, snprintf(cp_act, sizeof cp_act, "cpu_clock_base=333: 333 at every start, as builds <= 53 did");
+    else if (cp_emu)
+        want = 1, snprintf(cp_act, sizeof cp_act, "emulator: 333 as before (PPSSPP times the emulated CPU by it)");
+    else if (cfw)
+        snprintf(cp_act, sizeof cp_act, "the CFW's own CPU clock setting for games decides (%d%s): the game does not "
+                 "touch it", cfw, cfw > 0 ? " MHz" : " = a value this build cannot name");
+    else if (cur >= 333)
+        snprintf(cp_act, sizeof cp_act, "no CFW clock setting, the CPU already runs at %d MHz: nothing to do", cur);
+    else
+        want = 1, snprintf(cp_act, sizeof cp_act, "no CFW clock setting and the system left %d MHz: raised to 333 "
+                           "(Sony's own maximum, guaranteed on every PSP - not an overclock)", cur);
+    if (want) { cp_called = 1; cp_call_rc = scePowerSetClockFrequency(333, 333, 166); }
+    if (cp_log) cp_take(&cp_s[cp_ns++], "after the boot policy", 0);
+}
+
+/* after session.log is open (game thread) */
+void hle_aw_clock_policy_report(void (*logf)(const char *line))
+{
+    char l[700];
+    char oc[32] = "the game's overclock off";
+    if (hle_aw_auto_active()) snprintf(oc, sizeof oc, "the game's overclock %d MHz", hle_aw_auto_active());
+    snprintf(l, sizeof l, "clock policy: cpu_clock_base=%s%s, %s -> %s%s; %s (the "
+             "system's clock at the policy: %d MHz); where: %s\n", cp_base_name[cp_base], cp_have_cfg ? "" : " (default)",
+             oc, cp_called ? "ONE scePowerSetClockFrequency(333, 333, 166)" : "NO clock call",
+             cp_called && cp_call_rc < 0 ? " (FAILED)" : "", cp_act, cp_cur0, cp_env);
+    logf(l);
+    if (cp_called && cp_call_rc < 0) {
+        snprintf(l, sizeof l, "clock policy: scePowerSetClockFrequency returned %08x\n", (unsigned)cp_call_rc);
+        logf(l);
+    }
+    for (int i = 0; i < cp_ns; i++) {
+        cp_fmt(l, sizeof l, &cp_s[i]);
+        logf(l);
+        cp_last = cp_s[i];
+        cp_have_last = 1;
+    }
+}
+
+/* one sample + its line now (after the crash-handler module: a module start is where ARK applies its setting) */
+void hle_aw_clock_mark(const char *tag, void (*logf)(const char *line))
+{
+    if (!cp_log) return;
+    CpSample s;
+    char l[400];
+    cp_take(&s, tag, 1);
+    cp_fmt(l, sizeof l, &s);
+    logf(l);
+    cp_last = s;
+    cp_have_last = 1;
+}
+
+/* watchdog, once per second: a sample at 1, 2, 3, 5, 10, 20 s (with the CPU loop) and 60 s (without) after the start */
+int hle_aw_clock_watch(char *out, unsigned n)
+{
+    static const unsigned at_s[] = {1, 2, 3, 5, 10, 20, 60};
+    static const char *const tag[] = {"watch 1 s", "watch 2 s", "watch 3 s", "watch 5 s", "watch 10 s", "watch 20 s",
+                                      "watch 60 s"};
+    const int nat = (int)(sizeof at_s / sizeof at_s[0]);
+    if (!cp_log || cp_wi >= nat) return 0;
+    unsigned t = (sceKernelGetSystemTimeLow() - cp_t0) / 1000000u;
+    if (t < at_s[cp_wi]) return 0;
+    while (cp_wi + 1 < nat && t >= at_s[cp_wi + 1]) cp_wi++;      /* the watchdog started late: skip missed ones */
+    CpSample s;
+    cp_take(&s, tag[cp_wi], at_s[cp_wi] <= 20u);
+    cp_wi++;
+    int r = cp_fmt(out, n, &s);
+    cp_last = s;
+    cp_have_last = 1;
+    return r;
+}
+
+/* the exit sequence: one light sample (no CPU loop) */
+int hle_aw_clock_exit_line(char *out, unsigned n)
+{
+    if (!cp_log) return 0;
+    CpSample s;
+    cp_take(&s, "at exit", 0);
+    int r = cp_fmt(out, n, &s);
+    cp_last = s;
+    cp_have_last = 1;
+    return r;
 }

@@ -25,7 +25,8 @@
  * lo / hi  numeric range of the FRIENDLY value: outside = clamped (noted in the log); lo = hi = 0: a word key, stored
  *          as given (pad_sel_up, cpu_auto_reset); a word key with "!word=n,..." takes only those words (lower case)
  * def      the code default of the INTERNAL key (applies when the file sets neither name; shown with '*')
- * inv      1 = internal = lo + hi - friendly (shadows=1 is x_fxskip=0)
+ * inv      1 = internal = lo + hi - friendly (shadows=1 is x_fxskip=0); -1 (word keys only) = not listed in the
+ *          "settings:" line - the module that reads it logs it itself (the controls keys: "controls:")
  * words    "word=number,..." friendly words (textures=half); "!" first = ONLY these values (overclock, game_fps);
  *          the log line shows the first word of an internal value */
 typedef struct { const char *name, *key; int lo, hi, def, inv; const char *words; } HleCfgAlias;
@@ -41,5 +42,19 @@ int hle_cfg_found(void);                    /* 1 = the cfg and/or the dev cfg wa
 const char *hle_cfg_settings_line(void);
 const char *hle_cfg_notes(void);
 void hle_cfg_report(void);                  /* LOG the two lines above + the sorted internal key table (session.log) */
+
+/* - run-time changes (the in-game settings menu, hle/psp/hle_menu.cpp):
+   hle_cfg_set      one "name = value" as if it were the file's last line (friendly name -> internal key, clamped,
+                    words checked; the boot notes are not touched); 1 = stored, 0 = not a valid value / table full
+   hle_cfg_alias    the friendly name's alias entry, NULL = not a friendly name
+   hle_cfg_friendly the effective value of a friendly name as the player writes it ("40", "half", "on"): 1 = from the
+                    file (or a run-time set), 0 = the code default, -1 = not a friendly name
+   hle_cfg_file     the file name read (dev = 1: the developer file), or the name it would have when none was read;
+   hle_cfg_file_found  1 = that file was read */
+int hle_cfg_set(const char *name, const char *value);
+const HleCfgAlias *hle_cfg_alias(const char *name);
+int hle_cfg_friendly(const char *name, char *buf, int n);
+const char *hle_cfg_file(int dev);
+int hle_cfg_file_found(int dev);
 
 #endif

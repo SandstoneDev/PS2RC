@@ -32,7 +32,7 @@ static void x_load(void)
 /* run-time overrides (an in-run interleaved A/B); checked before the cfg / environment value; empty unless
    hle_x_set was called */
 int hle_x_gen;
-#define XOV 8
+#define XOV 24                                   /* 8 -> 24 (the menu's live x_ keys + an A/B) */
 static struct { char name[24]; int val; } xo[XOV];
 static int nxo;
 

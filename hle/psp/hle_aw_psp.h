@@ -30,4 +30,11 @@ void hle_aw_clock_boot(void (*logf)(const char *line));
 int hle_aw_clock_tick(char *out, unsigned n, int *emergency);
 int hle_aw_clock_down(const char *who, char *out, unsigned n);
 void hle_aw_clock_report(void);
+/* C. the clock policy (no baked clock) + the clock log (hle_aw_psp.c section C) */
+void hle_aw_clock_entry(unsigned t0_us);                   /* main(), first line: reads clock_log / cpu_clock_base */
+void hle_aw_clock_policy(void);                            /* main(): replaces the old scePowerSetClockFrequency(333) */
+void hle_aw_clock_policy_report(void (*logf)(const char *line));   /* after the log is open */
+void hle_aw_clock_mark(const char *tag, void (*logf)(const char *line));   /* one sample + line now */
+int hle_aw_clock_watch(char *out, unsigned n);             /* watchdog, once per second (samples at 1..60 s) */
+int hle_aw_clock_exit_line(char *out, unsigned n);         /* exit sequence */
 #endif

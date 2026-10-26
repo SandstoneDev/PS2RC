@@ -12,6 +12,7 @@
 void hle_ab_init(void) __attribute__((weak));
 void hle_ab_tick(void) __attribute__((weak));
 void hle_ab_report(void) __attribute__((weak));
+void hle_lightlog_tick(void) __attribute__((weak));   /* light_log diagnostics (hle_lightlog.c) */
 #include "hle_bl.h"
 
 /* ------------------------------------------------------------------ idle thread (created at 0x245FF0, prio 127):
@@ -191,10 +192,12 @@ void hle_pack_boot_init(void)
     hle_overlays_register();
 }
 
+void hle_scrdiag_report(void);             /* hle_scrdiag.c */
 void hle_pack_report(void)
 {
     hle_render_report();
     hle_tune_report();                     /* tune_* summary */
+    hle_scrdiag_report();                  /* script guard count (hle_scrdiag.c) */
 }
 
 /* ================================================================== the debug views of the TRACE flags 2 / 4 / 16
@@ -268,6 +271,7 @@ void hle_pack_trace(const char *name, uint32_t addr, R5900Ctx *c, int flags, int
 void hle_pack_frame_tick(void)
 {
     if (hle_ab_tick) hle_ab_tick();
+    if (hle_lightlog_tick) hle_lightlog_tick();
     hle_bl_tick();
 }
 void hle_pack_timing_report(void)

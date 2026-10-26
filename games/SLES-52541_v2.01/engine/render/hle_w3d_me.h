@@ -75,7 +75,8 @@ typedef struct {
     volatile uint32_t lines;          /* job lines published in this batch */
     volatile uint32_t arena_start;    /* arena byte offset where this batch's GE words begin */
     volatile uint32_t stream, parts, arena, priv;   /* addresses (PSP: stream cached, parts / arena uncached) */
-    volatile uint32_t opts;           /* bit 0 gnear, 1 clip, 2 light, 3 tilebase, 4 afail, 5 front; chunk group << 8 */
+    volatile uint32_t opts;           /* bit 0 gnear, 1 clip, 2 light, 3 tilebase, 4 afail, 5 front; chunk group << 8;
+                                         bits 24-25 the dither policy (w3dme_dpol) */
     volatile uint32_t pad0[8];        /* [0] global template, [1] its words, [2] own runner, [3] [4] vertex cache */
     /* ME -> main */
     volatile uint32_t polls;          /* +1 per poll (a live poller) */
@@ -105,6 +106,7 @@ extern int w3d_opt_me, w3d_opt_me_runner, w3d_opt_me_stall_ms, w3d_opt_me_hook, 
    bit 1 QUIET: while no batch is open, the ME audio / jobs loop backs off 4x longer between idle polls (its jobs table's
      idle_nops; reset to the default when a batch opens) - fewer uncached polls of the ME on the shared bus. */
 extern int w3d_opt_me_bus;
+extern int w3dme_dpol;              /* dither policy for the ME's state words (hle_ge.c) */
 #define W3M_BUS_BURST 1
 #define W3M_BUS_QUIET 2
 #define W3M_OPT_BURST 64u                 /* opts bit (W3mCtl.opts) of a batch built with BURST */
@@ -140,7 +142,7 @@ uint32_t *w3dme_enc_state(uint32_t *o, const W3dState *st, const W3dState *prev,
                           int front, const float *amb);
 uint32_t *w3dme_enc_tex(uint32_t *o, const W3mTex *t, const W3mTex *prev, int all);
 uint32_t *w3dme_enc_proj(uint32_t *o, const float *p16);
-uint32_t *w3dme_enc_blend(uint32_t *o, int on, int sb, int db);
+uint32_t *w3dme_enc_blend(uint32_t *o, int on, int sb, int db, int dpol);   /* dpol: the dither policy */
 uint32_t *w3dme_enc_world(uint32_t *o, const float *gm);
 uint32_t *w3dme_enc_lights(uint32_t *o, const W3dLights *l);
 uint32_t *w3dme_enc_bones(uint32_t *o, int n, const float (*m)[12]);

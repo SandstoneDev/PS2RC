@@ -13,6 +13,11 @@
 /* SE config: fills buf (n bytes, pre-filled with 0xA5 here) through sctrlSEGetConfig; returns its result, or
    0x7FFFFFFF when not called (emulator: PPSSPP has no SystemControl) */
 int hle_mem_seconfig(uint8_t *buf, unsigned n);
+/* ARK's runtime configuration (exec_mode at +144: PSP / PS Vita) through ARK-5's ArkCtrl (which = 5) or
+   ARK-4's SystemCtrlForUser (which = 4); 1 = buf (>= 160 bytes) holds ARK's magic. ARK-5's sctrlHENGetSpeed (-1 = not
+   called). Read-only, both. */
+int hle_mem_arkconfig(uint8_t *buf, unsigned n, int which);
+int hle_mem_hen_speed(void);
 
 /* the volatile partition (all no-ops / NULL unless hle_mem_vol_lock succeeded) */
 int hle_mem_vol_lock(void);                      /* 0 = locked, size >= 1 MB, memory touched and checked */

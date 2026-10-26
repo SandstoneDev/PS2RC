@@ -46,16 +46,21 @@ PUBLIC_PACKS = ("_template", "example")
 SKIP_DIRS = {".git", "build", "analysis", "__pycache__", ".pytest_cache", ".claude", "tools/release", "docs",
              "tests/convert", "tests/pbp", "tests/gui"}
 SKIP_FILES = {"local.toml"}
-# parts of the toolchain a C conversion never uses (measured on the 15.2 build: 270 -> ~150 MB): the other multilibs
-# (soft-float, big endian), C++ libraries and headers, LTO / coverage tools, duplicate driver and linker names, the
-# static plugin library. The LTO plugin DLL and lto1 stay: pspdev's libpthread.a is linked through them.
+# parts of the toolchain a conversion never uses (measured on the 15.2 build: 270 -> ~150 MB without C++): the other
+# multilibs (soft-float, big endian), the full C++ library (the in-game menu is C++ built with -fno-exceptions -fno-rtti
+# and links no libstdc++; psp-g++, cc1plus, the C++ headers and libsupc++ stay), LTO / coverage tools, duplicate driver
+# and linker names, the static plugin library. The LTO plugin DLL and lto1 stay: pspdev's libpthread.a is linked
+# through them.
 TOOLCHAIN_SKIP_DIRS = {"psp/lib/soft-float", "psp/lib/eb", "lib/gcc/psp/15.2.0/soft-float", "lib/gcc/psp/15.2.0/eb",
-                       "psp/include/c++", "share"}
+                       "share"}
 TOOLCHAIN_SKIP_FILES = {"bin/psp-lto-dump.exe", "bin/psp-gcov.exe", "bin/psp-gcov-tool.exe", "bin/psp-gcov-dump.exe",
-                        "bin/psp-gcc-15.2.0.exe", "bin/psp-ld.bfd.exe", "psp/bin/ld.bfd.exe",
-                        "psp/lib/libstdc++.a", "psp/lib/libstdc++exp.a", "psp/lib/libsupc++.a",
+                        "bin/psp-gcc-15.2.0.exe", "bin/psp-c++.exe", "bin/psp-ld.bfd.exe", "psp/bin/ld.bfd.exe",
+                        "psp/lib/libstdc++.a", "psp/lib/libstdc++exp.a", "psp/lib/libstdc++.la",
+                        "psp/lib/libstdc++exp.la", "psp/lib/libstdc++.modules.json",
                         "psp/lib/libstdc++.a-gdb.py", "libexec/gcc/psp/15.2.0/liblto_plugin.a",
                         "libexec/gcc/psp/15.2.0/liblto_plugin.la"}
+# the in-game menu needs these: a toolchain without them makes EBOOTs without the menu (ps2rc/convert/build.py warns)
+TOOLCHAIN_NEED_CXX = ("bin/psp-g++.exe", "libexec/gcc/psp/15.2.0/cc1plus.exe", "psp/include/c++/15.2.0/new")
 # optional external programs (each runs as a separate process; their licences travel with them)
 TOOLS = {
     "ffmpeg": {"exe": ("ffmpeg.exe", "ffmpeg", "ffprobe.exe", "ffprobe"),
@@ -329,6 +334,8 @@ def main(argv=None):
     ap.add_argument("--ffmpeg", help="folder with ffmpeg(.exe) + its licence file(s)")
     ap.add_argument("--atracdenc", help="folder with atracdenc(.exe) + its licence file(s)")
     ap.add_argument("--allow-missing", action="store_true", help="only report DLLs a clean Windows lacks")
+    ap.add_argument("--allow-no-cxx", action="store_true",
+                    help="accept a C-only toolchain (EBOOTs built with it have no in-game menu)")
     a = ap.parse_args(argv)
     packs = a.pack or list(PUBLIC_PACKS)
     # from this checkout only _template / example are public; a public export (--source, made by
@@ -365,6 +372,10 @@ def main(argv=None):
     print("python: %.1f MB (from %s, with Pillow%s)" % (sizes["python"] / 1e6, a.python_from,
                                                          ", numpy" if a.with_numpy else ""))
     if a.toolchain:
+        miss = [f for f in TOOLCHAIN_NEED_CXX if not os.path.isfile(os.path.join(a.toolchain, f))]
+        if miss and not a.allow_no_cxx:
+            sys.exit("refused: the toolchain %s has no %s - its EBOOTs would have no in-game menu (build it with "
+                     "tools/toolchain/build_windows.sh, or pass --allow-no-cxx)" % (a.toolchain, ", ".join(miss)))
         copytree(a.toolchain, os.path.join(out, "toolchain"), skip_rel=TOOLCHAIN_SKIP_DIRS,
                  filt=lambda rel: rel not in TOOLCHAIN_SKIP_FILES)
         sizes["toolchain"] = du(os.path.join(out, "toolchain"))

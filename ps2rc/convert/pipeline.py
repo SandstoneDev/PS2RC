@@ -48,7 +48,8 @@ def runtime_fingerprint(repo, pack, profile=None):
     """What the program is built from: the translator, the runtime sources, the pack (its files and recipe; not its
     tests). Stored in the folder's manifest: a different value = the update rebuilds the program."""
     return fingerprint(code_hash(repo), [tree_hash(os.path.join(repo, d)) for d in
-                                         ("hle", "runtime", "audio", "psp_exc", "src/hle", "src/runtime")],
+                                         ("hle", "runtime", "audio", "psp_exc", "src/hle", "src/runtime",
+                                          "lib")],
                        tree_hash(pack.dir, skip_dirs=("__pycache__", ".git", ".pytest_cache", "tests")), profile)
 
 
@@ -733,7 +734,7 @@ class Conversion:
         b = self.builder
         hle_hash = fingerprint([tree_hash(os.path.join(self.repo, d)) for d in
                                 ("src/hle", "src/runtime", "src/audio", "src/texconv", "src/psp_exc", "hle", "runtime",
-                                 "audio", "psp_exc")] + [tree_hash(self.pack.dir)])
+                                 "audio", "psp_exc", "lib")] + [tree_hash(self.pack.dir)])
         trans_state = tree_hash(os.path.join(self.translation, "stats.json"))
         extras = [tree_hash(self.pack.path(k)) for k in ("build.patch_dir", "build.trapset") if self.pack.get(k)]
         fp = fingerprint("prepare", trans_state, self.rec.path("translate"), extras, self.code_hash, hle_hash,

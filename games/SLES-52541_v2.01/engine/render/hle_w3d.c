@@ -1509,6 +1509,20 @@ static uint32_t gwk(uint32_t a) { return ram_ok(a, 4) ? gw(a) : 0; }
 static float gfk(uint32_t a) { uint32_t w = gwk(a); float f; memcpy(&f, &w, 4); return f; }
 uint32_t w3d_gwk(uint32_t a) { return gwk(a); }
 
+/* a mesh cache slot's resource entry still belongs to that slot - the entry header (+0x0C owner, +0x10 the
+   slot that references it) points back at the slot (checked on the host for building and lit meshes). An entry the game
+   freed and handed to another resource can keep the slot's address but not the back pointer: its data is another
+   mesh's and is not drawn (it was drawn with this mesh's matrix and texture before: a stretched foreign mesh). */
+static uint64_t st_re_foreign;
+int w3d_re_owned(uint32_t re, uint32_t slot)
+{
+    if (gwk(re + 0x10) == slot) return 1;
+    if (st_re_foreign++ < 8)
+        LOG("world3d: mesh cache slot %08x -> resource entry %08x owned by %08x (not drawn), flip %llu\n", slot, re,
+            gwk(re + 0x10), (unsigned long long)hle_render_flip_count());
+    return 0;
+}
+
 /* W3D_BB_LTM: the driver's frame world-matrix getter 0x33FAC0 returns the frame's matrix at +0x50, after re-syncing
    the hierarchy (0x344378) when the root frame (+0xA0) has its dirty bit (+3, bit 0) set. The in-sync case natively:
    no guest call (dispatch + translated code + its I-cache lines per atomic); the other case, or any address outside
@@ -1982,6 +1996,7 @@ static void mesh_draw(DRec *rd, const DMesh *ms, uint32_t i, W3dState *stp)
     Ent *ev = w3d_opt_vframe && re ? w3d_ent_find(re) : NULL;
     int vhit = ev && ev->vframe == frame_no && ev->geo == geo && ev->kind == EK_BUILDING;
     uint32_t data = vhit ? ev->data : re ? gwk(re + 0x20) : 0;
+    if (!vhit && re && !w3d_re_owned(re, mc + 4 + 4 * i)) data = 0;   /* not this mesh's entry */
     if (!mat || !data || !ram_ok(data, 64)) { st_m_fail++; return; }
     uint32_t mc4 = ms[i].mc4;
     uint8_t mat4[4] = {(uint8_t)mc4, (uint8_t)(mc4 >> 8), (uint8_t)(mc4 >> 16), (uint8_t)(mc4 >> 24)};
@@ -2278,6 +2293,7 @@ static int me_prep_mesh(DRec *rd, const DMesh *ms, uint32_t i, uint32_t *w, Ent 
     Ent *e = re ? w3d_ent_find(re) : NULL;
     int vhit = w3d_opt_vframe && e && e->vframe == frame_no && e->geo == geo && e->kind == EK_BUILDING;
     uint32_t data = vhit ? e->data : re ? gwk(re + 0x20) : 0;
+    if (!vhit && re && !w3d_re_owned(re, mc + 4 + 4 * i)) data = 0;   /* not this mesh's entry */
     if (!mat || !data || !ram_ok(data, 64)) { st_m_fail++; return 0; }
     uint32_t mc4 = ms[i].mc4;
     uint8_t mat4[4] = {(uint8_t)mc4, (uint8_t)(mc4 >> 8), (uint8_t)(mc4 >> 16), (uint8_t)(mc4 >> 24)};
@@ -2451,7 +2467,7 @@ static void me_open_batch(void)
     uint32_t ep = w3d_be_epoch();
     uint32_t opts = (w3d_opt_gnear ? 1u : 0u) | (w3d_opt_clip ? 2u : 0u) | (w3d_opt_light ? 4u : 0u) |
                     (w3d_opt_tilebase ? 8u : 0u) | (w3d_opt_afail ? 16u : 0u) | (w3d_opt_front ? 32u : 0u) |
-                    chunk_group << 8;
+                    chunk_group << 8 | ((uint32_t)w3dme_dpol & 3u) << 24;   /* dither policy */
 #ifdef HLE_PSP
     uint32_t vlo = (uint32_t)(uintptr_t)arena, vhi = vlo + arena_bytes;
     uint32_t astart = ep == me_call_epoch ? me_arena_end : 0u;   /* from 0 once the GE ran everything that called in */
@@ -2791,11 +2807,11 @@ static uint64_t f3d_frames, f3d_last_atomics, f3d_tris0, f3d_cpu0, f3d_hook0;
 static void w3d_teleport(void)
 {
     static int init, n, next;
-    static struct { unsigned long long flip; float p[3]; } tp[8];
+    static struct { unsigned long long flip; float p[3]; } tp[32];   /* 32 (was 8) */
     if (!init) {
         init = 1;
         const char *e = getenv("HLE_W3D_TELEPORT");
-        while (e && *e && n < 8) {
+        while (e && *e && n < 32) {
             if (sscanf(e, "%llu:%f:%f:%f", &tp[n].flip, &tp[n].p[0], &tp[n].p[1], &tp[n].p[2]) == 4) n++;
             e = strchr(e, ',');
             if (e) e++;

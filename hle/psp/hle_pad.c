@@ -9,6 +9,9 @@
  *   D-pad            D-pad                      D-pad                right stick (full deflection)
  *   analog stick     left stick (dead zone)
  * SELECT still reaches the game as SELECT (select_to_game=always), or only as a short pulse after a lone tap (tap).
+ * Every PS2 input can be moved (map_<input>), a second layer applies in a vehicle (car_<input>), and
+ * controls_preset=stories gives the classic handheld layout (L + analog = camera) (hle_padmap.h; the context comes from the game pack's
+ * hle_pack_pad_context(), asked only when a vehicle layer exists).
  * Returned mask: PS2 button bits, active HIGH (scePadRead inverts): low byte SELECT L3 R3 START UP RIGHT DOWN LEFT,
  * high byte L2 R2 L1 R1 TRIANGLE CIRCLE CROSS SQUARE. sticks[] = right X, right Y, left X, left Y (0x80 = centre).
  */
@@ -16,6 +19,7 @@
 #include <pspiofilemgr.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 #include "hle.h"
 #include "hle_cfg.h"                 /* the shared ps2rc.cfg table */
 #include "hle_padmap.h"              /* the player's mapping (pure C, host-tested) */
@@ -31,6 +35,28 @@ static uint32_t pad_last;
 static unsigned pad_logged;
 static PadMap pad_map;                              /* ps2rc.cfg map_* / modifier / select_to_game / select_up */
 static PadTap pad_tap;
+static int pad_ctx = -1;                            /* the last layer (log) */
+static unsigned pad_ctx_logged;
+
+/* 1 = the player is in a vehicle (the game pack's; weak default: always on foot) */
+__attribute__((weak)) int hle_pack_pad_context(void) { return 0; }
+
+/* the in-game settings menu (hle_menu.h, hle_menu_psp.c): the combination (L + R + Cross + Down) sets hle_menu_req,
+   the GE back-end's flip opens the menu; the filter keeps the combination's buttons (and those held when the menu
+   closes) from the game. Weak: a build without the menu reads the pad as before. */
+volatile int hle_menu_req;
+unsigned hle_menu_pad_filter(unsigned buttons) __attribute__((weak));
+
+/* the menu changed a control key in the cfg table - the mapping is built again from it */
+void hle_pad_reconfig(void)
+{
+    padmap_config(&pad_map, hle_cfg_get);
+    memset(&pad_tap, 0, sizeof pad_tap);
+    pad_ctx = -1;                                          /* the layer in use is logged again at the next read */
+    LOG("%s (menu)\n", pad_map.line);
+    LOG("%s (menu)\n", pad_map.car_line[0] ? pad_map.car_line : "controls in a vehicle: as on foot (no vehicle layer)");
+    if (pad_map.notes[0]) LOG("controls notes: %s\n", pad_map.notes);
+}
 
 /* run option pad_script=T0-T1:MASK,... - scripted presses by virtual time (seconds; MASK = PS2 bits as returned),
    ORed into the PSP buttons: the host's --pad on the PSP, for deterministic PPSSPP runs (e.g. into the pause menu) */
@@ -117,19 +143,30 @@ uint16_t hle_plat_pad_read(uint8_t sticks[4])
         pad_script_load();
         /* "controls: ..." = the PSP controls -> DualShock 2 port 0, as in effect */
         LOG("%s (* = built-in, not in the cfg file; ! = the file's value was not used, see the notes)\n", pad_map.line);
+        if (pad_map.car_line[0]) LOG("%s\n", pad_map.car_line);
         if (pad_map.notes[0]) LOG("controls notes: %s\n", pad_map.notes);
     }
     if (n_pokes) pokes_apply();
     SceCtrlData p;
     if (sceCtrlPeekBufferPositive(&p, 1) <= 0) return 0;
     uint32_t b = p.Buttons;
+    if (hle_menu_pad_filter) b = hle_menu_pad_filter(b);
     uint16_t m = 0;
     if (n_pad_ev) {
         double t = (double)hle_vtime / EE_HZ;
         for (int i = 0; i < n_pad_ev; i++)
             if (t >= pad_ev[i].t0 && t < pad_ev[i].t1) m |= pad_ev[i].m;
     }
-    m |= padmap_apply(&pad_map, &pad_tap, b, p.Lx, p.Ly, hle_frame, sticks);
+    int ctx = pad_map.has_car ? hle_pack_pad_context() : 0;
+    if (ctx != pad_ctx && pad_map.has_car) {
+        if (pad_ctx_logged < 20) {
+            pad_ctx_logged++;
+            LOG("pad: controls layer %s (vtime %.3f s, frame %llu)\n", ctx ? "in a vehicle" : "on foot",
+                (double)hle_vtime / EE_HZ, (unsigned long long)hle_frame);
+        }
+        pad_ctx = ctx;
+    }
+    m |= padmap_apply(&pad_map, &pad_tap, b, p.Lx, p.Ly, hle_frame, ctx, sticks);
     if (n_pad_ev) {                                  /* scripted left stick */
         double t = (double)hle_vtime / EE_HZ;
         for (int i = 0; i < n_pad_ev; i++)

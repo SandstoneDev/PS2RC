@@ -448,6 +448,21 @@ static int feeder_mode(int m)
     return 0;
 }
 
+/* the in-game settings menu (hle/psp/hle_menu.h) pauses the output while it is open (the game thread stands
+   still inside its flip: no new samples) and sets the volume live (ps2rc.cfg volume) */
+static int cm_paused = -1;                       /* the feeder mode before the pause, -1 = not paused */
+void hle_audio_pause(int on)
+{
+    if (A.thid < 0 || !A.running) return;
+    if (on && cm_paused < 0) { cm_paused = A.fd_mode_req; feeder_mode(2); }
+    else if (!on && cm_paused >= 0) { feeder_mode(cm_paused); cm_paused = -1; }
+}
+void hle_audio_set_volume(int pct)
+{
+    opt.vol = pct < 0 ? 0 : pct > 100 ? 100 : pct;
+    A.vol = PSP_AUDIO_VOLUME_MAX * opt.vol / 100;
+}
+
 static void me_demote(const char *why, int state)
 {
     if (A.me_state != ZME_ON) return;

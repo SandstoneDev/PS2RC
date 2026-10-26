@@ -36,6 +36,7 @@ int hle_ge_tex_size(uint32_t raster, int *w, int *h);
 void hle_ge_flip(uint32_t raster);
 void hle_ge_raster_changed(uint32_t raster);   /* create / texture read / unlock / destroy: the upload ends */
 int hle_ge_tex_cfg(const char *k, const char *v);   /* tex_half / tex_half_fx / tex_mip* (boot + in-run A/B) */
+int hle_ge_dither_cfg(const char *k, const char *v);   /* ge_dither / ge_dither_mx / ge_p32 (boot + A/B) */
 void hle_ge_report(void);
 int hle_ge_shutdown(void);         /* before sceKernelExitGame (finish / reset the GE, sceGuTerm) */
 /* the 3D world (psp/hle_ge3d.c): the open frame / list / texture cache of hle_ge.c */

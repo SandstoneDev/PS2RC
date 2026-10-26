@@ -324,6 +324,17 @@ static int rb_logged;
 #define MAXSPR 64                     /* sprites per draw batch (type-1 flushes hold 1..12 in gameplay) */
 static RndVtx spr_v[MAXSPR * 6];
 static float spr_z[MAXSPR * 6];
+/* phase timers of the three render-buffer paths (PSP: the w3d batch flush
+   that every FX draw forces first, the texture lookup, the GE emit; the rest = transform / clip) and the corona batch
+   (hle_ce.c x_cbatch: inside the corona pass the type-1 sprites stay pending across flushes while the camera and the
+   render state stay the same; a state change - hle_render.c drv_set_state -, the camera, a full batch or the end of
+   the pass draws them) */
+static uint64_t ce_us_spr_def, ce_us_spr_emit, ce_us_tri_def, ce_us_tri_tex, ce_us_tri_emit, ce_us_fx_def,
+    ce_us_fx_tex, ce_us_fx_emit, ce_us_hv_emit;
+static uint64_t ce_spr_held, ce_spr_state_draws;
+static int spr_k, spr_batch;
+static uint32_t spr_cam;
+int hle_sky_spr_pend;
 
 /* one batch of sprite triangles with the flush's render state */
 static void spr_emit(int k, const SkyCam *K)
@@ -339,7 +350,9 @@ static void spr_emit(int k, const SkyCam *K)
     st.vertex_alpha = (int)hle_render_rs(RS_VERTEXALPHAENABLE);
 #ifdef HLE_PSP
     (void)K;
+    uint32_t te = now_us();                              /* phase timer (GE emit) */
     hle_ge_tris_z(spr_v, spr_z, k, &st);
+    ce_us_spr_emit += now_us() - te;
 #else
     if (hle_raster_is_open()) {
         static Rnd3Vtx v3[MAXSPR * 6];
@@ -370,6 +383,25 @@ static void spr_emit(int k, const SkyCam *K)
     st_spr_flushes++;
 }
 
+/* the corona batch (see above) */
+static SkyCam spr_K;
+static void spr_pending_draw(void)
+{
+    if (spr_k) spr_emit(spr_k, &spr_K);
+    spr_k = 0;
+    hle_sky_spr_pend = 0;
+}
+void hle_sky_spr_batch(int on)
+{
+    if (!on) spr_pending_draw();
+    spr_batch = on;
+}
+void hle_sky_spr_state(void)
+{
+    ce_spr_state_draws++;
+    spr_pending_draw();
+}
+
 static void tri_log(uint32_t buf, uint32_t n, int type);
 static void tris_draw(uint32_t buf, uint32_t n);
 static void fx_draw(uint32_t buf, uint32_t n, int type);
@@ -390,6 +422,10 @@ void hle_sky_rbuf(uint32_t buf, uint32_t n, int type)
     }
     if (type != 1) return;
     uint32_t t0 = now_us();
+#ifdef HLE_PSP
+    w3d_defer_flush();                                   /* done first by the GE emit anyway - timed here */
+    ce_us_spr_def += now_us() - t0;
+#endif
     SkyCam K;
     int logit = sky_opt_log >= 3 && rb_logged < sky_opt_log * 4 &&
                 hle_render_flip_count() >= (uint64_t)sky_opt_log_flip;   /* detail log: sky_log >= 3 */
@@ -407,7 +443,10 @@ void hle_sky_rbuf(uint32_t buf, uint32_t n, int type)
     if (!sky_opt_sprites) return;
     RndVtx *sv = spr_v;
     float *sz = spr_z;
-    int k = 0;
+    if (spr_k && K.cam != spr_cam) spr_pending_draw();  /* a batch is for one camera */
+    int k = spr_k;
+    spr_k = 0;
+    hle_sky_spr_pend = 0;
     for (uint32_t i = 0; i < n; i++) {
         uint32_t e = buf + 16u + 40u * i;
         float P[3];
@@ -453,7 +492,13 @@ void hle_sky_rbuf(uint32_t buf, uint32_t n, int type)
         }
         st_spr_drawn++;
     }
-    if (k) spr_emit(k, &K);
+    if (k && spr_batch) {                                /* held for the next corona (x_cbatch) */
+        spr_k = k;
+        spr_K = K;
+        spr_cam = K.cam;
+        hle_sky_spr_pend = 1;
+        ce_spr_held++;
+    } else if (k) spr_emit(k, &K);
     us_spr += now_us() - t0;
 }
 
@@ -522,7 +567,9 @@ static void hv_flush(const SkyCam *K)
     if (!hv_n) return;
 #ifdef HLE_PSP
     (void)K;
+    uint32_t te = now_us();                              /* phase timer (GE emit) */
     hle_ge_tris_packed(hv, hv_n, &hv_st, 1);
+    ce_us_hv_emit += now_us() - te;
 #else
     if (hle_raster_is_open()) {
         static Rnd3Vtx v3[MAXHV];
@@ -630,6 +677,11 @@ static void tris_draw(uint32_t buf, uint32_t n)
 {
     if (!sky_opt_tris || !ram_ok(buf, 16u + 60u * n)) return;
     uint32_t t0 = now_us();
+#ifdef HLE_PSP
+    w3d_defer_flush();                                   /* done first by the GE emit anyway - timed here */
+    ce_us_tri_def += now_us() - t0;
+    uint64_t hv0 = ce_us_hv_emit;
+#endif
     SkyCam K;
     if (cam_read(&K) <= 0) { st_tri_bad++; return; }
     memset(&hv_st, 0, sizeof hv_st);
@@ -644,7 +696,9 @@ static void tris_draw(uint32_t buf, uint32_t n)
     hv_sx = 480.0f / K.W;
     hv_sy = 272.0f / K.H;
     int tw = 0, th = 0;
+    uint32_t tt = now_us();
     if (hv_st.raster && !hle_ge_tex_size(hv_st.raster, &tw, &th)) { st_tri_bad++; return; }   /* not drawable */
+    ce_us_tri_tex += now_us() - tt;
     hv_tu = (float)tw;
     hv_tv = (float)th;
 #else
@@ -697,6 +751,9 @@ static void tris_draw(uint32_t buf, uint32_t n)
     hv_flush(&K);
     st_tri_flushes++;
     us_tri += now_us() - t0;
+#ifdef HLE_PSP
+    ce_us_tri_emit += ce_us_hv_emit - hv0;
+#endif
 }
 
 /* ------------------------------------------------------------------ render buffer types 3 / 4 / 5 / 7: FX particles
@@ -764,6 +821,11 @@ static void fx_draw(uint32_t buf, uint32_t n, int type)
     uint32_t stride = type == 5 || type == 7 ? 96u : 80u, coff = type == 5 || type == 7 ? 80u : 64u;
     if (!sky_opt_fx || !ram_ok(buf, 16u + stride * n)) return;
     uint32_t t0 = now_us();
+#ifdef HLE_PSP
+    w3d_defer_flush();                                   /* done first by the GE emit anyway - timed here */
+    ce_us_fx_def += now_us() - t0;
+    uint64_t hv0 = ce_us_hv_emit;
+#endif
     SkyCam K;
     if (cam_read(&K) <= 0) { st_fx_bad++; return; }
     memset(&hv_st, 0, sizeof hv_st);
@@ -795,7 +857,9 @@ static void fx_draw(uint32_t buf, uint32_t n, int type)
     hv_sx = 480.0f / K.W;
     hv_sy = 272.0f / K.H;
     int tw = 0, th = 0;
+    uint32_t tt = now_us();
     if (hv_st.raster && !hle_ge_tex_size(hv_st.raster, &tw, &th)) { st_fx_bad++; return; }   /* not drawable */
+    ce_us_fx_tex += now_us() - tt;
     hv_tu = (float)tw;
     hv_tv = (float)th;
 #else
@@ -858,6 +922,9 @@ static void fx_draw(uint32_t buf, uint32_t n, int type)
     hv_flush(&K);
     st_fx_flushes++;
     us_fx += now_us() - t0;
+#ifdef HLE_PSP
+    ce_us_fx_emit += ce_us_hv_emit - hv0;
+#endif
 }
 
 /* ------------------------------------------------------------------ the hooks
@@ -1006,5 +1073,20 @@ void hle_sky_report(void)
         (unsigned long long)st_zc_first, (unsigned long long)st_zc_mid, (unsigned long long)st_zc_mid_flips,
         (unsigned long long)zc_mid_flip0, (unsigned long long)zc_mid_flip1, (unsigned long long)st_zc_mid_filled,
         (unsigned long long)(st_zc_mid - st_zc_mid_filled));
+    /* phase split per flush (PSP; host: 0) and the corona batch (x_cbatch) */
+    LOG("sky phases, us per flush: sprites %llu flushes: w3d flush %.1f, GE emit %.1f (%llu GE draws, %llu "
+        "held for the corona batch, %llu drawn at a state change); triangles %llu: w3d flush %.1f, texture %.1f, GE emit "
+        "%.1f, transform %.1f; FX %llu: w3d flush %.1f, texture %.1f, GE emit %.1f, transform %.1f\n",
+        (unsigned long long)st_rb_flush[1], st_rb_flush[1] ? (double)ce_us_spr_def / (double)st_rb_flush[1] : 0.0,
+        st_rb_flush[1] ? (double)ce_us_spr_emit / (double)st_rb_flush[1] : 0.0, (unsigned long long)st_spr_flushes,
+        (unsigned long long)ce_spr_held, (unsigned long long)ce_spr_state_draws, (unsigned long long)st_tri_flushes,
+        st_tri_flushes ? (double)ce_us_tri_def / (double)st_tri_flushes : 0.0,
+        st_tri_flushes ? (double)ce_us_tri_tex / (double)st_tri_flushes : 0.0,
+        st_tri_flushes ? (double)ce_us_tri_emit / (double)st_tri_flushes : 0.0,
+        st_tri_flushes ? (double)(us_tri - ce_us_tri_def - ce_us_tri_tex - ce_us_tri_emit) / (double)st_tri_flushes : 0.0,
+        (unsigned long long)st_fx_flushes, st_fx_flushes ? (double)ce_us_fx_def / (double)st_fx_flushes : 0.0,
+        st_fx_flushes ? (double)ce_us_fx_tex / (double)st_fx_flushes : 0.0,
+        st_fx_flushes ? (double)ce_us_fx_emit / (double)st_fx_flushes : 0.0,
+        st_fx_flushes ? (double)(us_fx - ce_us_fx_def - ce_us_fx_tex - ce_us_fx_emit) / (double)st_fx_flushes : 0.0);
     cpu_line("total");
 }

@@ -11,7 +11,8 @@
 #
 # Triggers: by hand (workflow_dispatch: artifacts on the run only) and tags v* (the same builds, then the job
 # "release" creates a DRAFT GitHub release of this repository with the bundles, .sha256 files and the sources zip;
-# a maintainer reviews and publishes it). Not run on every push: a cold windows toolchain build takes 1-2 hours; later
+# a maintainer reviews and publishes it; a release that already exists for the tag, e.g. one made by hand with
+# gh release create, is left as it is). Not run on every push: a cold windows toolchain build takes 1-2 hours; later
 # runs take it from the cache (key: the toolchain lock file and scripts).
 #
 # What the bundles never contain: game files or anything made from them (EBOOT.PBP, translations, disc images), the
@@ -670,6 +671,12 @@ jobs:
         run: |
           set -eu
           V=${GITHUB_REF_NAME#v}
+          # a release made by hand for this tag (gh release create also creates the tag and so starts this run):
+          # keep it untouched; this run's bundles stay available as run artifacts
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "a release for $GITHUB_REF_NAME already exists: not changed, no draft made"
+            exit 0
+          fi
           cat > notes.md <<EOF
           PS2RC Converter ${V} for Windows x64, Linux x86_64 (AppImage) and macOS arm64 (.dmg), built by GitHub
           Actions from tag ${GITHUB_REF_NAME} (run ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}).

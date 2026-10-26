@@ -7,3 +7,24 @@ SITE(00283900, 00283a98, far_site_frame)        /* world update: the call before
 SITE(00283900, 00283b18, far_site_control)      /* world update: per-entity control call (vtable +48) */
 SITE(00283900, 00283c38, far_site_coll_begin)   /* world update: opens the collision section (0x595C20) */
 SITE(00283900, 00283fe0, far_site_coll_end)     /* world update: closes the collision section (0x595C60) */
+/* night levers + the clock test aid (src/hle_ce.c; all default off = the call runs as translated) */
+SITE(002433d0, 00243690, ce_site_daycolour)     /* game step: the time-of-day colour update (x_clock) */
+SITE(00246fd0, 00247010, ce_site_coronas)       /* effects step: the corona pass (x_cbatch) */
+SITE(0022fa60, 0022fabc, ce_site_lights)        /* entity pre-render: the entity's 2D-effect lights (x_lamp) */
+SITE(00167e00, 00167ee0, ce_site_lights)        /* the other pre-render with entity lights (x_lamp) */
+SITE(0029a240, 0029b5cc, ce_site_pool)          /* entity lights: light pool store, lit (x_lpool) */
+SITE(0029a240, 0029b62c, ce_site_pool)          /* entity lights: light pool store, dimmed (x_lpool) */
+/* the HUD on the PSP screen (src/hle_hud.c): the element calls of the HUD draw 0x2B01A0 */
+SITE(002b01a0, 002b02b4, hud_site_tr)           /* clock / health / armour / money / weapon / ammo 0x2AB500 */
+SITE(002b01a0, 002b02bc, hud_site_tr)           /* wanted level 0x2AA4D0 */
+SITE(002b01a0, 002b02d8, hud_site_br)           /* vehicle name 0x2AD660 */
+SITE(002b01a0, 002b02e0, hud_site_br)           /* area name 0x2ADB60 */
+SITE(002b01a0, 002b035c, hud_site_bl)           /* the player's stats panel (instead of the radar) 0x2ABD00 */
+SITE(002b01a0, 002b036c, hud_site_radar)        /* radar 0x2AC960 */
+SITE(002b01a0, 002b0390, hud_site_radar)        /* ring around the radar 0x2AC6F0 */
+SITE(002b01a0, 002b03ec, hud_site_c)            /* script texts (any position) 0x2AED60 */
+SITE(002b01a0, 002b0400, hud_site_c)            /* subtitles / dialogue line 0x2AEF80 */
+SITE(002b01a0, 002b0408, hud_site_tl)           /* help text box 0x2AE060 */
+SITE(002b01a0, 002b0410, hud_site_c)            /* big / success messages 0x2AF890 */
+SITE(002b01a0, 002b0418, hud_site_c)            /* 0x2AF220 */
+SITE(002b01a0, 002b0420, hud_site_c)            /* 0x2AF630 */

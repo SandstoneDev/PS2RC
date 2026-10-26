@@ -330,7 +330,9 @@ Used by PS2RC or shipped next to the converter as separate programs:
 - [Qt for Python (PySide6)](https://www.pyside.org) and [Qt](https://www.qt.io): the converter window;
 - [Python](https://www.python.org), [pyelftools](https://github.com/eliben/pyelftools) and
   [Pillow](https://python-pillow.org): the converter;
-- [DejaVu fonts](https://dejavu-fonts.github.io/): the text of the start-up screen.
+- [DejaVu fonts](https://dejavu-fonts.github.io/): the text of the start-up screen;
+- [Dear ImGui](https://github.com/ocornut/imgui) by Omar Cornut and contributors (MIT) and the ProggyClean font by
+  Tristan Grimmer (MIT): the in-game settings menu.
 
 Studied as references (no code taken):
 
@@ -344,7 +346,12 @@ Studied as references (no code taken):
 - [ps2tek](https://psi-rockin.github.io/ps2tek/): PS2 hardware registers;
 - [psx-spx](https://problemkaputt.de/psx-spx.htm): the PlayStation sound hardware;
 - [uOFW](https://github.com/uofw/uofw), [vfpu-docs](https://github.com/pspdev/vfpu-docs),
-  [PSPTEK](http://daifukkat.su/docs/psptek/): PSP firmware interfaces, the VFPU and the hardware maps.
+  [PSPTEK](http://daifukkat.su/docs/psptek/): PSP firmware interfaces, the VFPU and the hardware maps;
+- [BloodPSP](https://github.com/RainArcanjo/BloodPSP): the converter's Controls page layout is inspired by its
+  launcher (MIT).
+
+Ideas from players: the camera on L + analog stick of the `stories` controls layout was suggested in
+GitHub issue #2.
 
 
 ## Not affiliated

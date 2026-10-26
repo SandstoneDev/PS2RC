@@ -26,6 +26,12 @@ static const HleCfgAlias aliases[] = {
     {"mirrors",        "x_mirror",       0,    1,   1, 0, "off=0,on=1"},     /* interior mirror pass */
     {"water",          "water",          0,    1,   0, 0, "off=0,on=1"},     /* water surfaces */
     {"shadows",        "x_fxskip",       0,    1,   0, 1, "off=0,on=1"},     /* 0 = skip the shadow passes */
+    /* psp/hle_ge.c dither policy (opaque = no dither on semi-transparent draws) and the 8888 picture */
+    {"dither",         "ge_dither",      0,    2,   1, 0, "!off=0,opaque=1,on=2,0=0,1=1,2=2"},
+    {"color_depth",    "ge_p32",        16,   32,   1, 0, "!16=0,32=1"},
+    /* night lights (hle_ce.c): distance limits of the entity lights and light pools, 0 = off */
+    {"lamp_distance",  "x_lamp",         0, 1000,   0, 0, "off=0"},          /* lamps / coronas only up to D m */
+    {"light_pools",    "x_lpool",        0,   99,   0, 0, "off=0"},          /* light pools to P % of 40 m */
     /* population / far world logic */
     {"peds",           "tune_peds",      0,  100, 100, 0, NULL},             /* % pedestrian density */
     {"traffic",        "tune_cars",      0,  100, 100, 0, NULL},             /* % traffic density */
@@ -57,9 +63,45 @@ static const HleCfgAlias aliases[] = {
     {"map_r1",         "pad_r1",         0,    0,   0, 0, NULL},
     {"map_select",     "pad_select",     0,    0,   0, 0, NULL},
     {"map_start",      "pad_start",      0,    0,   0, 0, NULL},
+    /* full remap + presets (inv -1 = logged in the "controls:" lines, not in "settings:") */
+    {"controls_preset","pad_preset",     0,    0,   0, -1, "!default=0,stories=1,vcs=1"},
+    {"camera_invert",  "pad_cam_inv",    0,    0,   0, -1, "!off=0,x=1,y=2,xy=3"},   /* analog-stick camera axes */
+    {"map_cross",      "pad_cross",      0,    0,   0, -1, NULL},
+    {"map_circle",     "pad_circle",     0,    0,   0, -1, NULL},
+    {"map_square",     "pad_square",     0,    0,   0, -1, NULL},
+    {"map_triangle",   "pad_triangle",   0,    0,   0, -1, NULL},
+    {"map_up",         "pad_up",         0,    0,   0, -1, NULL},
+    {"map_down",       "pad_down",       0,    0,   0, -1, NULL},
+    {"map_left",       "pad_left",       0,    0,   0, -1, NULL},
+    {"map_right",      "pad_right",      0,    0,   0, -1, NULL},
+    {"map_lstick",     "pad_lstick",     0,    0,   0, -1, NULL},     /* analog | dpad | none */
+    /* in a vehicle only (unset = the map_* value / the preset's vehicle layer) */
+    {"car_l2",         "pad_c_l2",       0,    0,   0, -1, NULL},
+    {"car_r2",         "pad_c_r2",       0,    0,   0, -1, NULL},
+    {"car_l3",         "pad_c_l3",       0,    0,   0, -1, NULL},
+    {"car_r3",         "pad_c_r3",       0,    0,   0, -1, NULL},
+    {"car_rstick",     "pad_c_rstick",   0,    0,   0, -1, NULL},
+    {"car_l1",         "pad_c_l1",       0,    0,   0, -1, NULL},
+    {"car_r1",         "pad_c_r1",       0,    0,   0, -1, NULL},
+    {"car_select",     "pad_c_select",   0,    0,   0, -1, NULL},
+    {"car_start",      "pad_c_start",    0,    0,   0, -1, NULL},
+    {"car_cross",      "pad_c_cross",    0,    0,   0, -1, NULL},
+    {"car_circle",     "pad_c_circle",   0,    0,   0, -1, NULL},
+    {"car_square",     "pad_c_square",   0,    0,   0, -1, NULL},
+    {"car_triangle",   "pad_c_triangle", 0,    0,   0, -1, NULL},
+    {"car_up",         "pad_c_up",       0,    0,   0, -1, NULL},
+    {"car_down",       "pad_c_down",     0,    0,   0, -1, NULL},
+    {"car_left",       "pad_c_left",     0,    0,   0, -1, NULL},
+    {"car_right",      "pad_c_right",    0,    0,   0, -1, NULL},
+    {"car_lstick",     "pad_c_lstick",   0,    0,   0, -1, NULL},
     {"sound",          "audio",          0,    1,   1, 0, "off=0,on=1"},
     {"volume",         "audio_vol",      0,  100, 100, 0, NULL},
     {"intro_movies",   "movies",         0,    1,   1, 0, "off=0,on=1"},
+    /* HUD on the PSP screen (hle_hud.c) */
+    {"hud_aspect",     "hud_aspect",     0,    0,   0, 0, "!fix=1,stretch=0"},   /* 4:3 HUD + round radar */
+    {"hud_scale",      "hud_scale",     50,  200, 100, 0, NULL},             /* % size of the corner HUD */
+    {"hud_outline",    "hud_outline",    0,    1,   0, 0, "off=0,on=1"},     /* black outline of the HUD text */
+    {"hud_radar",      "hud_radar",      0,    0,   0, 0, "!round=0,ps2=1"}, /* radar shape */
 };
 
 const HleCfgAlias *hle_cfg_alias_table(int *n)

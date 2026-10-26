@@ -246,6 +246,11 @@ TRACE(005853c0, poweroff_thread_5853c0, 1)
 TRACE(0039b5d0, main_init_39b5d0, 1)
 TRACE(00245ab0, main_check_245ab0, 1)
 TRACE(003001d0, stream_init, 1)
+/* ---- the script interpreter's command step (hle_scrdiag.c): a ring of the last commands of every script
+   for the crash report, and a guard - a command number outside the handler table (bytes that are no command: the
+   blackjack crash) stops that script (the game's own "terminate this script") with a report instead of the crash;
+   ps2rc.cfg x_scrguard=0 = report only (the original then crashes as before) */
+HOOK(001fa8d0, script_command)
 /* ---- stream_channel timed for the hitch breakdown (hle_stream.c); the guest original runs unchanged */
 HOOK(002c2cd0, stream_channel)
 

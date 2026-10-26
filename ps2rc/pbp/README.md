@@ -65,6 +65,29 @@ python -m ps2rc.pbp placeholders DIR [--text PS2RC] [--sub "SECOND LINE"] [--ico
 `placeholders` writes neutral pictures drawn from code (a text icon, an information panel, a gradient background,
 and with `--icon1` a short animation) for builds that have no assets of their own.
 
+## Editing an existing EBOOT (`editor.py`, `eboot_edit.py`)
+
+`python -m ps2rc.pbp.eboot_edit EBOOT.PBP [--title T] [--icon0 PIC --icon0-shape wide|square] [--pic0 PIC]
+[--pic1 PIC] [--icon1 PMF|clip] [--snd0 AT3|audio] [--remove SLOT] [--fix] [--extract DIR] [--out FILE]
+[--no-backup]` changes the menu look and the title of any EBOOT.PBP (PS2RC games, PSP homebrew, PS1 eboots). The
+converter window has the same as Tools > EBOOT editor (`gui/eboot_editor.py`). Rules:
+
+- DATA.PSP and DATA.PSAR are copied byte for byte (DATA.PSAR is streamed, it can be hundreds of MB); with nothing
+  changed the rebuilt file equals the original (tested). The original is renamed to `EBOOT.PBP.bak` (or `.bak2`...)
+  unless `--no-backup`; the new file is written beside it, read back and compared before the rename.
+- Files before DATA.PSAR are written back to back (as pack-pbp does). A packed "~PSP" DATA.PSP followed by zero
+  padding (PS1 eboots) is counted by its own size (u32 at 0x2C of its header). DATA.PSAR keeps its offset when the
+  new files fit before it, else it moves to the next 64 KiB boundary, as the public PS1 packers place it. The PS1
+  data inside refers to itself relative to the start of DATA.PSAR (the multi-disc table at +0x200 too: the ARK-5
+  Popcorn source adds the DATA.PSAR offset to it), so it stays valid.
+- ICON0 is 144x80 (16:9) for PSP programs and 80x80 for PS1 eboots. The PS1 emulator also reads ICON0 when a PS1
+  game starts: the Popcorn module of the PRO and ARK custom firmwares (public source,
+  https://github.com/PSP-Arkfive/ARK-5 `PopCorn/src/syspatch.c`, `getIcon0Status`) accepts only an 80x80 PNG there
+  and gives the emulator a stock icon otherwise; elsewhere the effect of a 144x80 icon is Unknown. The editor
+  therefore warns on a 144x80 icon in a PS1 eboot, and `--fix` makes it 80x80.
+- Pictures are checked like the packer's (exact size, 8-bit RGB / RGBA, not interlaced, intact chunks); `--fix`
+  re-makes them and drops data after the PNG end chunk.
+
 ## Python API
 
 ```python

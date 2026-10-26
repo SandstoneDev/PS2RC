@@ -49,13 +49,14 @@ void far_site_coll_end(R5900Ctx *c, uint32_t target);
 
 static int far_gen = -1;                 /* hle_x_gen when the keys were read (run-time A/B switches) */
 static int far_col, far_ai, far_frz;     /* x_farcol / x_agfar / x_agfrz */
+static int far_mis;                      /* x_farmis: 1 (default) = the scripts' own entities are never selected */
 static float col_d2, ai_d2, frz_d2;
 static int far_on;                       /* this frame: any key > 0 (latched at the frame site) */
 static float cam[3];
 static uint32_t frame_no, player0, player1;
 static uint32_t skip[FAR_SKIP_MAX];
 static int nskip;
-static uint64_t st_frames, st_ctl_skipped, st_frozen, st_col_skipped, st_marked_frozen;
+static uint64_t st_frames, st_ctl_skipped, st_frozen, st_col_skipped, st_marked_frozen, st_mission;
 
 static void far_read_keys(void)
 {
@@ -63,6 +64,7 @@ static void far_read_keys(void)
     far_col = hle_x_opt("farcol", 0);
     far_ai = hle_x_opt("agfar", 0);
     far_frz = hle_x_opt("agfrz", 0);
+    far_mis = hle_x_opt("farmis", 1);
     col_d2 = far_col > 0 ? (float)far_col * (float)far_col : 0.0f;
     ai_d2 = far_ai > 0 ? (float)far_ai * (float)far_ai : 0.0f;
     frz_d2 = far_frz > 0 ? (float)far_frz * (float)far_frz : 0.0f;
@@ -82,6 +84,25 @@ static float dist2(uint32_t e)
 }
 
 static int is_player(uint32_t e, uint32_t status) { return status == 0 || e == player0 || e == player1; }
+
+/* an entity a mission script created and still owns (created-by byte = 2: vehicle +0x4AC, ped +0x4BC;
+ * object +0x138 = 2 or 6 - the values the script's "no longer needed" commands test before they hand the entity back
+ * to the world), or a vehicle driven by such a ped (driver +0x468). Mission scripts test their own entities every
+ * frame (position, "on screen", "dead", "in water"); simulating them at a lower rate or not at all far from the
+ * camera changes those answers (a chase car that falls behind, a mission bike left lying by the road). They are a
+ * handful at most, so the policy leaves them to the game. x_farmis=0 = the old behaviour (all entities). */
+static int is_mission(uint32_t e, uint32_t type)
+{
+    if (!far_mis) return 0;
+    if (type == 2) {
+        if (gb(e + 0x4AC) == 2) return 1;
+        uint32_t d = gw(e + 0x468);
+        return d >= 0x100000u && d < 0x2000000u && (gb(d + 0x36) & 7u) == 3 && gb(d + 0x4BC) == 2;
+    }
+    if (type == 3) return gb(e + 0x4BC) == 2;
+    if (type == 4) { uint8_t b = gb(e + 0x138); return b == 2 || b == 6; }
+    return 0;
+}
 static int odd_frame(uint32_t e) { return ((frame_no + (e >> 4)) & 1u) != 0; }
 
 /* far_freeze (all = vehicles of every status) / far_ai (vehicles: status 4 only) candidates: -1 = never */
@@ -91,6 +112,7 @@ static float ag_dist2(uint32_t e, int all)
     uint32_t type = b54 & 7u, status = b54 >> 3;
     if (is_player(e, status)) return -1.0f;
     if (type != 3 && type != 4 && !(type == 2 && (all || status == 4))) return -1.0f;
+    if (is_mission(e, type)) { st_mission++; return -1.0f; }
     return dist2(e);
 }
 static int frozen(uint32_t e) { return far_frz > 0 && ag_dist2(e, 1) > frz_d2; }
@@ -103,6 +125,7 @@ static int col_off(uint32_t e)
     if (type != 2 && type != 3) return 0;               /* peds and vehicles */
     if (is_player(e, status)) return 0;
     if (!(dist2(e) > col_d2)) return 0;
+    if (is_mission(e, type)) { st_mission++; return 0; }
     return odd_frame(e);
 }
 
@@ -194,8 +217,9 @@ void hle_far_report(void)
 {
     if (!st_frames) return;
     double f = (double)st_frames;
-    LOG("far policy (sites): far_collision=%d far_ai=%d far_freeze=%d: %llu frames; per frame: collision skipped %.2f, "
-        "control skipped %.2f (far_ai), control frozen %.2f, collision frozen %.2f\n", far_col, far_ai, far_frz,
-        (unsigned long long)st_frames, (double)st_col_skipped / f, (double)st_ctl_skipped / f, (double)st_frozen / f,
-        (double)st_marked_frozen / f);
+    LOG("far policy (sites): far_collision=%d far_ai=%d far_freeze=%d x_farmis=%d: %llu frames; per frame: collision "
+        "skipped %.2f, control skipped %.2f (far_ai), control frozen %.2f, collision frozen %.2f, tests that left a "
+        "mission entity alone %.2f\n", far_col, far_ai, far_frz, far_mis, (unsigned long long)st_frames,
+        (double)st_col_skipped / f, (double)st_ctl_skipped / f, (double)st_frozen / f, (double)st_marked_frozen / f,
+        (double)st_mission / f);
 }

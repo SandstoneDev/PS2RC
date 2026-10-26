@@ -34,5 +34,12 @@ void hle_sky_rbuf(uint32_t buf, uint32_t n, int type);
    0x517570 of fire / explosions - filling there would cover the finished picture with the fog colour, a white
    screen). cfg sky_clear_once=0 / host HLE_SKY_CLEAR_ONCE=0: every Z-only clear fills. */
 int hle_sky_clear_fill(int mode);
+/* hle_ce.c x_cbatch: the corona batch - on: type-1 sprites stay pending across flushes (same camera and
+   render state); off: draws what is pending. hle_render.c drv_set_state calls hle_sky_spr_state() before a render
+   state changes while hle_sky_spr_pend is set (the pending sprites are drawn with the state they were queued with). */
+void hle_sky_spr_batch(int on);
+void hle_sky_spr_state(void);
+extern int hle_sky_spr_pend;
+void hle_ce_report(void) __attribute__((weak));   /* night levers summary (hle_ce.c) */
 
 #endif

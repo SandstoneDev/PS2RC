@@ -35,6 +35,7 @@
  * diffuse = material colour x surface properties), bone matrices per group (BOFS + BONE words), then the group's
  * sub-list. Defaults: all three keys on (checked: host frames vs PCSX2, PPSSPP intro + gameplay). */
 #include "hle.h"
+#include "hle_cfg.h"                          /* w3d_ldirfix */
 #include "hle_render.h"
 #include "hle_w3d_int.h"
 #include "hle_w3d_me.h"                       /* lit / skinned records on the ME */
@@ -464,6 +465,8 @@ static float lc_rot[3][3];                /* world direction -> camera space */
 
 static uint8_t lc_vkey[64];               /* the camera's view matrix the cached matrices were made from */
 static uint32_t lc_gen;                   /* bumped whenever they are made again (light directions follow it) */
+static float lc_pkey[16];                 /* the camera projection lc_proj was made from */
+int w3d_re_owned(uint32_t re, uint32_t slot);   /* hle_w3d.c */
 static int lit_camera(R5900Ctx *c, uint32_t camera)
 {
     /* also keyed by the view matrix - the game renders mirrors (mirror_pass) with the SAME camera re-aimed at a
@@ -471,7 +474,11 @@ static int lit_camera(R5900Ctx *c, uint32_t camera)
        atomic with the mirror's matrices (the player character invisible indoors) */
     uint32_t fr = w3d_frame_no();
     const uint8_t *vk = hle_ram + ((camera + 0x20u) & (HLE_RAM_SIZE - 1));
-    if (camera == lc_camera && fr == lc_frame && !memcmp(lc_vkey, vk, sizeof lc_vkey)) return 1;
+    /* and by the projection lc_proj is made from (w3d_cam.proj = the camera's near / far planes): with the
+       same camera, frame and view matrix but another near / far plane, the cached S x P gave the lit / skinned atomics
+       the depth of the old planes while the buildings used the new ones */
+    if (camera == lc_camera && fr == lc_frame && !memcmp(lc_vkey, vk, sizeof lc_vkey) &&
+        !memcmp(lc_pkey, w3d_cam.proj, sizeof lc_pkey)) return 1;
     uint32_t cframe = gwk(camera + 4);
     uint32_t ltm = cframe ? w3d_frame_ltm(c, cframe) : 0;
     if (!ram_ok(ltm, 0x40)) return 0;
@@ -497,6 +504,7 @@ static int lit_camera(R5900Ctx *c, uint32_t camera)
     lc_camera = camera;
     lc_frame = fr;
     memcpy(lc_vkey, vk, sizeof lc_vkey);
+    memcpy(lc_pkey, w3d_cam.proj, sizeof lc_pkey);
     lc_gen++;
     return 1;
 }
@@ -510,19 +518,45 @@ static void read_light_rgb(uint32_t light, float *rgb)
     }
 }
 
-/* a directional light's direction in camera (C) space, once per light per frame (its frame LTM is a guest call) */
+/* a directional light's direction in camera (C) space, once per light per frame (its frame LTM is a guest call)
+   issue #2 "the light gets too dark, then back up": the game re-aims the SAME extra directional light
+   objects for every entity it lights (point lights near the entity -> an extra directional light per entity, cutscene
+   lights): a cache keyed by light + frame number gave every later entity of the frame the first entity's direction
+   (lit from the wrong side, changing with the draw order from frame to frame). The cache now also keys on the light
+   frame's modelling matrix "at" vector (light frame +0x10 modelling, +0x20 at: the light frames are root frames, so
+   their LTM follows it); w3d_ldirfix=0 = the old cache (the stale hits are counted either way). */
 #define LDIR_CACHE 16
-static struct { uint32_t light, frame, gen; float d[3]; } ldir_cache[LDIR_CACHE];
+static struct { uint32_t light, frame, gen, at[3]; float d[3]; } ldir_cache[LDIR_CACHE];
 static int ldir_next;
+static int ldir_fix = -1;                         /* w3d_ldirfix (default 1) */
+static uint64_t sl_ldir_hits, sl_ldir_stale;
 static int light_dir(R5900Ctx *c, uint32_t light, float *out)
 {
     uint32_t fno = w3d_frame_no();
+    if (ldir_fix < 0) {
+#ifdef HLE_PSP
+        const char *v = hle_cfg_get("w3d_ldirfix");
+#else
+        const char *v = getenv("HLE_W3D_LDIRFIX");
+        if (!v) v = hle_cfg_get("w3d_ldirfix");
+#endif
+        ldir_fix = v ? atoi(v) != 0 : 1;
+        LOG("world3d lights: w3d_ldirfix=%d (light direction cache keyed by the light frame's matrix)\n", ldir_fix);
+    }
+    uint32_t fr0 = gwk(light + 4), mat_at[3] = {0, 0, 0};
+    if (fr0 && ram_ok(fr0, 0x50)) for (int k = 0; k < 3; k++) mat_at[k] = gwk(fr0 + 0x30 + 4u * (uint32_t)k);
     for (int i = 0; i < LDIR_CACHE; i++)
         if (ldir_cache[i].light == light && ldir_cache[i].frame == fno && ldir_cache[i].gen == lc_gen) {
-            memcpy(out, ldir_cache[i].d, 12);
-            return 1;
+            int same = !memcmp(ldir_cache[i].at, mat_at, sizeof mat_at);
+            sl_ldir_hits++;
+            if (!same) sl_ldir_stale++;
+            if (same || !ldir_fix) {
+                memcpy(out, ldir_cache[i].d, 12);
+                return 1;
+            }
+            ldir_cache[i].light = 0;              /* re-aimed since: recompute below */
         }
-    uint32_t fr = gwk(light + 4), ltm = fr ? w3d_frame_ltm(c, fr) : 0;
+    uint32_t fr = fr0, ltm = fr ? w3d_frame_ltm(c, fr) : 0;
     if (!ram_ok(ltm, 0x40)) return 0;
     float at[3], d[3];
     for (int i = 0; i < 3; i++) at[i] = gfk(ltm + 0x20 + 4u * (uint32_t)i);
@@ -533,6 +567,7 @@ static int light_dir(R5900Ctx *c, uint32_t light, float *out)
     for (int k = 0; k < 3; k++) out[k] = d[k] / l;
     int s = ldir_next++ % LDIR_CACHE;
     ldir_cache[s].light = light; ldir_cache[s].frame = fno; ldir_cache[s].gen = lc_gen;
+    memcpy(ldir_cache[s].at, mat_at, sizeof mat_at);
     memcpy(ldir_cache[s].d, out, 12);
     return 1;
 }
@@ -1140,6 +1175,7 @@ static Ent *lit_lookup(const LRec *rec, uint32_t i, uint32_t mat)
         return e;
     }
     uint32_t data = re ? gwk(re + 0x20) : 0;
+    if (re && !w3d_re_owned(re, mc + 4 + 4 * i)) data = 0;   /* not this mesh's entry */
     if (!mat || !data || !ram_ok(data, 64)) { sl_fail++; return NULL; }
     uint32_t sig = w3d_chain_sig(data), rsz = gwk(re + 0x08), nidx = gwk(mesh + 4);
     e = w3d_ent_find(re);
@@ -1574,6 +1610,8 @@ void w3d_lit_init(void)
 
 void w3d_lit_report(void)
 {
+    LOG("world3d lights: w3d_ldirfix=%d, %llu cached light directions used, %llu of them re-aimed since (stale)\n",
+        ldir_fix, (unsigned long long)sl_ldir_hits, (unsigned long long)sl_ldir_stale);
     if (sl_bb_prep_meshes)
         LOG("world3d lit (w3d_bb litprep): %llu meshes prepared while waiting for the ME, %llu of them used "
             "by the replay; %.0f%% of the sampled lit time\n", (unsigned long long)sl_bb_prep_meshes,

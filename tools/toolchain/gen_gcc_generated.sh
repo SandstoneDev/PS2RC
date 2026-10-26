@@ -16,5 +16,5 @@ mkdir -p "$T/out/$TOP/gcc"
 flex -o "$T/lex.cc" "$T/$TOP/gcc/gengtype-lex.l"
 # gcc/Makefile.in's own rule puts bconfig.h first
 { echo '#include "bconfig.h"'; cat "$T/lex.cc"; } > "$T/out/$TOP/gcc/gengtype-lex.cc"
-tar -C "$T/out" -cf "$OUT" "$TOP"
+tar -C "$T/out" --owner=0 --group=0 --numeric-owner -cf "$OUT" "$TOP"   # no user names in the archive
 echo "gcc generated files -> $OUT ($(tar -tf "$OUT" | grep -c -v '/$') files)"

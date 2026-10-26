@@ -37,7 +37,7 @@ sort -u -o "$EXCL" "$EXCL"
 (cd "$SRC" && find psp/include psp/lib psp/sdk "lib/gcc/psp/$VER" \( -path "lib/gcc/psp/$VER/plugin" -o     -path "lib/gcc/psp/$VER/install-tools" \) -prune -o \( -type f -o -type l \) -print) | sort > "$LIST.all"
 comm -23 "$LIST.all" "$EXCL" > "$LIST"
 # nothing for the host in there (pkgconfig/cmake helpers are kept: small, harmless)
-tar -C "$SRC" -h -cf "$OUT" -T "$LIST"          # -h: links stored as files (Windows has none)
+tar -C "$SRC" -h --owner=0 --group=0 --numeric-owner -cf "$OUT" -T "$LIST"   # -h: links stored as files (Windows has none); no user names
 echo "target files: $(wc -l < "$LIST") of $(wc -l < "$LIST.all") files (psp-packages left out: $(wc -l < "$EXCL") files," \
      "kept: $KEEP), gcc $VER -> $OUT ($(du -h "$OUT" | cut -f1))"
 rm -f "$LIST" "$LIST.all" "$EXCL"

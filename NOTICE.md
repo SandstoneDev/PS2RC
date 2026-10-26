@@ -1,9 +1,72 @@
 # Third-party notices
 
 PS2RC is covered by the [PS2RC License](LICENSE). The items below are not: each keeps
-its own licence. PS2RC's repository contains no third-party source files; it builds
-with and links against the toolchains listed here, and its splash screen contains
-glyph bitmaps rendered from a free font.
+its own licence. PS2RC's repository contains one third-party source tree, Dear ImGui in
+`lib/psp_imgui/third_party/imgui/` (section "Dear ImGui" below); it builds with and links against the
+toolchains listed here, and its splash screen contains glyph bitmaps rendered from a free
+font.
+
+## Dear ImGui (the in-game settings menu)
+
+`lib/psp_imgui/third_party/imgui/` is **Dear ImGui** 1.91.9b by Omar Cornut and contributors
+([github.com/ocornut/imgui](https://github.com/ocornut/imgui)), unchanged, MIT licence
+(Copyright (c) 2014-2025 Omar Cornut; the full text is `lib/psp_imgui/third_party/imgui/LICENSE.txt`).
+`lib/psp_imgui/pimgui_font13.h` holds glyph bitmaps of **ProggyClean.ttf** by Tristan Grimmer
+(MIT licence, [proggyfonts.net](http://www.proggyfonts.net)), as embedded in Dear ImGui.
+Both are compiled into `EBOOT.PBP` (the menu opened with L + R + Cross + D-pad Down).
+
+Dear ImGui licence:
+
+```
+The MIT License (MIT)
+
+Copyright (c) 2014-2025 Omar Cornut
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+ProggyClean.ttf licence (as stated in Dear ImGui's `imgui_draw.cpp`: "ProggyClean.ttf, Copyright (c) 2004, 2005
+Tristan Grimmer, MIT license"):
+
+```
+The MIT License (MIT)
+
+Copyright (c) 2004, 2005 Tristan Grimmer
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
 
 ## The author's earlier PSP projects
 
@@ -83,6 +146,10 @@ texts in `toolchain/licenses/` and the source offer of section "Converter app" b
   its `COPYING.NEWLIB`, shipped with the toolchain.
 - **libgcc** (GCC's runtime library, linked into PSP builds) is under the GPL-3.0 with
   the GCC Runtime Library Exception: no condition on the programs built with it.
+- **libstdc++ headers / libsupc++** (GCC's C++ library, for the in-game menu's C++
+  code; shipped with the toolchain): GPL-3.0 with the same GCC Runtime Library
+  Exception. The menu is built without exceptions and RTTI and links no C++ library
+  archive; only inline header code ends up in a PSP build.
 - **pthread-embedded** (`libpthread.a`): the toolchain's default libraries link a few of
   its members into every PSP build. Licence: GNU LGPL 2.1 or later (its Vita patches:
   MIT, Copyright (c) 2016 Davee). PS2RC distributes no PSP program; whoever distributes a
@@ -90,7 +157,8 @@ texts in `toolchain/licenses/` and the source offer of section "Converter app" b
   means to relink). The converter app ships the library's source with the toolchain.
 - **Converter app.** The app bundles the PSP toolchain (GCC, binutils: GPL-3.0; GMP,
   MPFR, MPC: LGPL-3.0; ISL: MIT; zlib, zstd, MinGW-w64 runtime: their licences) and a
-  private Python (PSF licence; pyelftools: public domain, with construct: MIT). Their
+  private Python (PSF licence; pyelftools: public domain, with construct: MIT; Pillow
+  ([python-pillow.org](https://python-pillow.org), MIT-CMU licence): image conversion of the menu art). Their
   licence texts are in the app's `licenses/` folders; the source code of the toolchain
   (the pinned archives, the build scripts in `tools/toolchain/`, the build information)
   is offered next to every download of the app, for as long as it is offered. These
@@ -180,6 +248,9 @@ from them is included.
   PS2RC.
 - **psx-spx** ([problemkaputt.de/psx-spx.htm](https://problemkaputt.de/psx-spx.htm)):
   public documentation of the PlayStation sound hardware.
+- **BloodPSP** ([github.com/RainArcanjo/BloodPSP](https://github.com/RainArcanjo/BloodPSP)), launcher MIT: the
+  layout of the converter's Controls page (a drawn PSP with the buttons' roles around it) is inspired by its
+  launcher. No code, artwork or icons of it are included; the PSP drawing is our own.
 - **uofw** and the PSP homebrew community's Media Engine research: facts about the
   PSP's firmware interfaces and the Media Engine's start-up.
 
