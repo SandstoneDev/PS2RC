@@ -9,7 +9,7 @@ Docker), build (compiling and linking without make/sh), stage (output folder), p
 import os
 import sys
 
-VERSION = "0.2.0"
+VERSION = "0.2.1"
 FOLDER_MAX = 32
 
 

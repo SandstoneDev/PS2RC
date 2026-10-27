@@ -88,3 +88,22 @@ def test_menu_session_saves_with_comments(exe, tmp_path):
     for s in shots:                                   # a real frame: many colours, the text is there
         data = s.read_bytes()[15:]
         assert len(set(data[i:i + 3] for i in range(0, len(data), 3 * 97))) > 40
+
+
+@pytest.mark.parametrize("template,pad_kb", [("player_ru.cfg", 0), ("player_en.cfg", 70)])
+def test_menu_saves_big_player_file(exe, tmp_path, template, pad_kb):
+    # the 0.2.0 Russian template is over 24 KB: a fixed 24 KB buffer refused it ("too long"); the buffers now grow
+    cfg = tmp_path / "cfg"
+    cfg.mkdir()
+    text = open(os.path.join(PACK, "cfg", template), encoding="utf-8").read()
+    text += "".join("# padding line %05d for a long settings file\n" % i for i in range(pad_kb * 1024 // 44))
+    (cfg / "ps2rc.cfg").write_text(text, encoding="utf-8", newline="\n")
+    shutil.copy(os.path.join(PACK, "cfg", "dev.cfg"), cfg / "ps2rc_dev.cfg")
+    assert len(text.encode("utf-8")) > 24 * 1024
+    p = config.posix_path(str(tmp_path))
+    _run("HLE_CFG_DIR='%s/cfg' %s '%s' '%s' 320" % (p, exe, p, "w5,R,ST,O"))
+    log = (tmp_path / "log.txt").read_text(encoding="utf-8")
+    assert "save FAILED" not in log, log
+    assert re.search(r"menu: saved 1 setting\(s\): ps2rc.cfg 1, ps2rc_dev.cfg 0", log), log
+    after = (cfg / "ps2rc.cfg").read_text(encoding="utf-8")
+    assert after.count("\n") == text.count("\n") and "draw_distance=45" in after

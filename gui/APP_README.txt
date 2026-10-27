@@ -24,6 +24,10 @@ test; other PSP models are untested - pick Best quality if a PSP stays silent.
 If the window does not open: send %LOCALAPPDATA%\PS2RC\gui_start.log. The log of each conversion is in
 %LOCALAPPDATA%\PS2RC\logs.
 
+Updates: at start the window asks GitHub once whether a newer converter is out (Help > Check for updates at start
+turns it off). "Download and install" checks the file's SHA-256 and unpacks the new version into a new folder next
+to this one; this folder stays as it is (delete it yourself later). Settings stay in %APPDATA%\PS2RC.
+
 How to play, the PSP controls and the project: app/README.md. Help > About in the window: version, licence,
 links.
 

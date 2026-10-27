@@ -12,6 +12,7 @@ disc, output, menu look, settings, options.
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import threading
@@ -42,6 +43,7 @@ import cfgform  # noqa: E402
 import controls_model  # noqa: E402
 import controls_profiles  # noqa: E402
 import qt_wheel  # noqa: E402
+import updater  # noqa: E402
 
 
 def _legacy_cfg_names():
@@ -267,6 +269,7 @@ class App(QMainWindow):
         self.drive_list, self.folders = [], []
         self.next_btn, self.slot_ui = None, {}
         self._ctl_tab_i, self._ctl_msg, self._ctl_scroll = 0, "", {}
+        self.update_rel, self._update_hidden, self._update_busy, self.update_dialog = None, False, False, None
         self._base_font = QFont(QApplication.font())
         self._apply_size()
         self.setWindowTitle("%s %s" % (self.t("app"), VERSION))
@@ -337,6 +340,15 @@ class App(QMainWindow):
         a = QAction(self.t("about.licences"), self)
         a.triggered.connect(self._open_licences)
         helpm.addAction(a)
+        helpm.addSeparator()
+        a = QAction(self.t("upd.check_now"), self)
+        a.triggered.connect(lambda: self.check_updates(manual=True))
+        helpm.addAction(a)
+        a = QAction(self.t("upd.at_start"), self, checkable=True)
+        a.setChecked(updater.should_check_at_start(self.s))
+        a.toggled.connect(self._set_update_check)
+        helpm.addAction(a)
+        self.update_actions = helpm.actions()[-2:]
         langs = view.addMenu(self.t("lang"))
         g2 = QActionGroup(self)
         choice = self.s.get("lang_choice") or "system"
@@ -442,6 +454,11 @@ class App(QMainWindow):
         outer.setContentsMargins(10, 6, 10, 8)
         outer.setSpacing(6)
         outer.addWidget(self._header())
+        self._outer = outer
+        self.update_banner = None
+        if self.update_rel is not None and not self._update_hidden:
+            self.update_banner = self._update_banner()
+            outer.addWidget(self.update_banner)
         self.body = QWidget()
         self.body_lay = QVBoxLayout(self.body)
         self.body_lay.setContentsMargins(0, 0, 0, 0)
@@ -2670,6 +2687,220 @@ class App(QMainWindow):
               "movies": self.s.get("movies", "auto"), "audio": self.s.get("audio", "all")}
         self._run_conversion(src, os.path.dirname(f), kw, None)
 
+    # --- update check (gui/updater.py: one GET to the project's latest-release API; downloads only on a click) -----
+    def _set_update_check(self, on):
+        self.s["update_check"] = bool(on)
+        self._save()
+
+    def auto_update_check(self):
+        """at start (main): in the background, only when "Check for updates at start" is on"""
+        if updater.should_check_at_start(self.s):
+            self.check_updates(manual=False)
+
+    def check_updates(self, manual=False):
+        """a worker thread asks GitHub; the answer comes back through the bridge - the window never waits"""
+        if self._update_busy:
+            return
+        self._update_busy = True
+
+        def work():
+            try:
+                rel, err = updater.check(VERSION)
+            except Exception:                    # never let the check disturb the window
+                rel, err = None, "bad"
+            self._ui(self._update_result, rel, err, manual)
+        self._thread(work)
+
+    def _update_result(self, rel, err, manual):
+        self._update_busy = False
+        if err:
+            if manual:
+                QMessageBox.information(self, self.t("app"), self.t("upd.failed", self.t("upd.err." + err)))
+            return
+        if not updater.should_show(rel, self.s, manual):
+            if manual:
+                QMessageBox.information(self, self.t("app"), self.t("upd.newest", VERSION))
+            return
+        self.update_rel, self._update_hidden = rel, False
+        self._show_update_banner()
+
+    def _show_update_banner(self):
+        old = getattr(self, "update_banner", None)
+        if old is not None:
+            old.hide()
+            old.deleteLater()
+        self.update_banner = None
+        if self.update_rel is None or self._update_hidden or getattr(self, "_outer", None) is None:
+            return
+        try:
+            self.update_banner = self._update_banner()
+            self._outer.insertWidget(1, self.update_banner)
+        except RuntimeError:                     # the page was just replaced: show_page builds it
+            self.update_banner = None
+
+    def _update_banner(self):
+        rel = self.update_rel
+        w = QFrame()
+        w.setFrameShape(QFrame.StyledPanel)
+        w.setStyleSheet("QFrame { border: 1px solid %s; border-radius: 4px; }" % BLUE)
+        lay = QHBoxLayout(w)
+        lay.setContentsMargins(8, 4, 8, 4)
+        text = QLabel(self.t("upd.available", rel.version, VERSION))
+        text.setStyleSheet("border: none;")
+        f = QApplication.font()
+        f.setBold(True)
+        text.setFont(f)
+        lay.addWidget(text, 1)
+        btns = {}
+        for key, fn in (("upd.install", self._update_download), ("upd.notes", self._update_notes),
+                        ("upd.later", self._update_later), ("upd.skip", self._update_skip)):
+            b = QPushButton(self.t(key))
+            b.clicked.connect(fn)
+            lay.addWidget(b)
+            btns[key] = b
+        btns["upd.install"].setEnabled(rel.asset is not None and not self.running)
+        if rel.asset is None:
+            btns["upd.install"].setToolTip(self.t("upd.err.noasset", sys.platform))
+        w.parts = {"text": text, **btns}
+        return w
+
+    def _update_notes(self):
+        from PySide6.QtCore import QUrl
+        from PySide6.QtGui import QDesktopServices
+        if self.update_rel is not None:
+            QDesktopServices.openUrl(QUrl(self.update_rel.page))
+
+    def _update_later(self):
+        self._update_hidden = True
+        self._show_update_banner()
+
+    def _update_skip(self):
+        if self.update_rel is not None:
+            self.s["update_skip"] = self.update_rel.version
+            self._save()
+        self._update_later()
+
+    def _update_download(self):
+        """download (progress, cancel) -> sha256 checked -> unpack / open; all file work in a worker thread"""
+        rel = self.update_rel
+        if rel is None or rel.asset is None or self.update_dialog is not None:
+            return
+        cancel = threading.Event()
+        d = QDialog(self)
+        d.setWindowTitle(self.t("upd.dl.title", rel.version))
+        lay = QVBoxLayout(d)
+        msg = label(rel.asset["name"], wrap=True)
+        lay.addWidget(msg)
+        bar = QProgressBar()
+        bar.setRange(0, 0)
+        lay.addWidget(bar)
+        stop = QPushButton(self.t("upd.dl.cancel"))
+        stop.clicked.connect(cancel.set)
+        lay.addWidget(hbox(None, stop))
+        d.setMinimumWidth(460)
+        d.rejected.connect(cancel.set)
+        d.parts = {"msg": msg, "bar": bar, "cancel": stop, "event": cancel}
+        self.update_dialog = d
+        d.show()
+        plat = rel.plat
+        app_root = updater.bundle_root(HERE)
+
+        def progress(done, total):
+            self._ui(self._update_progress, done, total)
+
+        def work():
+            res = err = None
+            folder = None
+            try:
+                folder = updater.download_folder(plat)
+                path = updater.download_release(rel, folder, progress, cancel, version=VERSION)
+                if plat == "win":
+                    self._ui(self._update_progress, -1, 0)
+                    try:
+                        res = updater.install_zip(path, app_root, rel.version)
+                    finally:
+                        shutil.rmtree(folder, ignore_errors=True)
+                elif plat == "linux":
+                    updater.make_executable(path)
+                    res = path
+                else:
+                    res = path
+            except updater.UpdateError as e:
+                err = e
+                if plat == "win" and folder:
+                    shutil.rmtree(folder, ignore_errors=True)
+            except Exception as e:               # anything else: shown, never a crash of the window
+                err = updater.UpdateError("io", str(e))
+            self._ui(self._update_done, res, err, plat)
+        self._thread(work)
+
+    def _update_progress(self, done, total):
+        d = self.update_dialog
+        if d is None:
+            return
+        bar, msg = d.parts["bar"], d.parts["msg"]
+        if done < 0:
+            bar.setRange(0, 0)
+            msg.setText(self.t("upd.dl.extracting"))
+            d.parts["cancel"].setEnabled(False)
+        elif total > 0:
+            bar.setRange(0, 1000)
+            bar.setValue(int(min(done, total) * 1000 / total))
+            msg.setText(self.t("upd.dl.progress", human_bytes(done), human_bytes(total)))
+        else:
+            msg.setText(human_bytes(done))
+
+    def _update_done(self, res, err, plat):
+        d, self.update_dialog = self.update_dialog, None
+        if d is not None:
+            d.done(0)
+            d.deleteLater()
+        if err is not None:
+            if err.code != "cancel":
+                text = self.t("upd.err." + err.code)
+                if err.code in ("io", "net", "noasset"):
+                    text = self.t("upd.err." + err.code, err.detail)
+                QMessageBox.warning(self, self.t("app"), text)
+            return
+        if plat == "win":
+            app_root = updater.bundle_root(HERE)
+            text = self.t("upd.done.win", res) + "\n\n" + self.t("upd.keep")
+            if app_root:
+                text += "\n\n" + self.t("upd.old", app_root)
+            self._update_offer(text, updater.new_exe(res), res)
+        elif plat == "linux":
+            self._update_offer(self.t("upd.done.linux", res), res, os.path.dirname(res))
+        else:
+            self._open_file(res)
+            QMessageBox.information(self, self.t("app"), self.t("upd.done.mac", res))
+
+    def _update_offer(self, text, exe, folder):
+        """'Open the new version' starts it and closes this window; 'Close' leaves both where they are"""
+        box = QMessageBox(QMessageBox.Information, self.t("app"), text, parent=self)
+        start = box.addButton(self.t("upd.open_new"), QMessageBox.AcceptRole) if exe else None
+        box.addButton(self.t("upd.close"), QMessageBox.RejectRole)
+        self.update_box = box
+        box.exec()
+        if start is not None and box.clickedButton() is start:
+            if self._start_program(exe, folder):
+                self.close()
+
+    def _start_program(self, exe, folder):
+        from ps2rc import proc
+        try:
+            subprocess.Popen([exe], cwd=folder, env=proc.clean_env(), close_fds=True)
+            return True
+        except OSError as e:
+            QMessageBox.warning(self, self.t("app"), self.t("upd.err.io", str(e)))
+            return False
+
+    def _open_file(self, path):
+        from ps2rc import proc
+        try:
+            subprocess.Popen(["open", path], env=proc.clean_env(), close_fds=True)
+        except OSError:
+            show_in_explorer(path, select=True)
+
     # --- close ------------------------------------------------------------------------------------------------
     def closeEvent(self, e):
         if self.running and self.worker and self.worker.is_alive():
@@ -2677,6 +2908,8 @@ class App(QMainWindow):
                 e.ignore()
                 return
             self._stop()
+        if self.update_dialog is not None:
+            self.update_dialog.parts["event"].set()     # a running download stops and leaves no file behind
         self._stop_sound()
         self._save()
         e.accept()
@@ -2746,6 +2979,7 @@ def main():
         traceback.print_exc()
         return 1
     w.show()
+    w.auto_update_check()                    # in the background; off: Help > Check for updates at start
     return app.exec()
 
 

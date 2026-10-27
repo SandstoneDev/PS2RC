@@ -395,51 +395,59 @@ bool save_all(void)
     }
     if (!ne) { msg("No unsaved changes"); return true; }
     if (!M.h->read_file || !M.h->write_file) { err("Saving is not available here"); return false; }
-    const int cap = 24 * 1024;                     /* a cfg file up to 24 KB (the template: ~9 KB) */
-    char *mem = M.h->tmp_alloc ? (char *)M.h->tmp_alloc(3u * cap + 16384u) : NULL;   /* outside ImGui's pool */
-    char *in = mem, *out = mem ? mem + cap : NULL, *out2 = mem ? mem + 2 * cap + 8192 : NULL;
-    bool ok = mem != NULL;
+    // the buffers follow the file size: 32 KB first, doubled up to 128 KB when a file does not fit
+    // (a fixed 24 KB refused the 0.2.0 Russian template, 24.3 KB, as "too long")
+    bool ok = false, too_long = false, no_mem = false;
     int wrote[2] = {0, 0};
     int nplayer = 0, ndev = 0;
-    if (ok) {
-        // 1. player file, existing lines only (kept in out2 for step 3)
-        int n0 = M.h->read_file(0, in, cap);
-        if (n0 >= cap) ok = false;                   /* too long to edit safely */
-        if (n0 < 0) n0 = 0;
-        int p1 = hle_cfg_rewrite(in, n0, e, ne, 0, out2, cap + 8192);
-        // 2. developer file: existing lines + new developer lines
-        bool dev_need = false;
-        for (int i = 0; i < ne; i++) if (!e[i].done) dev_need = true;
-        if (dev_need) {
-            int n1 = M.h->read_file(1, in, cap);
-            if (n1 >= cap) ok = false;
-            if (n1 < 0) n1 = 0;
-            int before = 0;
-            for (int i = 0; i < ne; i++) before += e[i].done;
-            int p2 = hle_cfg_rewrite(in, n1, e, ne, 2, out, cap + 8192);
-            int after = 0;
-            for (int i = 0; i < ne; i++) after += e[i].done;
-            ndev = after - before;
-            if (p2 < 0) ok = false;
-            else if (ndev) { ok = M.h->write_file(1, out, p2) == 0; wrote[1] = ok; }
+    for (int cap = 32 * 1024; cap <= 128 * 1024; cap *= 2) {
+        char *mem = M.h->tmp_alloc ? (char *)M.h->tmp_alloc(3u * cap + 16384u) : NULL;   /* outside ImGui's pool */
+        char *in = mem, *out = mem ? mem + cap : NULL, *out2 = mem ? mem + 2 * cap + 8192 : NULL;
+        ok = mem != NULL;
+        no_mem = !ok;
+        too_long = false;
+        nplayer = ndev = 0;
+        for (int i = 0; i < ne; i++) e[i].done = 0;
+        if (ok) {
+            // 1. player file, existing lines only (kept in out2 for step 3)
+            int n0 = M.h->read_file(0, in, cap);
+            if (n0 < 0) n0 = 0;
+            int p1 = n0 < cap ? hle_cfg_rewrite(in, n0, e, ne, 0, out2, cap + 8192) : -1;
+            if (p1 < 0) ok = false, too_long = true;   /* does not fit: retried with bigger buffers */
+            // 2. developer file: existing lines + new developer lines
+            bool dev_need = false;
+            for (int i = 0; i < ne; i++) if (!e[i].done) dev_need = true;
+            if (ok && dev_need) {
+                int n1 = M.h->read_file(1, in, cap);
+                if (n1 < 0) n1 = 0;
+                int before = 0;
+                for (int i = 0; i < ne; i++) before += e[i].done;
+                int p2 = n1 < cap ? hle_cfg_rewrite(in, n1, e, ne, 2, out, cap + 8192) : -1;
+                int after = 0;
+                for (int i = 0; i < ne; i++) after += e[i].done;
+                ndev = after - before;
+                if (p2 < 0) ok = false, too_long = true;
+                else if (ndev) { ok = M.h->write_file(1, out, p2) == 0; wrote[1] = ok; }
+            }
+            // 3. player file: new player lines
+            if (ok) {
+                int p3 = hle_cfg_rewrite(out2, p1, e, ne, 1, out, cap + 8192);
+                int after = 0;
+                for (int i = 0; i < ne; i++) after += e[i].done;
+                nplayer = after - ndev;
+                if (p3 < 0) ok = false, too_long = true;
+                else if (nplayer) { ok = M.h->write_file(0, out, p3) == 0; wrote[0] = ok; }
+            }
         }
-        // 3. player file: new player lines
-        if (ok && p1 >= 0) {
-            int before = 0;
-            for (int i = 0; i < ne; i++) before += e[i].done;
-            int p3 = hle_cfg_rewrite(out2, p1, e, ne, 1, out, cap + 8192);
-            int after = 0;
-            for (int i = 0; i < ne; i++) after += e[i].done;
-            nplayer = after - ndev;
-            (void)before;
-            if (p3 < 0) ok = false;
-            else if (nplayer) { ok = M.h->write_file(0, out, p3) == 0; wrote[0] = ok; }
-        } else ok = false;
+        if (mem) M.h->tmp_free(mem);
+        if (ok || !too_long || wrote[1]) break;      /* done, a write failed, or the developer file is already written */
     }
-    if (mem) M.h->tmp_free(mem);
     if (!ok) {
-        err("Could not save: the settings file could not be written (too long, or the memory stick is full / locked)");
-        logf("menu: save FAILED (player written %d, dev written %d)", wrote[0], wrote[1]);
+        if (no_mem) err("Could not save: not enough free memory for the file buffers");
+        else if (too_long) err("Could not save: the settings file is too long (over 128 KB)");
+        else err("Could not save: the settings file could not be written (memory stick full or locked?)");
+        logf("menu: save FAILED (player written %d, dev written %d, too long %d, no memory %d)", wrote[0], wrote[1],
+             too_long, no_mem);
         return false;
     }
     int restart = 0;

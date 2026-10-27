@@ -59,6 +59,10 @@ The command line of the same folder: `ps2rc-convert.cmd <your disc image> --out 
 `ps2rc-convert.cmd --help`). The game pack's README (in `games/`) explains the controls and the settings
 file. Everything the converter makes stays on your PC: never share the folder it makes.
 
+At start the converter asks GitHub whether a newer version is out (one request to this repository's releases, nothing
+about you or your PC is sent); turn it off in Help > Check for updates at start. "Download and install" checks the
+download's SHA-256 and unpacks it into a new folder next to the current one.
+
 ## Controls (PSP)
 
 The PSP has no L2, R2, L3, R3 and no right stick. **SELECT is a modifier**: hold it and press a second
