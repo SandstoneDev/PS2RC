@@ -123,8 +123,12 @@ if [ -n "$foreign" ]; then
       for f in "$L"/*; do patchelf --set-rpath '$ORIGIN' "$f"; done
     fi
     # what remains must resolve inside the folder or to the system
+    # ldd prints the $ORIGIN path unresolved (bin/../lib/host/...): compare canonical paths
+    Lc=$(cd "$L" && pwd -P)
     left=$(for f in $(host_files) "$L"/*; do for d in $(deps_of "$f"); do
              case "$d" in "$L"/*|@loader_path/*) continue ;; esac
+             case "$d" in /*) dc=$(cd "$(dirname "$d")" 2>/dev/null && echo "$(pwd -P)/$(basename "$d")") || dc=$d ;; *) dc=$d ;; esac
+             case "$dc" in "$Lc"/*) continue ;; esac
              system_lib "$(basename "$d")" || system_lib "$d" || echo "$f -> $d"; done; done | sort -u)
     [ -z "$left" ] || { echo "host references outside the bundle remain:"; echo "$left"; exit 2; } >&2
     {
