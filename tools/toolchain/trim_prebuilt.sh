@@ -153,7 +153,8 @@ if [ -n "$SOURCES" ]; then
   one() { ls "$SOURCES"/$1-*.tar.gz 2>/dev/null | head -1; }
   topfiles() {   # archive dest regex: copy the matching top-level files of an archive (GNU tar and bsdtar)
     local a=$1 d=$2 re=$3 top names
-    top=$(tar -tzf "$a" | head -1 | cut -d/ -f1)
+    # sed reads the whole listing: "| head -1" made GNU tar fail on SIGPIPE under pipefail
+    top=$(tar -tzf "$a" | sed -n '1s#/.*##p')
     names=$(tar -tzf "$a" | grep -E "^$top/($re)\$" || true)
     [ -n "$names" ] || { echo "licences: no $re in $(basename "$a")"; return 0; }
     # shellcheck disable=SC2086
