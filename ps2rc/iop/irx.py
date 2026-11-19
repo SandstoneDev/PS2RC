@@ -144,7 +144,13 @@ def load(src, base=0):
         raise IrxError("no loadable segment at address 0")
     of, _va, fsz, msz = seg
     if msz != tsz + dsz + bsz:
-        raise IrxError("segment size 0x%x != text+data+bss 0x%x" % (msz, tsz + dsz + bsz))
+        # Some older IOP toolchains write BSS 0 (or too small) into .iopmod while the segment's p_memsz holds the real
+        # BSS; the IOP's loader sizes and clears the module from the segment, so it is authoritative when it covers
+        # text + data and the file data. Anything else is a damaged file.
+        if msz > tsz + dsz + bsz and msz >= tsz + dsz and fsz <= tsz + dsz:
+            bsz = msz - tsz - dsz
+        else:
+            raise IrxError("segment size 0x%x != text+data+bss 0x%x" % (msz, tsz + dsz + bsz))
     image = bytearray(msz)
     image[:fsz] = data[of:of + fsz]
     # relocations (module-relative addresses), applied for `base`

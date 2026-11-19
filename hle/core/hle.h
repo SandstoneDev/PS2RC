@@ -253,6 +253,18 @@ typedef int (*HleRpcFn)(R5900Ctx *c, uint32_t fno, uint32_t mode, uint32_t send,
                         uint32_t rsize);
 void hle_rpc_register(uint32_t rpc_id, HleRpcFn fn);
 int hle_rpc_registered(uint32_t rpc_id);          /* 1 = the pack registered a handler for that server */
+/* the pack's catch-all for servers it did not register one by one (e.g. servers its IOP modules register at run time);
+   returns -1 when it has no such server either */
+typedef int (*HleRpcAnyFn)(R5900Ctx *c, uint32_t rpc_id, uint32_t fno, uint32_t mode, uint32_t send, uint32_t ssize,
+                           uint32_t recv, uint32_t rsize);
+void hle_rpc_register_any(HleRpcAnyFn fn);
+/* EE-side SIF RPC servers (the IOP calls the EE): the game's sceSifRegisterRpc is HLE (hle_sce.c), its server thread
+   parks in sceSifRpcLoop, and an embedding runs a request on the calling EE thread: the server function
+   func(fno, buff, ssize) as guest code, `send` copied into its buffer first, rsize bytes of the returned pointer
+   copied into `recv`. 0 = done, -1 = no such server. */
+int hle_ee_rpc_bound(uint32_t sid);
+int hle_ee_rpc_run(R5900Ctx *c, uint32_t sid, uint32_t fno, const void *send, uint32_t ssize, void *recv,
+                   uint32_t rsize);
 
 /* ------------------------------------------------------------------ code overlays (hle_overlay.c) */
 void hle_overlay_loaded(uint32_t addr);   /* an MWo3 image is now at addr: select the matching translated overlay */
