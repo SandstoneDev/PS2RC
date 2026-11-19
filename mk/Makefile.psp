@@ -33,6 +33,9 @@ LDFLAGS  = $(PACK_LDFLAGS)
 # a code layout (build.sh): GEN_EXTRA / HLE_EXTRA = -ffunction-sections and LAYOUT_ORDER = order.ld (the main-loop
 # functions first in .text)
 GEN_EXTRA    ?=
+GEN_FAST     ?=                      # unit names (main_017 ...) compiled with -O2 after GEN_EXTRA (pack build.y_gen_fast)
+GEN_FAST_O   := $(addprefix obj/gen/,$(addsuffix .o,$(GEN_FAST)))
+$(GEN_FAST_O): GEN_UNIT := -O2
 HLE_EXTRA    ?=
 LAYOUT_ORDER ?=
 ifneq ($(LAYOUT_ORDER),)
@@ -52,7 +55,7 @@ gen_objs: $(GEN_O)
 
 obj/gen/%.o: gen/%.c hle/rt/r5900_rt.h
 	@mkdir -p obj/gen
-	@t0=$$(date +%s); $(CC) $(CFLAGS) $(GEN_EXTRA) -w -c $< -o $@ && echo "psp-gcc -c $< $$(( $$(date +%s) - t0 )) s"
+	@t0=$$(date +%s); $(CC) $(CFLAGS) $(GEN_EXTRA) $(GEN_UNIT) -w -c $< -o $@ && echo "psp-gcc -c $< $$(( $$(date +%s) - t0 )) s"
 
 obj/hle/%.o: hle/%.c $(wildcard hle/*.h) hle/hooks.def hle/rt/r5900_rt.h
 	@mkdir -p obj/hle

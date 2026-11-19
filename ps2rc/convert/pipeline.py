@@ -1055,21 +1055,30 @@ class Conversion:
         src = os.path.join(self.work, "movies_src")
         outd = os.path.join(self.work, "movies_out")
         os.makedirs(src, exist_ok=True)
-        fp = fingerprint("movies", names, self.ffmpeg, tree_hash(os.path.dirname(self._movie_tool())))
+        fp = fingerprint("movies", names, bool(self.recipe.get("stage.movies_m1v")), self.recipe.get("stage.movie_vkbps"),
+                         self.recipe.get("stage.movie_check_warn"), self.ffmpeg, tree_hash(os.path.dirname(self._movie_tool())))
         if not self.rec.valid("movies", fp):
-            for n in names:
-                f = self.disc.find(n)
+            stems = []
+            for n in names:                             # "DISC/PATH.PSS" or "DISC/PATH.PSS=STEM" (same file names in
+                path, _, stem = n.partition("=")        # several folders get their own stems)
+                f = self.disc.find(path)
                 if f is None:
-                    raise ConvertError("movies", "movie %s of the pack is not on the disc" % n)
-                self.disc.copy_to(f, os.path.join(src, os.path.basename(f.rel)))
-            stems = [os.path.splitext(os.path.basename(n))[0] for n in names]
+                    raise ConvertError("movies", "movie %s of the pack is not on the disc" % path)
+                stem = stem or os.path.splitext(os.path.basename(f.rel))[0]
+                self.disc.copy_to(f, os.path.join(src, stem + os.path.splitext(f.rel)[1]))
+                stems.append(stem)
+            extra = ["--m1v"] if self.recipe.get("stage.movies_m1v") else []
+            for stem_, kbps in sorted((self.recipe.get("stage.movie_vkbps") or {}).items()):   # per-movie bit rates
+                extra += ["--vkbps-for", "%s=%d" % (stem_, int(kbps))]
+            for stem_ in self.recipe.get("stage.movie_check_warn") or []:                     # known false alarms
+                extra += ["--check-warn", stem_]
             run_logged(script_cmd(self._movie_tool(), "--src",
-                                  src, "--out", outd, "--ffmpeg", self.ffmpeg, "--names", *stems), self.repo, self.env,
-                       os.path.join(self.work, "logs", "movies.log"), self.p, "movies")
+                                  src, "--out", outd, "--ffmpeg", self.ffmpeg, *extra, "--names", *stems), self.repo,
+                       self.env, os.path.join(self.work, "logs", "movies.log"), self.p, "movies")
             self.rec.save("movies", fp, [outd], time.time() - t0)
         os.makedirs(mdir, exist_ok=True)
         for fn in sorted(os.listdir(outd)):
-            if fn.lower().endswith((".pmf", ".wav")):
+            if fn.lower().endswith((".pmf", ".wav", ".m1v")):
                 self.stager.copy_file(os.path.join(outd, fn), os.path.join("movies", fn))
         self._step_end("movies", t0, False)
 

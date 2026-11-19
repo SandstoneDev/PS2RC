@@ -248,7 +248,7 @@ def convert(name, src, args, work):
     # -sws_flags: also the scalers ffmpeg inserts by itself (format conversions) take the exact C path
     base = [args.ffmpeg, '-v', 'error', '-y', '-i', src, '-map', '0:v:0', '-an', '-vf', vf,
             '-sws_flags', 'lanczos+accurate_rnd', '-c:v', 'libx264',
-            '-profile:v', 'main', '-level:v', '2.1', '-preset', args.preset, '-b:v', '%dk' % args.vkbps,
+            '-profile:v', 'main', '-level:v', '2.1', '-preset', args.preset, '-b:v', '%dk' % args.vkbps_of.get(name.upper(), args.vkbps),
             '-x264-params', x264] + BITEXACT
     if args.no_2pass:
         _, times['x264'] = run(base + ['-f', 'h264', es])
@@ -285,7 +285,10 @@ def convert(name, src, args, work):
         r['picture_check'] = framecheck.check(args.ffmpeg, pmf, PSP_W, PSP_H, source=src,
                                               ref_vf=reference_filter(pic), times=times_, what=name)
     except framecheck.FrameCheckError as e:
-        raise RuntimeError(str(e))
+        if name.upper() not in args.check_warn:
+            raise RuntimeError(str(e))
+        log('%s: warning - %s (--check-warn: kept)' % (name, e))   # a known false alarm (e.g. very fast motion)
+        r['picture_check'] = {'psnr': [], 'best': 0.0, 'warning': str(e)}
     times['picture_check'] = time.time() - t0
     r['pmf_bytes'], r['pmf_md5'] = os.path.getsize(pmf), md5(pmf)
     if snd:
@@ -306,6 +309,15 @@ def convert(name, src, args, work):
         for p in (a_src, es, os.path.join(work, name + '_x264-0.log'), os.path.join(work, name + '_x264-0.log.mbtree')):
             if os.path.exists(p):
                 os.remove(p)
+    if args.m1v:                                # a software MPEG-1 player's video (e.g. a pack's own player)
+        t0 = time.time()
+        m1v = os.path.join(args.out, name + '.m1v')
+        pw = int(pic.split('x')[0]) if 'x' in str(pic) else 362
+        run([args.ffmpeg, '-v', 'error', '-y', '-i', src, '-map', '0:v:0', '-an',
+             '-vf', 'scale=%d:272:flags=lanczos,pad=%d:272:%d:0' % (pw, args.m1v_width, (args.m1v_width - pw) // 2),
+             '-r', '25', '-c:v', 'mpeg1video', '-q:v', '3', '-bf', '0', '-g', '25', '-f', 'mpeg1video', m1v])
+        r['m1v_bytes'], r['m1v_md5'] = os.path.getsize(m1v), md5(m1v)
+        times['m1v'] = time.time() - t0
     r['times'] = times
     r['total_s'] = time.time() - t_all
     return r
@@ -327,9 +339,18 @@ def main():
     ap.add_argument('--aspect', choices=('auto', 'fill'), default='auto',
                     help='auto: keep the display aspect (black bars), fill: stretch to 480x272')
     ap.add_argument('--deblock', action='store_true', help='H.264 deblocking on (default off)')
+    ap.add_argument('--vkbps-for', action='append', default=[], metavar='NAME=KBPS',
+                    help='another H.264 bit rate for one movie (e.g. a picture over the 64 KB access-unit limit)')
+    ap.add_argument('--check-warn', action='append', default=[], metavar='NAME',
+                    help='the picture check of this movie only warns (a known false alarm, verified by eye)')
+    ap.add_argument('--m1v', action='store_true', help='also NAME.m1v: MPEG-1 video elementary stream for a software '
+                    'player (q 3, no B pictures, GOP 25, 25 fps, the 272-high picture centred in --m1v-width)')
+    ap.add_argument('--m1v-width', type=int, default=384)
     ap.add_argument('--keep-work', action='store_true')
     ap.add_argument('--preview', action='store_true', help='a few PNG frames of each PMF into <out>/preview')
     args = ap.parse_args()
+    args.vkbps_of = {k.upper(): int(v) for k, _, v in (x.partition('=') for x in args.vkbps_for)}
+    args.check_warn = {x.upper() for x in args.check_warn}
     if not args.src:
         sys.exit('pass --src (or set MOVIE_SRC)')
     args.ffmpeg = find_tool('ffmpeg', args.ffmpeg, 'FFMPEG')
