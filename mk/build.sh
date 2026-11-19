@@ -43,6 +43,7 @@ ALIAS=${ALIAS:-${PACK_ALIAS:-call}}
 LAYOUT=${LAYOUT:-$PACK_LAYOUT}
 Y_HDR=${Y_HDR-$PACK_Y_HDR}
 Y_GEN=${Y_GEN-$PACK_Y_GEN}
+Y_GEN_FAST=${Y_GEN_FAST-$PACK_Y_GEN_FAST}            # generated units built with -O2 even when y_gen sets -Os
 Y_NATIVE=${Y_NATIVE-$PACK_NATIVES}
 if [ "$TARGET" = host ]; then B=${BDIR:-$HOME/ps2rc-build/${PACK_NAME}_host}; else B=${BDIR:-$HOME/ps2rc-build/${PACK_NAME}_psp}; fi
 PKG_OUT=${PKG_OUT:-$PACK_PKG_OUT}
@@ -190,19 +191,19 @@ if [ -n "$LAYOUT" ] && [ -f "$LAYOUT/order.ld" ]; then
   GEN_EXTRA="-ffunction-sections"; HLE_EXTRA="-ffunction-sections"; LAYOUT_ORDER="order.ld"
 fi
 [ -n "$Y_GEN" ] && GEN_EXTRA="$GEN_EXTRA $Y_GEN"          # extra compiler flags for the generated units
-echo "$GEN_EXTRA|$HLE_EXTRA" > flags.new                  # objects of other flags are rebuilt
+echo "$GEN_EXTRA|$HLE_EXTRA|$Y_GEN_FAST" > flags.new      # objects of other flags are rebuilt
 cmp -s flags.new flags.txt || rm -rf obj/gen obj/hle
 mv flags.new flags.txt
 [ -f splash.txt ] || [ "$SPLASH" != 0 ] || echo "splash=0" > splash.txt   # dirs built before = no splash
 echo "splash=$SPLASH" > splash.new                       # a SPLASH change rebuilds the HLE objects (not obj/gen)
 cmp -s splash.new splash.txt || rm -rf obj/hle
 mv splash.new splash.txt
-make -f "$SRC/mk/Makefile.psp" -j"$J" gen_objs GEN_EXTRA="$GEN_EXTRA" HLE_EXTRA="$HLE_EXTRA" \
+make -f "$SRC/mk/Makefile.psp" -j"$J" gen_objs GEN_EXTRA="$GEN_EXTRA" GEN_FAST="$Y_GEN_FAST" HLE_EXTRA="$HLE_EXTRA" \
     LAYOUT_ORDER="$LAYOUT_ORDER" > make_gen.log 2>&1 || { grep -E "error|Error" make_gen.log | head -20; exit 1; }
 echo "generated units compiled: $(grep -c 'psp-gcc -c' make_gen.log) in $(( $(date +%s) - start )) s"
 rm -f PARAM.SFO                                        # build.mak never remakes it (a stale menu title otherwise)
 rm -f ps2rc.elf                                         # relink: order.ld is not a make dependency
-make -f "$SRC/mk/Makefile.psp" HLE_DEFS="$HLE_DEFS" HLE_BUILD="$HLE_BUILD" PSP_TITLE="$PACK_TITLE" PACK_LDFLAGS="$PACK_PSP_LDFLAGS" GEN_EXTRA="$GEN_EXTRA" \
+make -f "$SRC/mk/Makefile.psp" HLE_DEFS="$HLE_DEFS" HLE_BUILD="$HLE_BUILD" PSP_TITLE="$PACK_TITLE" PACK_LDFLAGS="$PACK_PSP_LDFLAGS" GEN_EXTRA="$GEN_EXTRA" GEN_FAST="$Y_GEN_FAST" \
     HLE_EXTRA="$HLE_EXTRA" LAYOUT_ORDER="$LAYOUT_ORDER" 2>&1 | tee make.log | grep -E "error|warning|stubs out of order" | head -40 || true
 if grep -q "stubs out of order" make.log; then echo "BUILD ERROR: stubs out of order"; exit 1; fi
 test -f EBOOT.PBP

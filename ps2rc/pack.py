@@ -139,6 +139,7 @@ SHELL_VARS = [
     ("PACK_DEFINES", "build.defines", False),
     ("PACK_Y_HDR", "build.y_hdr", False),
     ("PACK_Y_GEN", "build.y_gen", False),
+    ("PACK_Y_GEN_FAST", "build.y_gen_fast", False),
     ("PACK_ALIAS", "build.alias", False),
     ("PACK_DISCMAP", "run.discmap", True),
     ("PACK_RUN_OUT", "run.out", True),
