@@ -962,7 +962,7 @@ def narrowable(img, fn, func_starts, livein, wide_args=frozenset(), wide_rets=fr
         if ctx:                                            # sync of the registers a 128-bit instruction touches
             touched = {r for r, _ in op.srcs} | ({op.base} if op.base else set()) | ({op.dst} if op.dst else set())
             cand -= {r for r in touched if dirty >> r & 1 and not c32 >> r & 1}
-        if f.flow[a].kind in fatal or insn.mnem in ("mfc0", "mtc0", "di", "ei"):
+        if f.flow[a].kind in fatal or insn.mnem in ("mfc0", "mtc0", "di", "ei", "mfpc", "mtpc", "mfps", "mtps"):
             cand -= {r for r in range(32) if dirty >> r & 1 and not c32 >> r & 1}
         leaves = bool(f.exits[a]) or any(e is not None for _t, e in f.succ[a])
         if leaves:                                         # call / return / tail call: flush after this instruction

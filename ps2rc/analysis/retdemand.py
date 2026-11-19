@@ -85,7 +85,7 @@ def site_summaries(f, narrow, exempt=frozenset(), exact=False):
                 o |= v
             m = insn.mnem
             if (op is None and m != "syscall") or m in ("break", "eret", ".word") or \
-                    m.startswith(("mfc0", "mtc0", "cop0", "t", "di", "ei", "bc0")):
+                    m.startswith(("mfc0", "mtc0", "cop0", "t", "di", "ei", "bc0", "mfp", "mtp")):
                 o |= FULL                                # rt_fatal / HLE / unknown reader: everything observable
             # GPR defs / uses (width._uses_defs semantics; syscall: reads v1 + args, returns v0/v1)
             use = dfn = 0

@@ -354,6 +354,50 @@ static uint32_t cop0_read(int rd)
     }
 }
 
+/* Performance counters (MFPS/MTPS PCCR, MFPC/MTPC PCR0/PCR1; Sony's libpc, games time frames with them).
+   PCCR: bit 31 CTE (counting enabled); counter 0: EVENT0 bits 9..5, mode bits U0 4, S0 3, K0 2, EXL0 1; counter 1:
+   EVENT1 bits 19..15, U1 14, S1 13, K1 12, EXL1 11. Event 1 ("processor cycle", both counters) counts EE cycles of
+   virtual time while CTE and any of U/S/K is set (the processor mode is not modelled); the other events (cache misses,
+   instructions issued, ...) have no model: such a counter holds its value (logged once). The counter overflow
+   (bit 31 of a PCR) raises no interrupt here. */
+static uint32_t pccr, pcr_base[2];
+static uint64_t pcr_vt[2];
+
+static int pcr_counting(int i)
+{
+    unsigned ev = i ? (pccr >> 15) & 31 : (pccr >> 5) & 31;
+    unsigned mode = i ? (pccr >> 12) & 7 : (pccr >> 2) & 7;
+    return (pccr & 0x80000000u) && ev == 1 && mode;
+}
+static uint32_t pcr_read(int i)
+{
+    return pcr_counting(i) ? pcr_base[i] + (uint32_t)(hle_vtime - pcr_vt[i]) : pcr_base[i];
+}
+static void pcr_write(int i, uint32_t v) { pcr_base[i] = v; pcr_vt[i] = hle_vtime; }
+static void pccr_write(uint32_t v)
+{
+    static int warned;
+    uint32_t now0 = pcr_read(0), now1 = pcr_read(1);           /* freeze both at the old configuration */
+    pccr = v;
+    pcr_write(0, now0);
+    pcr_write(1, now1);
+    if (!warned && (v & 0x80000000u) && ((((v >> 5) & 31) > 1) || (((v >> 15) & 31) > 1))) {
+        warned = 1;
+        LOG("performance counters: PCCR %08x selects events other than processor cycles - not modelled, held\n", v);
+    }
+}
+
+/* libpc scePcStart(control, counter0, counter1): the library switches to kernel mode (Status, ERET to ra) to write
+   PCCR, PCR0 and PCR1, then returns with the caller's interrupt state; void. (scePcStop - MFPS/MTPS clearing CTE -
+   runs translated.) */
+HLE_SCE(scePcStart)
+{
+    pcr_write(0, ARG(1));
+    pcr_write(1, ARG(2));
+    pccr_write(ARG(0));
+    VLOG("scePcStart(%08x, %08x, %08x)\n", ARG(0), ARG(1), ARG(2));
+}
+
 /* Translated function at a guest address that the dispatch tables do not list:
    1. a function translated outside the tables (hle_fnmap.c: overlay static constructors after .text);
    2. a call target inside nop padding that function discovery attached to the function before it: e.g. an overlay
@@ -456,6 +500,22 @@ void rt_fatal(R5900Ctx *c, const char *what, uint32_t pc, uint32_t value)
         }
         VLOG("mtc0 cop0[%d] <- %08x at %08x\n", rd, v, pc);
         if (rd == 12) hle_deliver_interrupts();
+        return;
+    }
+    if (what[0] == 'm' && (what[1] == 'f' || what[1] == 't') && what[2] == 'p' && (what[3] == 'c' || what[3] == 's')) {
+        int rt = (value >> 16) & 31, pc_reg = what[3] == 'c', n = (value >> 1) & 1;   /* MFPC/MTPC: PCR0 or PCR1 */
+        if (what[1] == 'f') {
+            uint32_t v;
+            hle_time_charge(64);                         /* a timer read: a safe point, so poll loops progress */
+            v = pc_reg ? pcr_read(n) : pccr;
+            if (rt) c->r[rt].d[0] = (uint64_t)(int64_t)(int32_t)v;
+            VVLOG("%s $%d <- %08x at %08x\n", what, rt, v, pc);
+        } else {
+            uint32_t v = (uint32_t)c->r[rt].d[0];
+            if (pc_reg) pcr_write(n, v);
+            else pccr_write(v);
+            VLOG("%s <- %08x at %08x\n", what, v, pc);
+        }
         return;
     }
     if (strcmp(what, "di") == 0) {

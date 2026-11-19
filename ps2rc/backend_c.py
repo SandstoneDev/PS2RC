@@ -242,7 +242,7 @@ def _cop0_reload(i):
     """After rt_fatal(c, "mfc0", ...): a harness that goes on (COP0 HLE) has written the result into the context, so
     a register held in a C local is reloaded from it (Status polls and Count reads, where v1+ kept the stale local:
     65 sites in a large game)."""
-    if i.mnem == "mfc0" and i.ops[0][1] and _LOCAL.get("on"):
+    if i.mnem in ("mfc0", "mfpc", "mfps") and i.ops[0][1] and _LOCAL.get("on"):
         return " /*LOAD:%d*/" % i.ops[0][1]
     return ""
 
@@ -347,7 +347,7 @@ def stmt(i):
         return "rt_sw(c, %s, %s);" % (_mem_addr(o[1]), F(o[0][1]))
     if m in ("sync", "sync.p", "pref", "cache"):
         return ";"
-    if m in ("mfc0", "mtc0", "di", "ei"):                # kernel-mode state: HLE later, fatal for now
+    if m in _FATAL_GO_ON:                                # kernel-mode state / performance counters: COP0 HLE
         return "{ /*FLUSH@i%08x|fatal*/ rt_fatal(c, \"%s\", 0x%08xu, 0x%08xu);%s }" % (i.pc, m, i.pc, i.word,
                                                                                      _cop0_reload(i))
     if m == "syscall":                                   # EE kernel call: number in v1, HLE table (rt_syscall)
@@ -820,7 +820,8 @@ _FPU_CLAMPED_OPS = {"add.s": (1, 2), "sub.s": (1, 2), "mul.s": (1, 2), "div.s": 
                     "suba.s": (0, 1), "mula.s": (0, 1), "madd.s": (1, 2), "msub.s": (1, 2), "madda.s": (0, 1),
                     "msuba.s": (0, 1), "c.eq.s": (0, 1), "c.lt.s": (0, 1), "c.le.s": (0, 1), "sqrt.s": (1,),
                     "rsqrt.s": (1, 2)}
-_FATAL_GO_ON = {"mfc0", "mtc0", "di", "ei"}          # rt_fatal points after which a harness may continue (COP0 HLE)
+_FATAL_GO_ON = {"mfc0", "mtc0", "di", "ei",          # rt_fatal points after which a harness may continue (COP0 HLE;
+                "mfpc", "mtpc", "mfps", "mtps"}      # MFPC/MTPC/MFPS/MTPS: the performance counters, hle_main.c)
 
 
 def _fpr_reads(insn):
@@ -1628,20 +1629,23 @@ def _translate_body(img, start, addrs, jump_tables, func_starts, cache):
                 lines.append("    { %s goto L_%08x; }" % (ds_s, fl.target))
             elif k == "jump":                              # j: tail call
                 t = fl.target
-                lines.append("    %s /*FLUSH|%s=%08x*/ %s; return;" % (ds_s, _xk("tail", t), t, _call(t)))
+                # an exact function's tail call into an ABI-mode function gets the
+                # callee-saved context kept around it like its calls (_pcall): v5 nocs leaves the callee's s0-s7/fp
+                # in the context, and this function's caller reloads them from there
+                lines.append("    %s /*FLUSH|%s=%08x*/ %s return;" % (ds_s, _xk("tail", t), t, _pcall(_call(t), t)))
             elif k == "jump_indirect" and a in jump_tables:
                 # a case outside this function (discovery made it another function's start) is a tail call into it;
                 # that code reads whatever this function left in any register, so everything is written back
                 # (flush kind "case": not an ABI boundary)
                 cases = " ".join("case 0x%08xu: %s" % (t, "goto L_%08x;" % t if t in insns else
-                                                       "{ /*FLUSH|%s=%08x*/ %s; return; }" % (_xk("case", t), t,
-                                                                                             _call(t)))
+                                                       "{ /*FLUSH|%s=%08x*/ %s return; }" % (_xk("case", t), t,
+                                                                                            _pcall(_call(t), t)))
                                  for t in sorted(set(jump_tables[a])))
                 lines.append("    { uint32_t t_ = (uint32_t)%s; %s switch (t_) { %s default: /*FLUSH|fatal*/ "
                              "rt_fatal(c, \"switch\", 0x%08xu, t_); return; } }" % (R(fl.reg), ds_s, cases, a))
             elif k == "jump_indirect":                     # jr reg without a table: indirect tail call
-                lines.append("    { uint32_t t_ = (uint32_t)%s; %s /*FLUSH|itail*/ %s(c, t_); return; }"
-                             % (R(fl.reg), ds_s, _dispatch()))
+                lines.append("    { uint32_t t_ = (uint32_t)%s; %s /*FLUSH|itail*/ %s return; }"
+                             % (R(fl.reg), ds_s, _pcall("%s(c, t_)" % _dispatch())))
             else:
                 raise Unsupported("%08x: %s (%s)" % (a, i.text, k))
             if ds in labels:                               # something jumps into the delay slot

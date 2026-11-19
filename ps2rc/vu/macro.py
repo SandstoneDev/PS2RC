@@ -7,7 +7,8 @@ references: the "VU0 macro mode" section of r5900_rt.h.
 
 Supported: FMAC add/sub/mul/madd/msub in every form (lane-wise, x/y/z/w broadcast, I, Q; Fd and ACC destinations),
 VMOVE, VMR32, VABS, VNOP, VWAITQ, VRINIT/VRGET/VRNEXT/VRXOR, VCALLMS/VCALLMSR (rt_vu0_callms hook), LQC2, SQC2,
-QMTC2, QMFC2, CFC2, CTC2 (+ .I/.NI). Everything else (MAX/MINI, OPMULA/OPMSUB, CLIP, FTOI/ITOF, DIV/SQRT/RSQRT,
+QMTC2, QMFC2, CFC2, CTC2 (+ .I/.NI), OPMULA/OPMSUB (vu0_opm), MAX/MINI in every form (vu0_minmax). Everything else
+(CLIP, FTOI/ITOF, DIV/SQRT/RSQRT,
 integer and VU-memory instructions, BC2x, CTC2 to CMSAR1) is reported unsupported (stmt returns None).
 """
 FIELDS = "xyzw"
@@ -31,6 +32,19 @@ def fmac(base):
             kind = rest[1:] if acc else rest
             return (fam, acc, kind) if kind in ("", "x", "y", "z", "w", "q", "i") else None
     return None
+
+
+def minmax(base):
+    """(is_max, kind) of a VMAX / VMINI mnemonic base, else None. kind: '' lane-wise, 'x'..'w' broadcast, 'i'."""
+    for pre, is_max in (("vmini", 0), ("vmax", 1)):
+        if base.startswith(pre):
+            kind = base[len(pre):]
+            return (is_max, kind) if kind in ("", "x", "y", "z", "w", "i") else None
+    return None
+
+
+# VOPMULA / VOPMSUB lanes: destination lane -> (Fs lane, Ft lane)
+_OPM_LANES = ((0, 1, 2), (1, 2, 0), (2, 0, 1))
 
 
 def handles(insn):
@@ -84,6 +98,19 @@ def stmt(insn, st, R, W, mem_addr):
             return None
         return "vu0_ctc2(c, %d, (uint32_t)%s);" % (o[1][1], R(o[0][1]))
     # ---- macro instructions
+    if base in ("vopmula", "vopmsub"):
+        d = ACC if base == "vopmula" else o[0][1]
+        if d == 0:
+            return ";"
+        return "vu0_opm(c, %d, %s, %d, %d);" % (base == "vopmsub", "VU0_ACC" if d == ACC else d, o[1][1], o[2][1])
+    mm = minmax(base)
+    if mm is not None:
+        is_max, kind = mm
+        d, s = o[0][1], o[1][1]
+        if d == 0:
+            return ";"
+        t, bc = ("VU0_IREG", 0) if kind == "i" else (o[2][1], FIELDS.index(kind) if kind else -1)
+        return "vu0_minmax(c, %d, 0x%x, %d, %d, %s, %d);" % (is_max, _dest(o[0][2]), d, s, t, bc)
     f = fmac(base)
     if f is not None:
         fam, acc, kind = f
@@ -163,6 +190,10 @@ def vf_writes(insn):
         return {o[0][1]} - {0}
     if base == "qmtc2":
         return {o[1][1]} - {0}
+    if base == "vopmula":
+        return {ACC}
+    if base == "vopmsub" or (m.startswith("v") and minmax(base) is not None):
+        return {o[0][1]} - {0}
     f = fmac(base) if m.startswith("v") else None
     if f is not None:
         return {ACC if o[0][0] == "acc" else o[0][1]} - {0}
@@ -198,6 +229,29 @@ def stmt_loc(insn, st, R, W, mem_addr):
         if s is not None and base in ("vcallms", "vcallmsr"):
             s = s[:-1] + "/*VRELOAD*/ }"                 # the micro subroutine works on c->vu0
         return s
+    if base in ("vopmula", "vopmsub"):
+        msub = base == "vopmsub"
+        d = o[0][1] if msub else ACC
+        if d == 0:
+            return ";"
+        s, t = o[1][1], o[2][1]
+        calc = ["x%d_ = vu0_fmac1(%s, %s, %s, %s, 0, 0)" % (i, "VU0_MSUB" if msub else "VU0_MUL",
+                                                          "va_%d" % i if msub else "0u", _lv(s, si), _lv(t, ti))
+                for i, si, ti in _OPM_LANES]
+        assign = ["%s = x%d_;" % ("va_%d" % i if d == ACC else "v%d_%d" % (d, i), i) for i, _s, _t in _OPM_LANES]
+        return "{ uint32_t %s; %s }" % (", ".join(calc), " ".join(assign))
+    mm = minmax(base)
+    if mm is not None:
+        is_max, kind = mm
+        d, s = o[0][1], o[1][1]
+        if d == 0:
+            return ";"
+        lanes = _lanes(o[0][2])
+        fn = "fpu_max" if is_max else "fpu_min"
+        tv = (lambda i: "c->vu0.vi[21]") if kind == "i" else \
+             (lambda i: _lv(o[2][1], FIELDS.index(kind) if kind else i))
+        return "{ uint32_t %s; %s }" % (", ".join("x%d_ = %s(%s, %s)" % (i, fn, _lv(s, i), tv(i)) for i in lanes),
+                                       " ".join("v%d_%d = x%d_;" % (d, i, i) for i in lanes))
     f = fmac(base)
     if f is not None:
         fam, acc, kind = f
@@ -273,6 +327,20 @@ def transfer(insn, st):
         return 0
     if not m.startswith("v"):
         return st
+    if base in ("vopmula", "vopmsub"):
+        n = ACC if base == "vopmula" else o[0][1]
+        return st if n == 0 else st | sum(1 << (4 * n + i) for i in range(3))
+    mm = minmax(base)
+    if mm is not None:
+        d, s = o[0][1], o[1][1]
+        if d == 0:
+            return st
+        new = st
+        for i in _lanes(o[0][2]):
+            tclean = False if mm[1] == "i" else _clean(st, o[2][1], FIELDS.index(mm[1]) if mm[1] else i)
+            bit = 1 << (4 * d + i)
+            new = new | bit if (_clean(st, s, i) and tclean) else new & ~bit
+        return new
     if fmac(base) is not None:
         n = ACC if o[0][0] == "acc" else o[0][1]
         comps = o[0][1] if o[0][0] == "acc" else o[0][2]

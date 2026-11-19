@@ -9,7 +9,8 @@ Covered: the matrix x vector idiom of game math helpers, every FMAC form (lane-w
 broadcast, I, Q; Fd/ACC; add/sub/mul/madd/msub), dest masks, fd == fs/ft aliasing, VF00, x - x, VMOVE/VMR32/VABS,
 LQC2/SQC2/QMTC2/QMFC2 (128-bit GPR halves in the cached variants), CFC2/CTC2 register rules, the R register,
 VCALLMS/VCALLMSR through the rt_vu0_callms hook (and rt_fatal without one), BC0F/BC0T(L) through rt_cpcond0, the
-MMI halfword instructions (as Sony's libipu uses them).
+MMI halfword instructions (as Sony's libipu uses them), VOPMULA/VOPMSUB (the cross-product pair, also Fd == Fs) and
+VMAX/VMINI in every form (lane-wise, x/y/z/w broadcast, I; raw sign-magnitude compare).
 """
 import os
 import random
@@ -77,6 +78,7 @@ F_CALLMS = 0x1600          # vcallms / vcallmsr hook
 F_BC0 = 0x1700             # bc0f/bc0t polling
 F_MMI = 0x1800             # MMI halfword ops
 F_MATVEC3 = 0x1900         # 3-row idiom (vmaddz) + matrix x matrix (vmove.w)
+F_OPMM = 0x1A00            # vopmula / vopmsub (cross product, aliasing) + vmax / vmini forms
 
 PROGRAM = {
     F_MATVEC: [lq(T1, 0, A0), V("qmtc2", T1, 1)] + lqc2s(2, 5, 16) + [
@@ -138,6 +140,11 @@ PROGRAM = {
         V("vmulax.xyz", "ACC", 5, 8), V("vmadday.xyz", "ACC", 6, 8), V("vmaddz.xyz", 9, 7, 8),
         V("vmove.w", 9, 13), V("vmulax.xyzw", "ACC", 10, 11), V("vmadday.xyzw", "ACC", 11, 12),
         V("vmaddaz.xyzw", "ACC", 12, 13), V("vmaddw.xyzw", 12, 13, 0)] + sqc2s([6, 9, 12]) + RET,
+    F_OPMM: lqc2s(1, 15) + [lw(T0, 240, A0), V("ctc2", T0, 21),
+        V("vopmula.xyz", "ACC", 1, 2), V("vopmsub.xyz", 9, 2, 1), V("vopmula.xyz", "ACC", 3, 4),
+        V("vopmsub.xyz", 3, 3, 4), V("vmax.xyzw", 10, 5, 6), V("vmini.xz", 11, 5, 6), V("vmaxy.xyzw", 12, 7, 8),
+        V("vminiw.yw", 13, 8, 7), V("vmaxi.xyzw", 14, 5), V("vminii.xyz", 15, 6)] +
+        sqc2s([9, 3, 10, 11, 12, 13, 14, 15]) + RET,
 }
 SEEDS = sorted(PROGRAM)
 CODE = [(BASE, BASE + SIZE)]
@@ -387,6 +394,7 @@ int main(void)
         dump("accout", k, (const uint8_t *)c.vu0.acc.w, 16);
         run("xfer", k, fn_00001400, vec[k]); run("rreg", k, fn_00001500, vec[k]);
         run("mmi", k, fn_00001800, vec[k]); run("matvec3", k, fn_00001900, vec[k]);
+        run("opmm", k, fn_00001a00, vec[k]);
     }
     rt_vu0_callms_hook = 0; run("callms_nohook", 0, fn_00001600, vec[0]);
     rt_vu0_callms_hook = hook; run("callms", 0, fn_00001600, vec[0]);
@@ -426,7 +434,7 @@ def expected(vecs, got):
     exp = {}
     for k, inp in enumerate(vecs):
         for tag, fn in (("matvec", exp_matvec), ("fmac", exp_fmac), ("acc", exp_acc), ("xfer", exp_xfer),
-                        ("rreg", exp_rreg), ("mmi", mmi_ref), ("matvec3", exp_matvec3)):
+                        ("rreg", exp_rreg), ("mmi", mmi_ref), ("matvec3", exp_matvec3), ("opmm", exp_opmm)):
             out = fn(inp)
             exp["%s.%d" % (tag, k)] = (out + bytes(OUT_SZ - len(out))).hex()
         acc_before = list(struct.unpack("<4I", bytes.fromhex(got["accin.%d" % k])))
@@ -450,6 +458,24 @@ def exp_matvec3(inp):
     acc = [ref.madd(acc[i], vf[12][i], vf[13][2]) for i in range(4)]
     vf[12] = [ref.madd(acc[i], vf[13][i], ONE) for i in range(4)]
     return b"".join(pack(*vf[r]) for r in (6, 9, 12))
+
+
+def exp_opmm(inp):
+    vf = vf_init(inp, 1, 15)
+    i_reg = struct.unpack_from("<I", inp, 240)[0]
+    lanes = ((0, 1, 2), (1, 2, 0), (2, 0, 1))              # destination lane -> (Fs lane, Ft lane)
+    for d, s, t in ((9, 1, 2), (3, 3, 4)):                 # vopmula ACC, s, t ; vopmsub d, t, s (d = 3: d == Fs)
+        acc = [ref.mul(vf[s][a], vf[t][b]) for _i, a, b in lanes]
+        fs, ft = (t, s) if d == 9 else (s, t)
+        new = [ref.msub(acc[i], vf[fs][a], vf[ft][b]) for i, a, b in lanes]
+        vf[d][:3] = new
+    F(vf, 10, "xyzw", lambda i: ref.vmax(vf[5][i], vf[6][i]))
+    F(vf, 11, "xz", lambda i: ref.vmini(vf[5][i], vf[6][i]))
+    F(vf, 12, "xyzw", lambda i: ref.vmax(vf[7][i], vf[8][1]))
+    F(vf, 13, "yw", lambda i: ref.vmini(vf[8][i], vf[7][3]))
+    F(vf, 14, "xyzw", lambda i: ref.vmax(vf[5][i], i_reg))
+    F(vf, 15, "xyz", lambda i: ref.vmini(vf[6][i], i_reg))
+    return b"".join(pack(*vf[r]) for r in (9, 3, 10, 11, 12, 13, 14, 15))
 
 
 def special_expectations(vecs):
@@ -481,7 +507,10 @@ def test_cop2_encoder_matches_the_decoder():
              (("qmtc2", 10, 1), "qmtc2\tt2,$vf1"), (("cfc2.i", 2, 1), "cfc2.i\tv0,$vi1"),
              (("lqc2", 2, 16, 5), "lqc2\t$vf2,16(a1)"), (("sqc2", 6, -16, 4), "sqc2\t$vf6,-16(a0)"),
              (("vmuli.xyzw", 3, 1), "vmuli.xyzw\t$vf3xyzw,$vf1xyzw,$I"),
-             (("vmaddaq.xy", "ACC", 3), "vmaddaq.xy\t$ACCxy,$vf3xy,$Q")]
+             (("vmaddaq.xy", "ACC", 3), "vmaddaq.xy\t$ACCxy,$vf3xy,$Q"),
+             (("vopmula.xyz", "ACC", 1, 2), "vopmula.xyz\t$ACCxyz,$vf1xyz,$vf2xyz"),
+             (("vminiw.yw", 13, 8, 7), "vminiw.yw\t$vf13yw,$vf8yw,$vf7w"),
+             (("vmaxi.xyzw", 14, 5), "vmaxi.xyzw\t$vf14xyzw,$vf5xyzw,$I")]
     for args, text in cases:
         assert decode(asm(*args), 0).text == text, (args, decode(asm(*args), 0).text)
     for a, words in PROGRAM.items():
