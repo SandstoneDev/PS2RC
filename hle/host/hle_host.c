@@ -650,3 +650,6 @@ int main(int argc, char **argv)
     LOG("scheduler returned\n");
     hle_exit(0);
 }
+
+/* the PSP prints a whole-run sample histogram (hle_psp.c); the host has no sampler thread */
+void hle_plat_where_report(void) {}

@@ -630,8 +630,10 @@ void hle_deliver_interrupts(void)
    code are a safe point that also accounts the work as virtual time (8 EE cycles per back-edge, a rough loop-body
    cost) - deterministic, and it lets RAM polling loops observe interrupts (VBlank counters, DMA flags). */
 uint32_t hle_backedge_count;
+uint32_t hle_backedge_cycles = 8;      /* EE cycles of virtual time per back-edge (pack: "game CPU speed", PCSX2's EE cycle rate) */
 uint64_t hle_stat_backedges;
 volatile uint32_t hle_where;            /* guest address of the last loop back-edge (RC_BACKEDGE_AT) */
+volatile uint32_t hle_where_tag;        /* pack HLE work being sampled (0 = guest code) */
 /* known pure wait loops (the pack's [runtime] wait_loops) - they only re-read RAM that interrupt handlers / other
    threads change. When two consecutive back-edge periods end in one of them, virtual time jumps to the next scheduled
    event (as the idle step does) instead of being ground out 8 EE cycles per back-edge: a PSP back-edge costs more
@@ -648,8 +650,8 @@ void hle_backedge_slow(R5900Ctx *c)
     be_skipped = 0;
     hle_backedge_count = 0;
     hle_stat_backedges += done;
-    if (!c || hle_in_intr) { hle_time_charge(8ull * done); return; }
-    hle_safe_point(c, 8ull * done);
+    if (!c || hle_in_intr) { hle_time_charge((uint64_t)hle_backedge_cycles * done); return; }
+    hle_safe_point(c, (uint64_t)hle_backedge_cycles * done);
     uint32_t w = hle_where;
     int skip = hle_opt_idle_skip && w == last_slow_where && is_wait_loop(w);
     last_slow_where = w;

@@ -40,6 +40,11 @@ static unsigned pad_ctx_logged;
 
 /* 1 = the player is in a vehicle (the game pack's; weak default: always on foot) */
 __attribute__((weak)) int hle_pack_pad_context(void) { return 0; }
+/* the game pack's last word on one pad sample (after the mapping and any scripted stick): the PSP buttons (menu
+   filter applied) and analog stick in, the PS2 buttons / sticks (right X, right Y, left X, left Y) to change. Weak:
+   none. Used for game-specific layers such as a free-aim mode. */
+__attribute__((weak)) void hle_pack_pad_post(uint32_t psp, unsigned lx, unsigned ly, uint16_t *m, uint8_t sticks[4])
+{ (void)psp; (void)lx; (void)ly; (void)m; (void)sticks; }
 
 /* the in-game settings menu (hle_menu.h, hle_menu_psp.c): the combination (L + R + Cross + Down) sets hle_menu_req,
    the GE back-end's flip opens the menu; the filter keeps the combination's buttons (and those held when the menu
@@ -175,6 +180,7 @@ uint16_t hle_plat_pad_read(uint8_t sticks[4])
                 sticks[3] = (uint8_t)pad_ev[i].ly;
             }
     }
+    hle_pack_pad_post(b, p.Lx, p.Ly, &m, sticks);
     if (m != pad_last && m && pad_logged < 40) {     /* the first presses, for the log */
         pad_logged++;
         LOG("pad: buttons %04x (vtime %.3f s, frame %llu)\n", m, (double)hle_vtime / EE_HZ,

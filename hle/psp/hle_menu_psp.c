@@ -36,6 +36,7 @@ _Static_assert(MC_SELECT == PSP_CTRL_SELECT && MC_START == PSP_CTRL_START && MC_
 
 void hle_plat_pace_shift(uint64_t us);                         /* hle_psp.c: real time left out of the pacing */
 void hle_audio_pause(int on) __attribute__((weak));            /* the game pack's sound output (AUDIO=1 builds) */
+void hle_pack_menu_open(void) __attribute__((weak));           /* the game pack: a state dump when the menu opens */
 
 static int m_init, m_on = 1, m_pool_kb = 320, m_opens;
 static MenuChord m_mc = {MC_DEFAULT, 0, 0};
@@ -172,6 +173,7 @@ void hle_menu_run(const HleMenuGe *ge)
     m_opens++;
     LOG("menu: opened #%d at vtime %.3f s, frame %llu (pool %u KB, free after it %u KB)\n", m_opens,
         (double)hle_vtime / EE_HZ, (unsigned long long)hle_frame, bytes >> 10, (unsigned)(sceKernelTotalFreeMemSize() >> 10));
+    if (hle_pack_menu_open) hle_pack_menu_open();
     if (hle_audio_pause) hle_audio_pause(1);
     SceInt64 t0 = sceKernelGetSystemTimeWide();
     m_ge = ge;

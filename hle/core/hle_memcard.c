@@ -44,7 +44,8 @@
 int hle_mc_inserted;
 
 /* every libmc call in the log: verbose >= 1, or the environment variable HLE_MC_TRACE (host investigations) */
-static int mc_trace = -1;
+int hle_mc_trace = -1;                                     /* ps2rc.cfg mc_trace=1 (PSP), or HLE_MC_TRACE (host) */
+#define mc_trace hle_mc_trace
 #define MCLOG(...) do { if (mc_trace < 0) mc_trace = getenv("HLE_MC_TRACE") != NULL; \
                         if (mc_trace || hle_verbose >= 1) hle_logf(__VA_ARGS__); } while (0)
 
@@ -81,6 +82,9 @@ enum { MCF_GET_INFO = 1, MCF_OPEN, MCF_CLOSE, MCF_SEEK, MCF_READ, MCF_WRITE, MCF
 #define MC_HIDDEN_TAG "_ps2rc"
 #define MC_TMP_SUFFIX "._ps2rc_tmp"
 #define MC_NEW_SUFFIX "._ps2rc_new"
+#define MC_ORDER_FILE "._ps2rc_order"                      /* a directory's entry order (a real card lists entries in
+                                                              creation order; games index the listing: one only looks
+                                                              for its saves from the 6th entry on) */
 #define MC_UNFORMATTED_MARK "_ps2rc_unformatted"
 
 /* ------------------------------------------------------------------ the card index (RAM) */
@@ -282,6 +286,32 @@ static int ends_with(const char *s, const char *suf)
     return a >= b && !strcmp(s + a - b, suf);
 }
 
+static uint64_t time_key(const HleMcTime *t)
+{
+    return ((((((uint64_t)t->year * 13u + t->month) * 32u + t->day) * 24u + t->hour) * 60u + t->min) * 60u) + t->sec;
+}
+/* the directory's children in listing order -> <dir>/._ps2rc_order on the memory stick */
+static void order_save(int dir)
+{
+    if (dir < 0 || dir >= n_nodes || !nodes[dir].used || !nodes[dir].is_dir) return;
+    char buf[2048];
+    int n = 0;
+    uint32_t last = 0;
+    for (;;) {
+        int best = -1;
+        for (int i = 1; i < n_nodes; i++)
+            if (nodes[i].used && nodes[i].parent == dir && nodes[i].order > last && (best < 0 || nodes[i].order < nodes[best].order))
+                best = i;
+        if (best < 0 || n > (int)sizeof buf - 40) break;
+        last = nodes[best].order;
+        n += snprintf(buf + n, sizeof buf - (size_t)n, "%s\n", nodes[best].name);
+    }
+    char hp[400];
+    if (dir == 0) snprintf(hp, sizeof hp, "%s%s", mc_root, MC_ORDER_FILE);
+    else host_path(dir, "/" MC_ORDER_FILE, hp, sizeof hp);
+    hle_plat_mc_release();
+    if (hle_plat_mc_write(hp, 0, buf, (uint32_t)n, 1) != (int64_t)n) LOG("memcard: could not write %s\n", hp);
+}
 static void index_dir(int dir, const char *hdir, int depth)
 {
     n_lst = 0;
@@ -310,12 +340,42 @@ static void index_dir(int dir, const char *hdir, int depth)
         n_lst = 0;
         if (hle_plat_mc_list(hdir, list_cb, NULL) < 0) return;
     }
-    /* deterministic order: by name */
+    /* the order of a real card: creation order, kept in <dir>/._ps2rc_order; entries it does not name (a card made
+       before the file existed) follow by creation time, then name */
+    static char ord[2048];
+    int have_ord = 0;
+    {
+        char op[400];
+        snprintf(op, sizeof op, "%s%s", hdir, MC_ORDER_FILE);
+        int64_t got = hle_plat_mc_exists(op) == 1 ? hle_plat_mc_read(op, 0, ord, sizeof ord - 1) : -1;
+        if (got >= 0) { ord[got] = 0; have_ord = 1; }
+    }
+    int rank[LIST_MAX];
+    for (int i = 0; i < n_lst; i++) {
+        rank[i] = 1 << 20;
+        if (!have_ord) {                                   /* no order file: a save's icon files were created first */
+            size_t l = strlen(lst[i].name);
+            if (!strcmp(lst[i].name, "icon.sys") || (l > 4 && (!strcmp(lst[i].name + l - 4, ".ico") || !strcmp(lst[i].name + l - 4, ".ICO"))))
+                rank[i] = (1 << 20) - 1;
+            continue;
+        }
+        size_t ln = strlen(lst[i].name);
+        int r = 0;
+        for (const char *q = ord; *q; r++) {
+            const char *e = strchr(q, '\n');
+            size_t ql = e ? (size_t)(e - q) : strlen(q);
+            if (ql == ln && !memcmp(q, lst[i].name, ln)) { rank[i] = r; break; }
+            if (!e) break;
+            q = e + 1;
+        }
+    }
     for (int i = 1; i < n_lst; i++)
-        for (int j = i; j > 0 && strcmp(lst[j - 1].name, lst[j].name) > 0; j--) {
-            ListEnt t = lst[j];
-            lst[j] = lst[j - 1];
-            lst[j - 1] = t;
+        for (int j = i; j > 0; j--) {
+            uint64_t ta = time_key(&lst[j - 1].ct), tb = time_key(&lst[j].ct);
+            int gt = rank[j - 1] != rank[j] ? rank[j - 1] > rank[j] : ta != tb ? ta > tb : strcmp(lst[j - 1].name, lst[j].name) > 0;
+            if (!gt) break;
+            ListEnt t = lst[j]; lst[j] = lst[j - 1]; lst[j - 1] = t;
+            int tr = rank[j]; rank[j] = rank[j - 1]; rank[j - 1] = tr;
         }
     int first = n_nodes, count = 0;
     for (int i = 0; i < n_lst; i++) {
@@ -339,6 +399,7 @@ static void index_dir(int dir, const char *hdir, int depth)
         count++;
     }
     nodes[dir].len = 2 + (uint32_t)count;
+    if (!have_ord && count) order_save(dir);              /* a card from before the order file: keep this order from now on */
     if (depth >= 8) return;
     int last = n_nodes;
     for (int k = first; k < last; k++) {
@@ -510,8 +571,11 @@ HLE_SCE(sceMcGetInfo)                                                 /* sceMcGe
     if (ARG(4)) sw_(ARG(4), (uint32_t)mc_formatted);
     int r = !mc_formatted ? MC_NOFORMAT : mc_info_seen ? MC_OK : MC_CHANGED;
     if (mc_formatted) mc_info_seen = 1;
-    MCLOG("sceMcGetInfo(%d, %d) -> PS2 card, %u KB free, %s, result %d\n", port, SARG(1), fr,
-         mc_formatted ? "formatted" : "unformatted", r);
+    static uint32_t last_fr = 0xFFFFFFFFu; static int last_r = 99;   /* the trace: changes only (menus poll every frame) */
+    if (fr != last_fr || r != last_r)
+        MCLOG("sceMcGetInfo(%d, %d) -> PS2 card, %u KB free, %s, result %d\n", port, SARG(1), fr,
+              mc_formatted ? "formatted" : "unformatted", r);
+    last_fr = fr; last_r = r;
     mc_end(c, MCF_GET_INFO, r, 0);
 }
 
@@ -603,6 +667,7 @@ static void mc_open(R5900Ctx *c, int port, const char *name, int flags, int cmd)
                         int e = hle_plat_mc_mkdir(hp);
                         LOG("memcard: mkdir %s (%s)\n", ps2_path(k), e < 0 ? "FAILED on the memory stick" : "ok");
                         r = MC_OK;
+                        if (e >= 0) order_save(parent);
                         if (e < 0) {                                  /* stick full / write-protected: undo */
                             nodes[k].used = 0;
                             nodes[parent].dslots++;
@@ -619,6 +684,7 @@ static void mc_open(R5900Ctx *c, int port, const char *name, int flags, int cmd)
                         } else {
                             fh[fd].staged = 1;
                             r = fd;
+                            order_save(parent);
                         }
                     }
                 }
@@ -897,6 +963,7 @@ HLE_SCE(sceMcSetFileInfo)                                    /* sceMcSetFileInfo
                 hle_plat_mc_release();
                 int e = hle_plat_mc_rename(from, to);
                 LOG("memcard: rename %s -> %s (%d)\n", from, to, e);
+        order_save(nodes[nd].parent);
             }
         }
     }
@@ -907,6 +974,12 @@ HLE_SCE(sceMcSetFileInfo)                                    /* sceMcSetFileInfo
 static void delete_from_stick(int nd)
 {
     char hp[400];
+    if (nodes[nd].is_dir) {                                /* its order file first: rmdir needs an empty folder */
+        char op[400];
+        host_path(nd, "/" MC_ORDER_FILE, op, sizeof op);
+        hle_plat_mc_release();
+        if (hle_plat_mc_exists(op) == 1) hle_plat_mc_remove(op);
+    }
     host_path(nd, NULL, hp, sizeof hp);
     hle_plat_mc_release();
     int e = nodes[nd].is_dir ? hle_plat_mc_rmdir(hp) : hle_plat_mc_remove(hp);
@@ -934,6 +1007,7 @@ HLE_SCE(sceMcDelete)                                                 /* sceMcDel
         if (gd_dir == nd) gd_dir = -1;
         LOG("memcard: deleted %s\n", ps2_path(nd));
         nodes[nd].used = 0;
+        order_save(p);
         r = MC_OK;
     }
     MCLOG("sceMcDelete(%d, \"%s\") = %d\n", port, name, r);
@@ -1031,6 +1105,7 @@ HLE_SCE(sceMcRename)                                                 /* sceMcRen
         hle_plat_mc_release();
         int e = hle_plat_mc_rename(from, to);
         LOG("memcard: rename %s -> %s (%d)\n", from, to, e);
+        order_save(nodes[nd].parent);
     }
     mc_end(c, MCF_RENAME, r, 0);
 }
