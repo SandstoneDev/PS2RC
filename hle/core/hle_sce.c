@@ -308,6 +308,15 @@ HLE_SCE(sceCdInit) { hle_trace_call("sceCdInit", HLE_ADDR(sceCdInit), c); RET(1)
 HLE_SCE(sceCdDiskReady) { RET(2); }                                     /* sceCdDiskReady: SCECdComplete */
 HLE_SCE(sceCdDiskReady_old) { RET(2); }
 HLE_SCE(sceCdNcmdDiskReady) { RET(2); }
+/* sceCdGetDiskType(): SCECdPS2DVD (0x14) when the mapped files reach past the largest CD (about 360,000 sectors),
+   else SCECdPS2CD (0x12) - the libcdvd S-command RPC (0x80000593, function 3) never runs */
+HLE_SCE(sceCdGetDiskType) { RET(hle_disc_end_lsn() > 360000u ? 0x14 : 0x12); }
+/* sceCdTrayReq(mode, u32 *traychk): the tray never moves; *traychk = 0 (not opened since the last check); 1 = done */
+HLE_SCE(sceCdTrayReq)
+{
+    if (ARG(1)) sw_(ARG(1), 0);
+    RET(1);
+}
 HLE_SCE(sceCdLayerSearchFile)                                                 /* sceCdLayerSearchFile(sceCdlFILE *, name, layer) */
 {
     uint32_t fp = ARG(0), lsn, size;
@@ -321,6 +330,26 @@ HLE_SCE(sceCdLayerSearchFile)                                                 /*
     sw_(fp + 4, size);
     memset(gptr(fp + 8, 24), 0, 24);
     VLOG("sceCdLayerSearchFile(\"%s\") = lsn %u size %u\n", name, lsn, size);
+    RET(1);
+}
+/* sceCdRead(lsn, sectors, buf, sceCdRMode *mode): served at once from the disc map (sceCdSync then reports it done);
+   2048-byte sectors only (mode->datapattern 0). The completion callback (sceCdCallback) is not called yet: logged
+   once. Cost: like sceRead, by size. Returns 1 (accepted). */
+HLE_SCE(sceCdRead)
+{
+    static int cb_warned;
+    uint32_t lsn = ARG(0), n = ARG(1), buf = ARG(2), mode = ARG(3);
+    uint32_t pattern = mode ? gb(mode + 2) : 0;          /* sceCdRMode: trycount, spindlctrl, datapattern */
+    if (pattern != 0) hle_die(c, "sceCdRead(lsn %u, %u sectors): data pattern %u (only 2048-byte sectors)", lsn, n,
+                              pattern);
+    hle_safe_point(c, 1000 + n * 256);
+    if (hle_disc_read_lsn(lsn, n, gptr(buf, n * 2048u)) != 0)
+        LOG("sceCdRead(lsn %u, %u sectors) outside the mapped files - zeros\n", lsn, n);
+    VLOG("sceCdRead(lsn %u \"%s\", %u, %08x)\n", lsn, hle_disc_name_of_lsn(lsn), n, buf);
+    if (cd_callback && !cb_warned) {
+        cb_warned = 1;
+        LOG("sceCdRead: a CD callback %08x is set but the HLE does not call it\n", cd_callback);
+    }
     RET(1);
 }
 HLE_SCE(sceCdSync) { RET(0); }                                     /* sceCdSync */

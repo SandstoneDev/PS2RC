@@ -124,7 +124,7 @@ static int opt_heap_extra_kb, opt_mem_volatile, opt_mem_reserve_kb = -1, opt_mem
 static int opt_mem_fake_model = -1;
 static int cfg_movies = 1, cfg_audio = 1;          /* read here only for the reserve estimate (hle_movie / hle_audio_psp
                                                       parse their own keys) */
-static uint32_t window_size = 0x01BC0000u;         /* = WINDOW_SIZE + heap extra */
+static uint32_t window_size = WINDOW_SIZE;         /* = WINDOW_SIZE + heap extra (mem_layout_setup with heap_extra_kb) */
 static unsigned heap_extra_kb_got, mem_reserve_kb_used;
 static int vol_lock_rc = 0x7FFFFFFF;
 static unsigned big_in_vol_kb, big_in_part_kb;
@@ -268,7 +268,7 @@ static void log_commit_async(void)
     memcpy(wdbuf, logbuf, n);
     loglen = 0;
     st_log_commits_wd++;
-    if (log_commit_timed(wdbuf, n, 500000) < 0) pspDebugScreenPrintf("(log busy: %u bytes not written)\n", n);
+    if (log_commit_timed(wdbuf, n, 500000) < 0 && opt_screen) pspDebugScreenPrintf("(log busy: %u bytes not written)\n", n);
 }
 
 void hle_plat_milestone(const char *line)
@@ -900,9 +900,43 @@ static void crash_report(uint32_t *r)
 static struct { uint32_t addr, n; } smp[NSLOT];
 static unsigned smp_total;
 
+/* whole-run histogram of the samples : exact addresses, 10 ms each; tagged samples = pack HLE work */
+#define WH_N 4096
+static struct { uint32_t addr, n; } wh[WH_N];
+static uint32_t wh_total, wh_lost;
+static void wh_add(uint32_t a)
+{
+    wh_total++;
+    for (uint32_t h = (a * 2654435761u) >> 20, k = 0; k < 64; k++, h = (h + 1) & (WH_N - 1)) {
+        if (wh[h].n && wh[h].addr == a) { wh[h].n++; return; }
+        if (!wh[h].n) { wh[h].addr = a; wh[h].n = 1; return; }
+    }
+    wh_lost++;
+}
+void hle_plat_where_report(void)
+{
+    static const char *tagname[8] = {"?", "renderer 3D (world3d hook)", "renderer 2D / driver hooks", "flip (GE finish + display)",
+                                     "movie player", "tag5", "tag6", "tag7"};
+    say("sample profile (10 ms samples of the last guest loop back-edge; HLE work tagged): %u samples (%.1f s), %u lost\n",
+        wh_total, wh_total / 100.0, wh_lost);
+    for (int t = 0; t < 60; t++) {
+        int best = -1;
+        for (int i = 0; i < WH_N; i++) if (wh[i].n && (best < 0 || wh[i].n > wh[best].n)) best = i;
+        if (best < 0 || wh[best].n * 1000u < wh_total) break;   /* down to 0.1 % */
+        uint32_t a = wh[best].addr;
+        if ((a & 0xFFFFFFF0u) == 0xF0000000u)
+            say("  sample %2d: %-34s %6u = %5.2f %%\n", t + 1, tagname[a & 7], wh[best].n, wh[best].n * 100.0 / wh_total);
+        else
+            say("  sample %2d: loop %08x                      %6u = %5.2f %%\n", t + 1, (unsigned)a, wh[best].n,
+                wh[best].n * 100.0 / wh_total);
+        wh[best].n = 0;
+    }
+}
 static void sample_where(void)
 {
-    uint32_t a = hle_where;
+    uint32_t tg = hle_where_tag;
+    uint32_t a = tg ? 0xF0000000u | (tg & 7u) : hle_where;
+    wh_add(a);
     smp_total++;
     int free_i = -1, min_i = 0;
     for (int i = 0; i < NSLOT; i++) {
@@ -946,8 +980,8 @@ static void progress_line(void)
     memset(smp, 0, sizeof smp);
     smp_total = 0;
     if (n <= 0) return;
-    pspDebugScreenPrintf("%s", b);                         /* always: the screen needs no lock and no sceIo */
-    if (log_commit_timed(b, (unsigned)n, 500000) < 0) pspDebugScreenPrintf("(log busy: line not written)\n");
+    if (opt_screen) pspDebugScreenPrintf("%s", b);         /* screen=0: never - the debug console's VRAM is the game's display buffer 0 (text flashed every 3 s) */
+    if (log_commit_timed(b, (unsigned)n, 500000) < 0 && opt_screen) pspDebugScreenPrintf("(log busy: line not written)\n");
 }
 
 static int watchdog(SceSize args, void *argp)
@@ -1006,6 +1040,7 @@ static void read_config(void)
             if (!strcmp(k, "vcallms"))
                 hle_opt_vcallms = !strcmp(v, "nohit") ? VCALLMS_NOHIT : !strcmp(v, "hle") ? VCALLMS_HLE : VCALLMS_STRICT;
             else if (!strcmp(k, "max_seconds")) hle_max_seconds = atoi(v);
+            else if (!strcmp(k, "mc_trace")) { extern int hle_mc_trace; hle_mc_trace = atoi(v); }
             else if (!strcmp(k, "mainloop_iterations")) hle_opt_mainloop_limit = strtoull(v, 0, 10);
             else if (!strcmp(k, "max_frames")) hle_max_frames = strtoull(v, 0, 10);
             else if (!strcmp(k, "verbose")) hle_verbose = atoi(v);
@@ -1215,9 +1250,9 @@ static void mem_layout_setup(void)
     heap_extra_kb_got = got;
     window_size = WINDOW_SIZE + (got << 10);
     say("mem: heap_extra_kb asked %d (%u KB, cap %u), largest block %u KB - window %u + guards %u - reserve "
-        "%u KB = room %u KB -> heap +%u KB: guest RAM end %08x, game heap %u KB (build 46: 19538)%s\n",
+        "%u KB = room %u KB -> heap +%u KB: guest RAM end %08x, RAM above BSS %u KB%s\n",
         opt_heap_extra_kb, want, cap_kb, max_kb, WINDOW_SIZE >> 10, (2 * RMB_GUARD) >> 10, reserve, room, got,
-        (unsigned)window_size, (unsigned)((window_size - 0x8A5D80u - 0x5800u) >> 10),
+        (unsigned)window_size, (unsigned)((window_size - HLE_PACK_BSS_END) >> 10),
         got < want ? " (REDUCED: not enough user memory for the asked size)" : "");
 }
 
@@ -1234,12 +1269,23 @@ static uint32_t load_elf_data(uint8_t *base)
     sceIoRead(fd, hdr, sizeof hdr);
     memcpy(&entry, hdr + 0x18, 4);
     memcpy(&phoff, hdr + 0x1C, 4);
-    sceIoLseek(fd, phoff, PSP_SEEK_SET);
-    sceIoRead(fd, ph, sizeof ph);
-    memcpy(&p_off, ph + 4, 4);
-    memcpy(&p_vaddr, ph + 8, 4);
-    memcpy(&p_filesz, ph + 16, 4);
-    memcpy(&p_memsz, ph + 20, 4);
+    uint16_t phentsize, phnum;
+    memcpy(&phentsize, hdr + 0x2A, 2);
+    memcpy(&phnum, hdr + 0x2C, 2);
+    /* the first PT_LOAD with file data: some programs start with empty LOAD entries (file and memory size 0) */
+    p_off = p_vaddr = p_filesz = p_memsz = 0;
+    for (unsigned k = 0; k < phnum && k < 16; k++) {
+        uint32_t type;
+        sceIoLseek(fd, phoff + (uint32_t)k * (phentsize ? phentsize : 32u), PSP_SEEK_SET);
+        sceIoRead(fd, ph, sizeof ph);
+        memcpy(&type, ph, 4);
+        memcpy(&p_filesz, ph + 16, 4);
+        if (type != 1 || !p_filesz) continue;
+        memcpy(&p_off, ph + 4, 4);
+        memcpy(&p_vaddr, ph + 8, 4);
+        memcpy(&p_memsz, ph + 20, 4);
+        break;
+    }
     if (memcmp(hdr, "\x7f" "ELF", 4) || p_vaddr != HLE_CODE_LO || p_vaddr + p_filesz != HLE_DATA_END) {
         say("elf_check=FAIL vaddr=%08x filesz=%08x\n", p_vaddr, p_filesz);
         fail("unexpected ELF layout (not the program of game pack " HLE_PACK_NAME ")");

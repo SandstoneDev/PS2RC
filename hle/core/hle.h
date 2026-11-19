@@ -196,6 +196,7 @@ int hle_sema_poll(int id);
 extern uint64_t hle_vtime;           /* EE cycles since boot (deterministic virtual time) */
 extern uint64_t hle_frame;           /* VBlank-start count */
 extern int hle_vblank_hz;            /* 50 (PAL) */
+extern uint32_t hle_backedge_cycles;   /* virtual EE cycles per loop back-edge (default 8; more = a slower emulated EE) */
 void hle_time_charge(uint64_t cycles);   /* account guest work (safe points), may raise due events */
 void hle_safe_point(R5900Ctx *c, uint64_t cost);   /* charge + deliver pending interrupts + preempt if needed */
 void hle_idle_advance(void);         /* nothing ready: jump to the next event and process it */
@@ -232,6 +233,7 @@ extern uint32_t hle_gs_csr;
 /* ------------------------------------------------------------------ disc (hle_disc.c) */
 int hle_disc_init(const char *disc_dir, const char *discmap_path, const char *meta_path);
 int hle_disc_open(const char *guest_path, uint32_t *size_out);     /* host fd index or -1 */
+uint32_t hle_disc_end_lsn(void);                                    /* sectors used by the mapped files */
 int64_t hle_disc_read_fd(int fd, uint64_t off, void *dst, uint32_t n);
 void hle_disc_close(int fd);
 int hle_disc_read_lsn(uint32_t lsn, uint32_t nsect, void *dst);   /* 0 ok, -1 outside known files */
@@ -292,6 +294,8 @@ extern uint64_t hle_opt_mainloop_limit;  /* stop after this many main-loop itera
 extern int hle_opt_idle_skip;            /* hle_sched.c: fast-forward known guest wait loops (build 19) */
 extern uint64_t hle_stat_idle_skips, hle_stat_idle_skipped_cycles;
 extern volatile uint32_t hle_where;      /* guest address of the last loop back-edge taken (RC_BACKEDGE_AT) */
+extern volatile uint32_t hle_where_tag;  /* nonzero: the sampler counts this tag instead (a pack's HLE work: renderer, flip) */
+void hle_plat_where_report(void);        /* PSP: the whole-run sample histogram at the end of the run (host: none) */
 extern volatile uint64_t hle_progress;   /* bumped at every safe point (watchdogs) */
 void hle_set_vcallms_mode(int mode);
 extern int hle_selftest_pending;         /* host --selftest: run hle_selftest_run at the pack's selftest_at trace */

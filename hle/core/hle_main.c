@@ -182,6 +182,7 @@ static void final_report(const char *why)
     if (hle_stat_vcallms_hle) LOG("VCALLMS run by the VU0 micro HLE: %llu\n", (unsigned long long)hle_stat_vcallms_hle);
     LOG("main-loop iterations (0x%X calls): %llu\n", (unsigned)HLE_PACK_MAIN_LOOP_ADDR, (unsigned long long)hle_mainloop_iters);
     hle_mainloop_timing_report();
+    hle_plat_where_report();
     LOG("wait-loop fast-forward (idle_skip=%d): %llu jumps, %.3f s of virtual time skipped\n", hle_opt_idle_skip,
         (unsigned long long)hle_stat_idle_skips, (double)hle_stat_idle_skipped_cycles / EE_HZ);
     {
@@ -270,7 +271,7 @@ void hle_check_limits(void)
         hle_set_exit_reason("main-loop iteration limit reached");
         hle_exit(0);
     }
-    if ((++limit_tick & 1023) == 0 && hle_host_seconds() > hle_max_seconds) {
+    if ((++limit_tick & 1023) == 0 && hle_max_seconds > 0 && hle_host_seconds() > hle_max_seconds) {   /* 0 = no limit */
         LOG("host time limit reached (%d s)\n", hle_max_seconds);
         hle_set_exit_reason("host time limit reached");
         hle_exit(0);

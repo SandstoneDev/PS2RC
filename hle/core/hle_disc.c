@@ -9,7 +9,7 @@
 #include "hle.h"
 #include "hle_prof.h"                          /* build 22: PZ_SCOPE zones */
 
-typedef struct { uint32_t lsn, size; char iso[96], rel[96]; int h; uint32_t reads; uint64_t bytes; } DiscFile;
+typedef struct { uint32_t lsn, size; char iso[96], rel[96]; int h; uint32_t reads; uint64_t bytes; uint32_t open_fails; } DiscFile;
 static DiscFile *files;
 static int nfiles;
 /* the disc lock (psp/hle_psp.c; a no-op until an asynchronous reader thread of the pack exists, absent on
@@ -37,6 +37,7 @@ void hle_disc_add_override(const char *iso, const char *path)
 static int open_entry(DiscFile *f)
 {
     if (f->h >= 0) return f->h;
+    if (f->open_fails >= 3) return -1;                    /* missing on the stick: no more slow open attempts */
     char path[512];
     snprintf(path, sizeof path, "%s/%s", hle_disc_dir, f->rel);
     for (int i = 0; i < noverrides; i++)
@@ -45,7 +46,8 @@ static int open_entry(DiscFile *f)
             LOG("disc: %s served from %s\n", f->iso, path);
         }
     f->h = hle_plat_open(path);
-    if (f->h < 0) LOG("disc: cannot open %s\n", path);
+    if (f->h < 0 && f->open_fails++ < 3)                 /* a game that retries a missing file must not flood the log */
+        LOG("disc: cannot open %s%s\n", path, f->open_fails == 3 ? " (further failures of this file not logged)" : "");
     return f->h;
 }
 
@@ -130,6 +132,19 @@ static DiscFile *find_path(const char *guest_path)
     return NULL;
 }
 
+/* first sector after the last mapped file (the disc's used size in 2048-byte sectors) */
+static uint32_t end_lsn_cache;                 /* the file table never changes after hle_disc_init */
+uint32_t hle_disc_end_lsn(void)
+{
+    if (end_lsn_cache) return end_lsn_cache;
+    uint32_t end = meta_sectors;
+    for (int i = 0; i < nfiles; i++) {
+        uint32_t e = files[i].lsn + (files[i].size + 2047u) / 2048u;
+        if (e > end) end = e;
+    }
+    return end_lsn_cache = end;
+}
+
 int hle_disc_lookup(const char *guest_path, uint32_t *lsn, uint32_t *size)
 {
     DiscFile *f = find_path(guest_path);
@@ -156,6 +171,10 @@ int hle_disc_open(const char *guest_path, uint32_t *size_out)
     return r;
 }
 
+/* the game pack may adjust a file's bytes as they are read (same size; e.g. a physics value behind a cfg switch).
+   Weak: none. iso = the file's disc path, off = the offset of dst in the file. */
+void hle_pack_disc_data(const char *iso, uint64_t off, void *dst, int64_t n) __attribute__((weak));
+
 static int64_t hle_disc_read_fd_unlocked(int idx, uint64_t off, void *dst, uint32_t n)
 {
     PZ_SCOPE(disc);
@@ -169,6 +188,7 @@ static int64_t hle_disc_read_fd_unlocked(int idx, uint64_t off, void *dst, uint3
         bytes_read += (uint64_t)r;
         f->bytes += (uint64_t)r;
     }
+    if (r > 0 && hle_pack_disc_data) hle_pack_disc_data(f->iso, off, dst, r);
     f->reads++;
     return r;
 }
@@ -223,8 +243,10 @@ int hle_disc_read_lsn(uint32_t lsn, uint32_t nsect, void *dst)
         }
         DiscFile *f = file_of_lsn(lsn + s);
         if (!f) {
+            /* a sector inside the disc that belongs to no file (padding between files, e.g. a DVD that puts its data
+               at the outer edge): zeros, as the drive returns them. Past the last file it is an error. */
             memset(out + (size_t)s * 2048, 0, 2048);
-            ok = -1;
+            if (lsn + s >= hle_disc_end_lsn()) ok = -1;
             s++;
             continue;
         }
@@ -263,8 +285,10 @@ int hle_disc_read_lsn_quiet(uint32_t lsn, uint32_t nsect, void *dst)
         }
         DiscFile *f = file_of_lsn(lsn + s);
         if (!f) {
+            /* a sector inside the disc that belongs to no file (padding between files, e.g. a DVD that puts its data
+               at the outer edge): zeros, as the drive returns them. Past the last file it is an error. */
             memset(out + (size_t)s * 2048, 0, 2048);
-            ok = -1;
+            if (lsn + s >= hle_disc_end_lsn()) ok = -1;
             s++;
             continue;
         }
@@ -273,18 +297,20 @@ int hle_disc_read_lsn_quiet(uint32_t lsn, uint32_t nsect, void *dst)
         if (cnt > nsect - s) cnt = nsect - s;
         uint64_t foff = (uint64_t)first * 2048, want = (uint64_t)cnt * 2048;
         int64_t r = -1;
-        if (f->h < 0) {                                    /* open_entry without its log lines */
+        if (f->h < 0 && f->open_fails < 3) {               /* open_entry without its log lines */
             char path[512];
             snprintf(path, sizeof path, "%s/%s", hle_disc_dir, f->rel);
             for (int i = 0; i < noverrides; i++)
                 if (strcmp(overrides[i].iso, f->iso) == 0) snprintf(path, sizeof path, "%s", overrides[i].path);
             f->h = hle_plat_open(path);
+            if (f->h < 0) f->open_fails++;
         }
         if (f->h >= 0 && foff < f->size) {
             uint32_t n = cnt * 2048;
             if (foff + n > f->size) n = (uint32_t)(f->size - foff);
             r = hle_plat_pread(f->h, foff, out + (size_t)s * 2048, n);
             if (r > 0) { f->bytes += (uint64_t)r; bytes_read += (uint64_t)r; }
+            if (r > 0 && hle_pack_disc_data) hle_pack_disc_data(f->iso, foff, out + (size_t)s * 2048, r);
             f->reads++;
         } else if (f->h >= 0) r = 0;
         if (r < 0) { ok = -1; r = 0; }

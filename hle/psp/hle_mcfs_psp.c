@@ -90,6 +90,11 @@ int hle_plat_mc_list(const char *dir, HleMcListFn fn, void *ctx)
     snprintf(d, sizeof d, "%s", dir);
     strip_slash(d);
     SceUID fd = sceIoDopen(d);
+    /* the open-file limit (the disc layer keeps up to its maximum of files open - movies count too): free the least
+       recently used disc fd and try again, as the card's file opens do (a failed listing made a save folder look
+       empty: the game then deleted it and could not create it again - "insufficient space") */
+    for (int tries = 0; fd < 0 && (uint32_t)fd != 0x80010002u && tries < 4 && hle_psp_disc_close_lru && hle_psp_disc_close_lru(); tries++)
+        fd = sceIoDopen(d);
     if (fd < 0) return -1;
     SceIoDirent e;
     for (;;) {
