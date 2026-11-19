@@ -59,6 +59,18 @@ uint32_t iop_rt_check_addr(uint32_t a, unsigned size)
 uint8_t *iop_rt_mem(IopRt *rt) { return rt->mem; }
 uint32_t iop_rt_mem_size(IopRt *rt) { return rt->mem_size; }
 const IopRtStats *iop_rt_stats(IopRt *rt) { return &rt->st; }
+/* asynchronous disc reads (started, sceCdSync sleeps, blocking waits) */
+void iop_rt_cd_stats(IopRt *rt, uint64_t *reads, uint64_t *syncs, uint64_t *hard)
+{
+    *reads = rt->cd_async_reads; *syncs = rt->cd_sync_waits; *hard = rt->cd_hard_waits;
+}
+/* per-thread real time (entry, priority, runs, us) */
+int iop_rt_thread_time(IopRt *rt, int t, uint32_t *entry, int *prio, uint32_t *runs, uint64_t *us)
+{
+    if (t < 0 || t >= IOP_MAX_THREADS || rt->th[t].state == TS_FREE) return 0;
+    *entry = rt->th[t].entry; *prio = rt->th[t].init_prio; *runs = rt->th[t].runs; *us = rt->th[t].run_us;
+    return 1;
+}
 
 void *iop_ptr(IopCpu *c, uint32_t addr) { return addr ? c->mem + (addr & IOP_MEM_MASK) : 0; }
 
@@ -165,6 +177,549 @@ void iop_rt_destroy(IopRt *rt)
 
 /* ------------------------------------------------------------------ modules, imports, calls */
 
+/* per-import real time (embedding sets iop_rt_clock_us before loading modules): every import is called
+   through one of IMPT_N thunks that time it; calls that switched threads (blocking waits) are counted apart. */
+extern uint64_t (*iop_rt_clock_us)(void);
+#define IMPT_N 256
+static struct { IopFn fn; char lib[9]; unsigned num; uint64_t us, n, nblk; IopRt *rt; } impt[IMPT_N];
+static int impt_n;
+static void impt_call(int i, IopCpu *c)
+{
+    IopRt *rt = c->rt;
+    uint64_t sw = rt->st.switches, t0 = iop_rt_clock_us();
+    impt[i].fn(c);
+    uint64_t dt = iop_rt_clock_us() - t0;
+    if (rt->st.switches == sw) { impt[i].us += dt; impt[i].n++; } else impt[i].nblk++;
+}
+static void impt_0(IopCpu *c) { impt_call(0, c); }
+static void impt_1(IopCpu *c) { impt_call(1, c); }
+static void impt_2(IopCpu *c) { impt_call(2, c); }
+static void impt_3(IopCpu *c) { impt_call(3, c); }
+static void impt_4(IopCpu *c) { impt_call(4, c); }
+static void impt_5(IopCpu *c) { impt_call(5, c); }
+static void impt_6(IopCpu *c) { impt_call(6, c); }
+static void impt_7(IopCpu *c) { impt_call(7, c); }
+static void impt_8(IopCpu *c) { impt_call(8, c); }
+static void impt_9(IopCpu *c) { impt_call(9, c); }
+static void impt_10(IopCpu *c) { impt_call(10, c); }
+static void impt_11(IopCpu *c) { impt_call(11, c); }
+static void impt_12(IopCpu *c) { impt_call(12, c); }
+static void impt_13(IopCpu *c) { impt_call(13, c); }
+static void impt_14(IopCpu *c) { impt_call(14, c); }
+static void impt_15(IopCpu *c) { impt_call(15, c); }
+static void impt_16(IopCpu *c) { impt_call(16, c); }
+static void impt_17(IopCpu *c) { impt_call(17, c); }
+static void impt_18(IopCpu *c) { impt_call(18, c); }
+static void impt_19(IopCpu *c) { impt_call(19, c); }
+static void impt_20(IopCpu *c) { impt_call(20, c); }
+static void impt_21(IopCpu *c) { impt_call(21, c); }
+static void impt_22(IopCpu *c) { impt_call(22, c); }
+static void impt_23(IopCpu *c) { impt_call(23, c); }
+static void impt_24(IopCpu *c) { impt_call(24, c); }
+static void impt_25(IopCpu *c) { impt_call(25, c); }
+static void impt_26(IopCpu *c) { impt_call(26, c); }
+static void impt_27(IopCpu *c) { impt_call(27, c); }
+static void impt_28(IopCpu *c) { impt_call(28, c); }
+static void impt_29(IopCpu *c) { impt_call(29, c); }
+static void impt_30(IopCpu *c) { impt_call(30, c); }
+static void impt_31(IopCpu *c) { impt_call(31, c); }
+static void impt_32(IopCpu *c) { impt_call(32, c); }
+static void impt_33(IopCpu *c) { impt_call(33, c); }
+static void impt_34(IopCpu *c) { impt_call(34, c); }
+static void impt_35(IopCpu *c) { impt_call(35, c); }
+static void impt_36(IopCpu *c) { impt_call(36, c); }
+static void impt_37(IopCpu *c) { impt_call(37, c); }
+static void impt_38(IopCpu *c) { impt_call(38, c); }
+static void impt_39(IopCpu *c) { impt_call(39, c); }
+static void impt_40(IopCpu *c) { impt_call(40, c); }
+static void impt_41(IopCpu *c) { impt_call(41, c); }
+static void impt_42(IopCpu *c) { impt_call(42, c); }
+static void impt_43(IopCpu *c) { impt_call(43, c); }
+static void impt_44(IopCpu *c) { impt_call(44, c); }
+static void impt_45(IopCpu *c) { impt_call(45, c); }
+static void impt_46(IopCpu *c) { impt_call(46, c); }
+static void impt_47(IopCpu *c) { impt_call(47, c); }
+static void impt_48(IopCpu *c) { impt_call(48, c); }
+static void impt_49(IopCpu *c) { impt_call(49, c); }
+static void impt_50(IopCpu *c) { impt_call(50, c); }
+static void impt_51(IopCpu *c) { impt_call(51, c); }
+static void impt_52(IopCpu *c) { impt_call(52, c); }
+static void impt_53(IopCpu *c) { impt_call(53, c); }
+static void impt_54(IopCpu *c) { impt_call(54, c); }
+static void impt_55(IopCpu *c) { impt_call(55, c); }
+static void impt_56(IopCpu *c) { impt_call(56, c); }
+static void impt_57(IopCpu *c) { impt_call(57, c); }
+static void impt_58(IopCpu *c) { impt_call(58, c); }
+static void impt_59(IopCpu *c) { impt_call(59, c); }
+static void impt_60(IopCpu *c) { impt_call(60, c); }
+static void impt_61(IopCpu *c) { impt_call(61, c); }
+static void impt_62(IopCpu *c) { impt_call(62, c); }
+static void impt_63(IopCpu *c) { impt_call(63, c); }
+static void impt_64(IopCpu *c) { impt_call(64, c); }
+static void impt_65(IopCpu *c) { impt_call(65, c); }
+static void impt_66(IopCpu *c) { impt_call(66, c); }
+static void impt_67(IopCpu *c) { impt_call(67, c); }
+static void impt_68(IopCpu *c) { impt_call(68, c); }
+static void impt_69(IopCpu *c) { impt_call(69, c); }
+static void impt_70(IopCpu *c) { impt_call(70, c); }
+static void impt_71(IopCpu *c) { impt_call(71, c); }
+static void impt_72(IopCpu *c) { impt_call(72, c); }
+static void impt_73(IopCpu *c) { impt_call(73, c); }
+static void impt_74(IopCpu *c) { impt_call(74, c); }
+static void impt_75(IopCpu *c) { impt_call(75, c); }
+static void impt_76(IopCpu *c) { impt_call(76, c); }
+static void impt_77(IopCpu *c) { impt_call(77, c); }
+static void impt_78(IopCpu *c) { impt_call(78, c); }
+static void impt_79(IopCpu *c) { impt_call(79, c); }
+static void impt_80(IopCpu *c) { impt_call(80, c); }
+static void impt_81(IopCpu *c) { impt_call(81, c); }
+static void impt_82(IopCpu *c) { impt_call(82, c); }
+static void impt_83(IopCpu *c) { impt_call(83, c); }
+static void impt_84(IopCpu *c) { impt_call(84, c); }
+static void impt_85(IopCpu *c) { impt_call(85, c); }
+static void impt_86(IopCpu *c) { impt_call(86, c); }
+static void impt_87(IopCpu *c) { impt_call(87, c); }
+static void impt_88(IopCpu *c) { impt_call(88, c); }
+static void impt_89(IopCpu *c) { impt_call(89, c); }
+static void impt_90(IopCpu *c) { impt_call(90, c); }
+static void impt_91(IopCpu *c) { impt_call(91, c); }
+static void impt_92(IopCpu *c) { impt_call(92, c); }
+static void impt_93(IopCpu *c) { impt_call(93, c); }
+static void impt_94(IopCpu *c) { impt_call(94, c); }
+static void impt_95(IopCpu *c) { impt_call(95, c); }
+static void impt_96(IopCpu *c) { impt_call(96, c); }
+static void impt_97(IopCpu *c) { impt_call(97, c); }
+static void impt_98(IopCpu *c) { impt_call(98, c); }
+static void impt_99(IopCpu *c) { impt_call(99, c); }
+static void impt_100(IopCpu *c) { impt_call(100, c); }
+static void impt_101(IopCpu *c) { impt_call(101, c); }
+static void impt_102(IopCpu *c) { impt_call(102, c); }
+static void impt_103(IopCpu *c) { impt_call(103, c); }
+static void impt_104(IopCpu *c) { impt_call(104, c); }
+static void impt_105(IopCpu *c) { impt_call(105, c); }
+static void impt_106(IopCpu *c) { impt_call(106, c); }
+static void impt_107(IopCpu *c) { impt_call(107, c); }
+static void impt_108(IopCpu *c) { impt_call(108, c); }
+static void impt_109(IopCpu *c) { impt_call(109, c); }
+static void impt_110(IopCpu *c) { impt_call(110, c); }
+static void impt_111(IopCpu *c) { impt_call(111, c); }
+static void impt_112(IopCpu *c) { impt_call(112, c); }
+static void impt_113(IopCpu *c) { impt_call(113, c); }
+static void impt_114(IopCpu *c) { impt_call(114, c); }
+static void impt_115(IopCpu *c) { impt_call(115, c); }
+static void impt_116(IopCpu *c) { impt_call(116, c); }
+static void impt_117(IopCpu *c) { impt_call(117, c); }
+static void impt_118(IopCpu *c) { impt_call(118, c); }
+static void impt_119(IopCpu *c) { impt_call(119, c); }
+static void impt_120(IopCpu *c) { impt_call(120, c); }
+static void impt_121(IopCpu *c) { impt_call(121, c); }
+static void impt_122(IopCpu *c) { impt_call(122, c); }
+static void impt_123(IopCpu *c) { impt_call(123, c); }
+static void impt_124(IopCpu *c) { impt_call(124, c); }
+static void impt_125(IopCpu *c) { impt_call(125, c); }
+static void impt_126(IopCpu *c) { impt_call(126, c); }
+static void impt_127(IopCpu *c) { impt_call(127, c); }
+static void impt_128(IopCpu *c) { impt_call(128, c); }
+static void impt_129(IopCpu *c) { impt_call(129, c); }
+static void impt_130(IopCpu *c) { impt_call(130, c); }
+static void impt_131(IopCpu *c) { impt_call(131, c); }
+static void impt_132(IopCpu *c) { impt_call(132, c); }
+static void impt_133(IopCpu *c) { impt_call(133, c); }
+static void impt_134(IopCpu *c) { impt_call(134, c); }
+static void impt_135(IopCpu *c) { impt_call(135, c); }
+static void impt_136(IopCpu *c) { impt_call(136, c); }
+static void impt_137(IopCpu *c) { impt_call(137, c); }
+static void impt_138(IopCpu *c) { impt_call(138, c); }
+static void impt_139(IopCpu *c) { impt_call(139, c); }
+static void impt_140(IopCpu *c) { impt_call(140, c); }
+static void impt_141(IopCpu *c) { impt_call(141, c); }
+static void impt_142(IopCpu *c) { impt_call(142, c); }
+static void impt_143(IopCpu *c) { impt_call(143, c); }
+static void impt_144(IopCpu *c) { impt_call(144, c); }
+static void impt_145(IopCpu *c) { impt_call(145, c); }
+static void impt_146(IopCpu *c) { impt_call(146, c); }
+static void impt_147(IopCpu *c) { impt_call(147, c); }
+static void impt_148(IopCpu *c) { impt_call(148, c); }
+static void impt_149(IopCpu *c) { impt_call(149, c); }
+static void impt_150(IopCpu *c) { impt_call(150, c); }
+static void impt_151(IopCpu *c) { impt_call(151, c); }
+static void impt_152(IopCpu *c) { impt_call(152, c); }
+static void impt_153(IopCpu *c) { impt_call(153, c); }
+static void impt_154(IopCpu *c) { impt_call(154, c); }
+static void impt_155(IopCpu *c) { impt_call(155, c); }
+static void impt_156(IopCpu *c) { impt_call(156, c); }
+static void impt_157(IopCpu *c) { impt_call(157, c); }
+static void impt_158(IopCpu *c) { impt_call(158, c); }
+static void impt_159(IopCpu *c) { impt_call(159, c); }
+static void impt_160(IopCpu *c) { impt_call(160, c); }
+static void impt_161(IopCpu *c) { impt_call(161, c); }
+static void impt_162(IopCpu *c) { impt_call(162, c); }
+static void impt_163(IopCpu *c) { impt_call(163, c); }
+static void impt_164(IopCpu *c) { impt_call(164, c); }
+static void impt_165(IopCpu *c) { impt_call(165, c); }
+static void impt_166(IopCpu *c) { impt_call(166, c); }
+static void impt_167(IopCpu *c) { impt_call(167, c); }
+static void impt_168(IopCpu *c) { impt_call(168, c); }
+static void impt_169(IopCpu *c) { impt_call(169, c); }
+static void impt_170(IopCpu *c) { impt_call(170, c); }
+static void impt_171(IopCpu *c) { impt_call(171, c); }
+static void impt_172(IopCpu *c) { impt_call(172, c); }
+static void impt_173(IopCpu *c) { impt_call(173, c); }
+static void impt_174(IopCpu *c) { impt_call(174, c); }
+static void impt_175(IopCpu *c) { impt_call(175, c); }
+static void impt_176(IopCpu *c) { impt_call(176, c); }
+static void impt_177(IopCpu *c) { impt_call(177, c); }
+static void impt_178(IopCpu *c) { impt_call(178, c); }
+static void impt_179(IopCpu *c) { impt_call(179, c); }
+static void impt_180(IopCpu *c) { impt_call(180, c); }
+static void impt_181(IopCpu *c) { impt_call(181, c); }
+static void impt_182(IopCpu *c) { impt_call(182, c); }
+static void impt_183(IopCpu *c) { impt_call(183, c); }
+static void impt_184(IopCpu *c) { impt_call(184, c); }
+static void impt_185(IopCpu *c) { impt_call(185, c); }
+static void impt_186(IopCpu *c) { impt_call(186, c); }
+static void impt_187(IopCpu *c) { impt_call(187, c); }
+static void impt_188(IopCpu *c) { impt_call(188, c); }
+static void impt_189(IopCpu *c) { impt_call(189, c); }
+static void impt_190(IopCpu *c) { impt_call(190, c); }
+static void impt_191(IopCpu *c) { impt_call(191, c); }
+static void impt_192(IopCpu *c) { impt_call(192, c); }
+static void impt_193(IopCpu *c) { impt_call(193, c); }
+static void impt_194(IopCpu *c) { impt_call(194, c); }
+static void impt_195(IopCpu *c) { impt_call(195, c); }
+static void impt_196(IopCpu *c) { impt_call(196, c); }
+static void impt_197(IopCpu *c) { impt_call(197, c); }
+static void impt_198(IopCpu *c) { impt_call(198, c); }
+static void impt_199(IopCpu *c) { impt_call(199, c); }
+static void impt_200(IopCpu *c) { impt_call(200, c); }
+static void impt_201(IopCpu *c) { impt_call(201, c); }
+static void impt_202(IopCpu *c) { impt_call(202, c); }
+static void impt_203(IopCpu *c) { impt_call(203, c); }
+static void impt_204(IopCpu *c) { impt_call(204, c); }
+static void impt_205(IopCpu *c) { impt_call(205, c); }
+static void impt_206(IopCpu *c) { impt_call(206, c); }
+static void impt_207(IopCpu *c) { impt_call(207, c); }
+static void impt_208(IopCpu *c) { impt_call(208, c); }
+static void impt_209(IopCpu *c) { impt_call(209, c); }
+static void impt_210(IopCpu *c) { impt_call(210, c); }
+static void impt_211(IopCpu *c) { impt_call(211, c); }
+static void impt_212(IopCpu *c) { impt_call(212, c); }
+static void impt_213(IopCpu *c) { impt_call(213, c); }
+static void impt_214(IopCpu *c) { impt_call(214, c); }
+static void impt_215(IopCpu *c) { impt_call(215, c); }
+static void impt_216(IopCpu *c) { impt_call(216, c); }
+static void impt_217(IopCpu *c) { impt_call(217, c); }
+static void impt_218(IopCpu *c) { impt_call(218, c); }
+static void impt_219(IopCpu *c) { impt_call(219, c); }
+static void impt_220(IopCpu *c) { impt_call(220, c); }
+static void impt_221(IopCpu *c) { impt_call(221, c); }
+static void impt_222(IopCpu *c) { impt_call(222, c); }
+static void impt_223(IopCpu *c) { impt_call(223, c); }
+static void impt_224(IopCpu *c) { impt_call(224, c); }
+static void impt_225(IopCpu *c) { impt_call(225, c); }
+static void impt_226(IopCpu *c) { impt_call(226, c); }
+static void impt_227(IopCpu *c) { impt_call(227, c); }
+static void impt_228(IopCpu *c) { impt_call(228, c); }
+static void impt_229(IopCpu *c) { impt_call(229, c); }
+static void impt_230(IopCpu *c) { impt_call(230, c); }
+static void impt_231(IopCpu *c) { impt_call(231, c); }
+static void impt_232(IopCpu *c) { impt_call(232, c); }
+static void impt_233(IopCpu *c) { impt_call(233, c); }
+static void impt_234(IopCpu *c) { impt_call(234, c); }
+static void impt_235(IopCpu *c) { impt_call(235, c); }
+static void impt_236(IopCpu *c) { impt_call(236, c); }
+static void impt_237(IopCpu *c) { impt_call(237, c); }
+static void impt_238(IopCpu *c) { impt_call(238, c); }
+static void impt_239(IopCpu *c) { impt_call(239, c); }
+static void impt_240(IopCpu *c) { impt_call(240, c); }
+static void impt_241(IopCpu *c) { impt_call(241, c); }
+static void impt_242(IopCpu *c) { impt_call(242, c); }
+static void impt_243(IopCpu *c) { impt_call(243, c); }
+static void impt_244(IopCpu *c) { impt_call(244, c); }
+static void impt_245(IopCpu *c) { impt_call(245, c); }
+static void impt_246(IopCpu *c) { impt_call(246, c); }
+static void impt_247(IopCpu *c) { impt_call(247, c); }
+static void impt_248(IopCpu *c) { impt_call(248, c); }
+static void impt_249(IopCpu *c) { impt_call(249, c); }
+static void impt_250(IopCpu *c) { impt_call(250, c); }
+static void impt_251(IopCpu *c) { impt_call(251, c); }
+static void impt_252(IopCpu *c) { impt_call(252, c); }
+static void impt_253(IopCpu *c) { impt_call(253, c); }
+static void impt_254(IopCpu *c) { impt_call(254, c); }
+static void impt_255(IopCpu *c) { impt_call(255, c); }
+static const IopFn impt_tab[IMPT_N] = {
+    impt_0,
+    impt_1,
+    impt_2,
+    impt_3,
+    impt_4,
+    impt_5,
+    impt_6,
+    impt_7,
+    impt_8,
+    impt_9,
+    impt_10,
+    impt_11,
+    impt_12,
+    impt_13,
+    impt_14,
+    impt_15,
+    impt_16,
+    impt_17,
+    impt_18,
+    impt_19,
+    impt_20,
+    impt_21,
+    impt_22,
+    impt_23,
+    impt_24,
+    impt_25,
+    impt_26,
+    impt_27,
+    impt_28,
+    impt_29,
+    impt_30,
+    impt_31,
+    impt_32,
+    impt_33,
+    impt_34,
+    impt_35,
+    impt_36,
+    impt_37,
+    impt_38,
+    impt_39,
+    impt_40,
+    impt_41,
+    impt_42,
+    impt_43,
+    impt_44,
+    impt_45,
+    impt_46,
+    impt_47,
+    impt_48,
+    impt_49,
+    impt_50,
+    impt_51,
+    impt_52,
+    impt_53,
+    impt_54,
+    impt_55,
+    impt_56,
+    impt_57,
+    impt_58,
+    impt_59,
+    impt_60,
+    impt_61,
+    impt_62,
+    impt_63,
+    impt_64,
+    impt_65,
+    impt_66,
+    impt_67,
+    impt_68,
+    impt_69,
+    impt_70,
+    impt_71,
+    impt_72,
+    impt_73,
+    impt_74,
+    impt_75,
+    impt_76,
+    impt_77,
+    impt_78,
+    impt_79,
+    impt_80,
+    impt_81,
+    impt_82,
+    impt_83,
+    impt_84,
+    impt_85,
+    impt_86,
+    impt_87,
+    impt_88,
+    impt_89,
+    impt_90,
+    impt_91,
+    impt_92,
+    impt_93,
+    impt_94,
+    impt_95,
+    impt_96,
+    impt_97,
+    impt_98,
+    impt_99,
+    impt_100,
+    impt_101,
+    impt_102,
+    impt_103,
+    impt_104,
+    impt_105,
+    impt_106,
+    impt_107,
+    impt_108,
+    impt_109,
+    impt_110,
+    impt_111,
+    impt_112,
+    impt_113,
+    impt_114,
+    impt_115,
+    impt_116,
+    impt_117,
+    impt_118,
+    impt_119,
+    impt_120,
+    impt_121,
+    impt_122,
+    impt_123,
+    impt_124,
+    impt_125,
+    impt_126,
+    impt_127,
+    impt_128,
+    impt_129,
+    impt_130,
+    impt_131,
+    impt_132,
+    impt_133,
+    impt_134,
+    impt_135,
+    impt_136,
+    impt_137,
+    impt_138,
+    impt_139,
+    impt_140,
+    impt_141,
+    impt_142,
+    impt_143,
+    impt_144,
+    impt_145,
+    impt_146,
+    impt_147,
+    impt_148,
+    impt_149,
+    impt_150,
+    impt_151,
+    impt_152,
+    impt_153,
+    impt_154,
+    impt_155,
+    impt_156,
+    impt_157,
+    impt_158,
+    impt_159,
+    impt_160,
+    impt_161,
+    impt_162,
+    impt_163,
+    impt_164,
+    impt_165,
+    impt_166,
+    impt_167,
+    impt_168,
+    impt_169,
+    impt_170,
+    impt_171,
+    impt_172,
+    impt_173,
+    impt_174,
+    impt_175,
+    impt_176,
+    impt_177,
+    impt_178,
+    impt_179,
+    impt_180,
+    impt_181,
+    impt_182,
+    impt_183,
+    impt_184,
+    impt_185,
+    impt_186,
+    impt_187,
+    impt_188,
+    impt_189,
+    impt_190,
+    impt_191,
+    impt_192,
+    impt_193,
+    impt_194,
+    impt_195,
+    impt_196,
+    impt_197,
+    impt_198,
+    impt_199,
+    impt_200,
+    impt_201,
+    impt_202,
+    impt_203,
+    impt_204,
+    impt_205,
+    impt_206,
+    impt_207,
+    impt_208,
+    impt_209,
+    impt_210,
+    impt_211,
+    impt_212,
+    impt_213,
+    impt_214,
+    impt_215,
+    impt_216,
+    impt_217,
+    impt_218,
+    impt_219,
+    impt_220,
+    impt_221,
+    impt_222,
+    impt_223,
+    impt_224,
+    impt_225,
+    impt_226,
+    impt_227,
+    impt_228,
+    impt_229,
+    impt_230,
+    impt_231,
+    impt_232,
+    impt_233,
+    impt_234,
+    impt_235,
+    impt_236,
+    impt_237,
+    impt_238,
+    impt_239,
+    impt_240,
+    impt_241,
+    impt_242,
+    impt_243,
+    impt_244,
+    impt_245,
+    impt_246,
+    impt_247,
+    impt_248,
+    impt_249,
+    impt_250,
+    impt_251,
+    impt_252,
+    impt_253,
+    impt_254,
+    impt_255,
+};
+int iop_rt_import_timing;                                  /* per-import timing only when the embedding asks */
+static IopFn impt_wrap(IopFn fn, const char *lib, unsigned num)
+{
+    if (!iop_rt_clock_us || !iop_rt_import_timing || impt_n >= IMPT_N) return fn;
+    int i = impt_n++;
+    impt[i].fn = fn; strncpy(impt[i].lib, lib, 8); impt[i].lib[8] = 0; impt[i].num = num;
+    return impt_tab[i];
+}
+int iop_rt_import_time(int i, const char **lib, unsigned *num, uint64_t *us, uint64_t *n, uint64_t *nblk)
+{
+    if (i < 0 || i >= impt_n) return 0;
+    *lib = impt[i].lib; *num = impt[i].num; *us = impt[i].us; *n = impt[i].n; *nblk = impt[i].nblk;
+    return 1;
+}
+
 int iop_rt_bind(IopRt *rt, const char *lib, unsigned num, IopFn fn)
 {
     if (rt->nbinds >= IOP_MAX_BINDS) return -1;
@@ -180,8 +735,10 @@ static void hle_unimpl(IopCpu *c)
 {
     IopRt *rt = c->rt;
     rt->st.unimpl_calls++;
-    if (rt->unimpl_logged++ < 16)
+    if (rt->unimpl_logged < 16) {                             /* saturates: a polling loop must not wrap it */
+        rt->unimpl_logged++;
         iop_rt_log(rt, 0, "IOP: call of an unimplemented import (caller ra 0x%08x) - returns 0\n", c->r[31]);
+    }
     c->r[2] = 0;
 }
 
@@ -262,10 +819,28 @@ static int pick(IopRt *rt)
     return best;
 }
 
+uint64_t (*iop_rt_clock_us)(void);                           /* optional per-thread time (embedding sets it) */
+/* an asynchronous sceCdRead finished? then its callback is due and sceCdSync waiters wake */
+void iop_rt_cd_check(IopRt *rt)
+{
+    if (!rt->cd_busy || !rt->cfg.disc.poll) return;
+    int r = rt->cfg.disc.poll(rt->cfg.disc.user);
+    if (!r) return;
+    rt->cd_busy = 0;
+    rt->cd_last_bytes = r > 0 ? rt->cd_busy_n * 2048u : 0;
+    rt->cd_cb_pending = 1;
+    for (int t = 0; t < IOP_MAX_THREADS; t++)
+        if (rt->th[t].state == TS_WAIT && rt->th[t].wait == W_CDSYNC) iop_rt_ready(rt, t, KE_OK);
+}
 void iop_rt_run(IopRt *rt)
 {
     if (rt->cur >= 0) return;                                 /* called from an IOP thread: nothing to do */
     for (;;) {
+        iop_rt_cd_check(rt);
+        if (rt->cd_cb_pending && rt->cd_cb) {                 /* a read finished: its callback, as an interrupt */
+            rt->cd_cb_pending = 0;
+            iop_rt_call_handler(rt, rt->cd_cb, rt->cd_cb_gp, 1 /* SCECdFuncRead */, 0, 0);
+        }
         int t = pick(rt);
         if (t < 0) break;
         IopThread *T = &rt->th[t];
@@ -283,7 +858,9 @@ void iop_rt_run(IopRt *rt)
         rt->cur = t;
         rt->st.switches++;
         iop_rt_current = rt;
+        uint64_t t0 = iop_rt_clock_us ? iop_rt_clock_us() : 0;
         rt->cfg.coro.swap(rt->cfg.coro.user, rt->main, T->coro);
+        if (iop_rt_clock_us) { T->run_us += iop_rt_clock_us() - t0; T->runs++; }
         rt->cur = -1;
     }
 }
@@ -1054,6 +1631,8 @@ void hle_sceSifExecRequest(IopCpu *c)
     RET(KE_OK);
 }
 
+int iop_rt_has_server(IopRt *rt, uint32_t sid) { return server(rt, sid) != 0; }
+
 int iop_rt_sif_call(IopRt *rt, uint32_t sid, uint32_t fno, const void *send, uint32_t ssize, void *recv,
                     uint32_t rsize)
 {
@@ -1086,8 +1665,12 @@ int iop_rt_sif_call(IopRt *rt, uint32_t sid, uint32_t fno, const void *send, uin
             if (T->wait == W_VBLANK || T->wait == W_VBLANK_END) vb = 1;
             if (T->wait == W_DELAY && T->wait_until < due) due = T->wait_until;
         }
-        if (vb) iop_rt_vblank(rt);
+        int ee = 0;
+        for (int k = 0; k < IOP_MAX_EEREQ; k++) ee |= rt->ee[k].state == 1;
+        if (ee && rt->cfg.ee_pump) rt->cfg.ee_pump(rt->cfg.ee_user);   /* IOP threads wait for the EE */
+        else if (vb) iop_rt_vblank(rt);
         else if (due != UINT64_MAX) iop_rt_advance_us(rt, due - rt->now_us);
+        else if (rt->cd_busy && rt->cfg.disc.wait) { rt->cd_hard_waits++; rt->cfg.disc.wait(rt->cfg.disc.user); }
         else break;
         iop_rt_run(rt);
     }
@@ -1099,9 +1682,130 @@ int iop_rt_sif_call(IopRt *rt, uint32_t sid, uint32_t fno, const void *send, uin
     return 0;
 }
 
+/* ------------------------------------------------------------------ IOP -> EE RPC (servers the EE registered)
+   The client data has the EE layout: header {pkt_addr, rpc_id, sema_id, mode}, command, buff, cbuff, end_function,
+   end_param, server (0x24: non-zero = bound). */
+void hle_sceSifBindRpc(IopCpu *c)
+{
+    IopRt *rt = c->rt;
+    uint32_t cd = iop_arg(c, 0), sid = iop_arg(c, 1);
+    int ok = rt->cfg.ee_bound && rt->cfg.ee_bound(rt->cfg.ee_user, sid);
+    wr32(rt, cd + 4, sid);
+    wr32(rt, cd + 0x24, ok ? 0x00E00000u | (sid & 0xFFFFu) : 0);   /* a token address: never dereferenced here */
+    if (!ok) {
+        static int warned;
+        if (warned++ < 4) iop_rt_log(rt, 0, "IOP: sceSifBindRpc(0x%08x): the EE has no such server (yet)\n", sid);
+    }
+    iop_rt_log(rt, 2, "IOP: sceSifBindRpc(cd 0x%06x, EE server 0x%08x) -> %s\n", cd, sid, ok ? "bound" : "not bound");
+    RET(0);
+}
+/* sceSifCallRpc(cd, fno, mode, send, ssize, recv, rsize, end_function, end_param): bit 0 of mode = no wait */
+void hle_sceSifCallRpc(IopCpu *c)
+{
+    IopRt *rt = c->rt;
+    uint32_t cd = iop_arg(c, 0);
+    int k;
+    for (k = 0; k < IOP_MAX_EEREQ && rt->ee[k].state; k++) {}
+    if (k == IOP_MAX_EEREQ || !rd32(rt, cd + 0x24)) {
+        iop_rt_log(rt, 0, "IOP: sceSifCallRpc to EE server 0x%08x refused (%s)\n", rd32(rt, cd + 4),
+                   k == IOP_MAX_EEREQ ? "queue full" : "not bound");
+        RET(0xFFFFFFFFu);
+        return;
+    }
+    IopEeSlot *e = &rt->ee[k];
+    e->cd = cd;
+    e->sid = rd32(rt, cd + 4);
+    e->fno = iop_arg(c, 1);
+    e->mode = iop_arg(c, 2);
+    e->send = iop_arg(c, 3);
+    e->ssize = iop_arg(c, 4);
+    e->recv = iop_arg(c, 5);
+    e->rsize = iop_arg(c, 6);
+    e->endfunc = iop_arg(c, 7);
+    e->endparam = iop_arg(c, 8);
+    e->gp = c->r[28];
+    e->thread = (e->mode & 1) ? -1 : rt->cur;
+    e->state = 1;
+    rt->ee_calls++;
+    iop_rt_log(rt, 3, "IOP: RPC to EE 0x%08x fno %u (%s)\n", e->sid, e->fno, (e->mode & 1) ? "no wait" : "wait");
+    if (e->thread >= 0) {
+        iop_rt_wait(rt, W_EERPC);
+        RET(0);
+        return;
+    }
+    RET(0);
+}
+void hle_sceSifCheckStatRpc(IopCpu *c)
+{
+    IopRt *rt = c->rt;
+    uint32_t cd = iop_arg(c, 0);
+    int busy = 0;
+    for (int k = 0; k < IOP_MAX_EEREQ; k++) busy |= rt->ee[k].state && rt->ee[k].cd == cd;
+    RET(busy);
+}
+
+int iop_rt_ee_next(IopRt *rt, IopEeReq *out)
+{
+    for (int k = 0; k < IOP_MAX_EEREQ; k++) {
+        IopEeSlot *e = &rt->ee[k];
+        if (e->state != 1) continue;
+        e->state = 2;
+        out->token = k;
+        out->sid = e->sid;
+        out->fno = e->fno;
+        out->mode = e->mode;
+        out->send = e->send ? MEMP(rt, e->send) : 0;
+        out->ssize = e->ssize;
+        out->rsize = e->rsize;
+        return 1;
+    }
+    return 0;
+}
+
+void iop_rt_ee_reply(IopRt *rt, int token, const void *reply, uint32_t n)
+{
+    if (token < 0 || token >= IOP_MAX_EEREQ || rt->ee[token].state != 2) return;
+    IopEeSlot *e = &rt->ee[token];
+    if (e->recv && e->rsize && reply) memcpy(MEMP(rt, e->recv), reply, n < e->rsize ? n : e->rsize);
+    e->state = 0;
+    if (e->thread >= 0) {
+        IopThread *T = &rt->th[e->thread];
+        if (T->state == TS_WAIT && T->wait == W_EERPC) iop_rt_ready(rt, e->thread, KE_OK);
+    } else if (e->endfunc) {
+        iop_rt_call_handler(rt, e->endfunc, e->gp, e->endparam, 0, 0);
+    }
+}
+
 /* ------------------------------------------------------------------ loadcore */
 
-void hle_RegisterLibraryEntries(IopCpu *c) { RET(KE_OK); }
+/* RegisterLibraryEntries(table): an export table in the module's .text - u32 magic 0x41C00000, u32 next, u16 version,
+   u16 flags, char name[8], then the function addresses (entry k = export number k) up to a 0 word. Recorded so that
+   modules loaded later resolve their imports of this library to the exporter's translated functions. */
+void hle_RegisterLibraryEntries(IopCpu *c)
+{
+    IopRt *rt = c->rt;
+    uint32_t t = c->r[4];
+    if (rt->nexps < IOP_MAX_EXPORTS && t) {
+        IopExport *e = &rt->exps[rt->nexps];
+        memcpy(e->lib, MEMP(rt, t + 12), 8);
+        e->lib[8] = 0;
+        e->funcs = t + 20;
+        e->n = 0;
+        while (e->n < 256 && rd32(rt, e->funcs + 4u * e->n)) e->n++;
+        rt->nexps++;
+        iop_rt_log(rt, 2, "IOP: library %s registered (%u entries)\n", e->lib, e->n);
+    }
+    RET(KE_OK);
+}
+
+/* an import resolved to a library another translated module registered, 0 if none */
+static IopFn export_fn(IopRt *rt, const char *lib, unsigned num)
+{
+    for (int i = rt->nexps - 1; i >= 0; i--)
+        if (!strncmp(rt->exps[i].lib, lib, 8) && num < rt->exps[i].n)
+            return iop_rt_fn(rt, rd32(rt, rt->exps[i].funcs + 4u * num));
+    return 0;
+}
 
 /* ------------------------------------------------------------------ module loading */
 
@@ -1121,6 +1825,7 @@ int iop_rt_load(IopRt *rt, const IopModule *m, int argc, const char *const *argv
         for (int b = rt->nbinds - 1; b >= 0 && !fn; b--)
             if (rt->binds[b].num == d->num && !strncmp(rt->binds[b].lib, d->lib, 8)) fn = rt->binds[b].fn;
         const char *nm = 0;
+        if (!fn) fn = export_fn(rt, d->lib, d->num);
         if (!fn) fn = iop_rt_builtin(d->lib, d->num, &nm);
         if (!fn) {
             fn = hle_unimpl;
@@ -1128,7 +1833,7 @@ int iop_rt_load(IopRt *rt, const IopModule *m, int argc, const char *const *argv
             iop_rt_log(rt, 0, "IOP: module %s imports %s #%u: not implemented (calls return 0)\n", m->name, d->lib,
                        d->num);
         }
-        m->imp[k] = fn;
+        m->imp[k] = impt_wrap(fn, d->lib, d->num);
     }
     rt->st.imports_unresolved += (uint32_t)unresolved;
     rt->mods[rt->nmods++] = m;

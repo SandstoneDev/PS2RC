@@ -36,7 +36,13 @@
 #define KE_NO_MEMORY      (-400)
 
 enum { TS_FREE = 0, TS_DORMANT, TS_READY, TS_RUN, TS_WAIT };
-enum { W_NONE = 0, W_SEMA, W_EVF, W_SLEEP, W_DELAY, W_RPC, W_VBLANK, W_VBLANK_END };
+enum { W_NONE = 0, W_SEMA, W_EVF, W_SLEEP, W_DELAY, W_RPC, W_VBLANK, W_VBLANK_END, W_EERPC, W_CDSYNC };
+#define IOP_MAX_EEREQ    8
+typedef struct IopEeSlot {                   /* an IOP -> EE RPC (sifcmd sceSifCallRpc) */
+    int state;                               /* 0 free, 1 pending (not taken), 2 taken by the embedding */
+    int thread;                              /* waiting thread, -1 for a no-wait call */
+    uint32_t cd, sid, fno, mode, send, ssize, recv, rsize, endfunc, endparam, gp;
+} IopEeSlot;
 
 typedef struct IopThread {
     int state, prio, init_prio;
@@ -51,6 +57,8 @@ typedef struct IopThread {
     int wakeups;
     int result;                              /* return value of the wait */
     uint32_t rpc_queue;                      /* W_RPC: queue address */
+    uint64_t run_us;                         /* real time inside the thread (iop_rt_clock_us set) */
+    uint32_t runs;
 } IopThread;
 
 typedef struct IopSema {
@@ -100,6 +108,8 @@ typedef struct IopBlock { uint32_t addr, size; } IopBlock;
 typedef struct IopFd { int used; uint32_t lsn, size, pos; } IopFd;
 
 typedef struct IopBind { char lib[9]; unsigned num; IopFn fn; } IopBind;
+#define IOP_MAX_EXPORTS  16
+typedef struct IopExport { char lib[9]; uint32_t funcs, n; } IopExport;   /* RegisterLibraryEntries tables */
 
 struct IopRt {
     IopRtConfig cfg;
@@ -122,6 +132,17 @@ struct IopRt {
     int nmods;
     IopBind binds[IOP_MAX_BINDS];
     int nbinds;
+    IopExport exps[IOP_MAX_EXPORTS];
+    int nexps;
+    IopEeSlot ee[IOP_MAX_EEREQ];
+    uint32_t ee_calls;
+    /* cdvdman: the read-completion callback (sceCdCallback), delivered by the scheduler after a read */
+    uint32_t cd_cb, cd_cb_gp, cd_last_bytes;
+    int cd_cb_pending;
+    int cd_busy;                             /* an asynchronous sceCdRead is in flight (IopDiscOps.read_async) */
+    uint32_t cd_busy_n;
+    uint64_t cd_async_reads, cd_sync_waits, cd_hard_waits;
+    uint32_t sif_dma_id;
     int intr_level;
     uint64_t now_us;
     /* libsd shadow */
@@ -136,6 +157,12 @@ struct IopRt {
         uint32_t sw[2][32];
         uint32_t addr[2][64];
         uint32_t cattr[2][16];
+        /* sceSdBlockTrans: the core's sound-data input (ADMA, raw 16-bit PCM, 48 kHz) */
+        uint32_t ad_on[2], ad_loop[2], ad_base[2], ad_size[2], ad_frame[2], ad_pending[2];
+        uint64_t ad_frames_played, ad_starts, ad_halves;
+        /* transfer completions are delivered after the call returns (iop_rt_adma_fire), as the hardware's DMA interrupt */
+        uint32_t vt_pending[2];
+        uint64_t vt_calls[2], vt_done[2];
     } sd;
     IopRtStats st;
     int unimpl_logged;
@@ -166,5 +193,7 @@ static inline void wr32(IopRt *rt, uint32_t a, uint32_t v)
     uint8_t *p = MEMP(rt, a);
     p[0] = (uint8_t)v; p[1] = (uint8_t)(v >> 8); p[2] = (uint8_t)(v >> 16); p[3] = (uint8_t)(v >> 24);
 }
+
+void iop_rt_cd_check(IopRt *rt);
 
 #endif

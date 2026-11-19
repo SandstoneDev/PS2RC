@@ -187,6 +187,72 @@ HLE_SCE(sceSifCallRpc)              /* sceSifCallRpc(cd, fno, mode, send, ssize,
     RET(0);
 }
 HLE_SCE(sceSifCheckStatRpc) { RET(0); }                                     /* sceSifCheckStatRpc: never busy */
+
+/* ---- EE-side servers: requests come from the IOP (embedding: hle_ee_rpc_run on the calling EE thread) */
+#define EE_SERVERS 16
+static struct { uint32_t sid, func, buff, cfunc, cbuff, gp, sd; unsigned calls; } ee_srv[EE_SERVERS];
+static int n_ee_srv;
+/* sceSifRegisterRpc(sd, sid, func, buff, cfunc, cbuff, qd) */
+HLE_SCE(sceSifRegisterRpc)
+{
+    uint32_t sd = ARG(0), sid = ARG(1);
+    int k;
+    for (k = 0; k < n_ee_srv && ee_srv[k].sid != sid; k++) {}
+    if (k == EE_SERVERS) { LOG("sceSifRegisterRpc(%08x): too many EE servers\n", sid); RET(0); return; }
+    if (k == n_ee_srv) n_ee_srv++;
+    ee_srv[k].sid = sid;
+    ee_srv[k].func = ARG(2);
+    ee_srv[k].buff = ARG(3);
+    ee_srv[k].cfunc = ARG(4);
+    ee_srv[k].cbuff = ARG(5);
+    ee_srv[k].gp = (uint32_t)c->r[28].d[0];
+    ee_srv[k].sd = sd;
+    if (sd) {                                                 /* SifRpcServerData: sid, func, buff, size, cfunc, cbuff */
+        sw_(sd + 0, sid);
+        sw_(sd + 4, ARG(2));
+        sw_(sd + 8, ARG(3));
+        sw_(sd + 16, ARG(4));
+        sw_(sd + 20, ARG(5));
+    }
+    LOG("sceSifRegisterRpc(EE server %08x, func %08x, buff %08x)\n", sid, ARG(2), ARG(3));
+    RET(0);
+}
+HLE_SCE(sceSifSetRpcQueue) { if (ARG(0)) sw_(ARG(0), ARG(1)); RET(0); }     /* sceSifSetRpcQueue(qd, thread) */
+HLE_SCE(sceSifRemoveRpcQueue) { RET(0); }
+/* sceSifRpcLoop(qd): the server thread parks for good (requests run on the thread that calls the IOP) */
+HLE_SCE(sceSifRpcLoop)
+{
+    LOG("sceSifRpcLoop: EE server thread %d parked (requests run on the calling thread)\n", hle_cur ? hle_cur->id : 0);
+    for (;;) hle_block(WK_SLEEP, 0);
+}
+HLE_SCE(sceSifGetNextRequest) { RET(0); }                                    /* no request is ever queued */
+HLE_SCE(sceSifExecRequest) { }
+
+int hle_ee_rpc_bound(uint32_t sid)
+{
+    for (int k = 0; k < n_ee_srv; k++) if (ee_srv[k].sid == sid) return 1;
+    return 0;
+}
+
+int hle_ee_rpc_run(R5900Ctx *c, uint32_t sid, uint32_t fno, const void *send, uint32_t ssize, void *recv,
+                   uint32_t rsize)
+{
+    int k;
+    for (k = 0; k < n_ee_srv && ee_srv[k].sid != sid; k++) {}
+    if (k == n_ee_srv) return -1;
+    ee_srv[k].calls++;
+    if (send && ssize && ee_srv[k].buff) gcopy_out(ee_srv[k].buff, send, ssize);
+    R5900Ctx save = *c;                                       /* the caller's registers survive the guest call */
+    c->r[28].d[0] = ee_srv[k].gp;
+    uint32_t rp = hle_call(c, ee_srv[k].func, 3, fno, ee_srv[k].buff, ssize);
+    *c = save;
+    if (recv && rsize) {
+        if (rp) gcopy_in(recv, rp, rsize);
+        else memset(recv, 0, rsize);
+    }
+    VVLOG("EE server %08x fno %u (ssize %u rsize %u) -> %08x\n", sid, fno, ssize, rsize, rp);
+    return 0;
+}
 HLE_SCE(sceSifRebootIop) { LOG("sceSifRebootIop(%s)\n", gstr(ARG(0))); hle_milestone("IOP reboot (HLE)"); RET(1); }
 HLE_SCE(sceSifSyncIop) { RET(1); }                                     /* sceSifSyncIop */
 HLE_SCE(sceSifResetIop) { RET(1); }                                     /* sceSifResetIop */

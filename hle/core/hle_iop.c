@@ -27,6 +27,9 @@ void hle_rpc_register(uint32_t rpc_id, HleRpcFn fn)
         LOG("SIF RPC: too many servers, %08x not registered\n", rpc_id);
 }
 
+static HleRpcAnyFn rpc_any;
+void hle_rpc_register_any(HleRpcAnyFn fn) { rpc_any = fn; }
+
 int hle_rpc_registered(uint32_t rpc_id)
 {
     for (int i = 0; i < rpc_n; i++)
@@ -45,6 +48,7 @@ int hle_rpc_call(R5900Ctx *c, uint32_t rpc_id, uint32_t fno, uint32_t mode, uint
     PZ_SCOPE(rpc);
     for (int i = 0; i < rpc_n; i++)
         if (rpc_srv[i].id == rpc_id) return rpc_srv[i].fn(c, fno, mode, send, ssize, recv, rsize);
+    if (rpc_any && rpc_any(c, rpc_id, fno, mode, send, ssize, recv, rsize) == 0) return 0;
     LOG("SIF RPC to unknown server %08x fno %u send %08x/%u recv %08x/%u\n", rpc_id, fno, send, ssize, recv, rsize);
     return -1;
 }

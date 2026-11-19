@@ -7,6 +7,8 @@
 #include "iop_rt_int.h"
 
 #define A(k) iop_arg(c, k)
+void (*iop_rt_sd_hook)(const char *fn, uint32_t ra, uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4);
+#define SD_HOOK(name) do { if (iop_rt_sd_hook) iop_rt_sd_hook(name, c->r[31], A(0), A(1), A(2), A(3), A(4)); } while (0)
 #define RET(v) (c->r[2] = (uint32_t)(v))
 
 /* kernel functions (iop_rt.c) */
@@ -31,6 +33,7 @@ void hle_SetupHardTimer(IopCpu *c); void hle_StartHardTimer(IopCpu *c); void hle
 void hle_sceSifSetRpcQueue(IopCpu *c); void hle_sceSifRegisterRpc(IopCpu *c); void hle_sceSifRpcLoop(IopCpu *c);
 void hle_sceSifGetNextRequest(IopCpu *c); void hle_sceSifExecRequest(IopCpu *c);
 void hle_RegisterLibraryEntries(IopCpu *c); void hle_ok(IopCpu *c); void hle_one(IopCpu *c);
+void hle_sceSifBindRpc(IopCpu *c); void hle_sceSifCallRpc(IopCpu *c); void hle_sceSifCheckStatRpc(IopCpu *c);
 
 /* ------------------------------------------------------------------ guest strings and printf */
 
@@ -282,12 +285,64 @@ static void cd_read(IopCpu *c)
 {
     IopRt *rt = c->rt;
     uint32_t lsn = A(0), n = A(1);
+    if (rt->cfg.disc.read_async) {                            /* asynchronous: the read goes on while the EE runs */
+        if (rt->cd_busy) { rt->cd_hard_waits++; rt->cfg.disc.wait(rt->cfg.disc.user); iop_rt_cd_check(rt); }
+        if (rt->cfg.disc.read_async(rt->cfg.disc.user, lsn, n, c->mem + (A(2) & IOP_MEM_MASK)) != 0) { RET(0); return; }
+        rt->cd_busy = 1;
+        rt->cd_busy_n = n;
+        rt->cd_async_reads++;
+        RET(1);
+        return;
+    }
     if (!rt->cfg.disc.read || rt->cfg.disc.read(rt->cfg.disc.user, lsn, n, c->mem + (A(2) & IOP_MEM_MASK)) != 0) {
         RET(0);
         return;
     }
+    rt->cd_last_bytes = n * 2048u;                            /* the read completes at once */
+    iop_rt_log(rt, 2, "IOP: sceCdRead(lsn %u, %u sectors -> 0x%06x)%s\n", lsn, n, A(2) & IOP_MEM_MASK,
+               rt->cd_cb ? " (callback pending)" : "");
+    rt->cd_cb_pending = 1;
     RET(1);
 }
+/* sceCdCallback(func): the read-completion callback (reason 1 = read); returns the previous one */
+static void cd_callback(IopCpu *c)
+{
+    IopRt *rt = c->rt;
+    uint32_t old = rt->cd_cb;
+    rt->cd_cb = A(0);
+    rt->cd_cb_gp = c->r[28];
+    iop_rt_log(rt, 2, "IOP: sceCdCallback(0x%06x) (previous 0x%06x)\n", A(0), old);
+    RET(old);
+}
+/* sceCdGetReadPos(): bytes transferred by the current read - reads complete at once, so the last read's size
+   (modules poll it to detect a stalled drive: 0 means no progress) */
+static void cd_get_read_pos(IopCpu *c) { RET(c->rt->cd_busy ? c->rt->cd_busy_n * 1024u : c->rt->cd_last_bytes); }
+/* sceCdSync(mode): 0 = wait for the read, else poll (1 = still reading). With the asynchronous read a
+   waiting IOP thread sleeps (the EE goes on); outside a thread the embedding's wait blocks. */
+static void cd_sync(IopCpu *c)
+{
+    IopRt *rt = c->rt;
+    iop_rt_cd_check(rt);
+    static unsigned polls;
+    if (!rt->cd_busy) { polls = 0; RET(0); return; }
+    if (A(0) != 0 && ++polls < 64) { RET(1); return; }    /* a module spinning on the poll: wait after 64 polls */
+    polls = 0;
+    rt->cd_sync_waits++;
+    if (rt->cur >= 0 && !rt->intr_level) {
+        while (rt->cd_busy) iop_rt_wait(rt, W_CDSYNC);
+    } else {
+        rt->cd_hard_waits++;
+        rt->cfg.disc.wait(rt->cfg.disc.user);
+        iop_rt_cd_check(rt);
+    }
+    RET(0);
+}
+static void cd_tray_req(IopCpu *c)                            /* sceCdTrayReq(mode, u32 *traycnt): tray never moved */
+{
+    if (A(1)) wr32(c->rt, A(1), 0);
+    RET(1);
+}
+static void cd_status(IopCpu *c) { RET(0x0A); }               /* sceCdStatus: SCECdStatPause (spinning, ready) */
 static void cd_zero(IopCpu *c) { RET(0); }
 static void cd_disk_type(IopCpu *c) { RET(0x14); }      /* PS2 DVD */
 static void cd_disk_ready(IopCpu *c) { RET(2); }        /* ready */
@@ -311,6 +366,7 @@ static void sd_init(IopCpu *c)
 
 static void sd_set_param(IopCpu *c)
 {
+    SD_HOOK("SetParam");
     IopRt *rt = c->rt;
     uint32_t e = A(0) & 0xFFFF, core = e & 1u, v = (e >> 1) & 31u, id = (e >> 8) & 0xFF;
     uint16_t val = (uint16_t)A(1);
@@ -332,6 +388,7 @@ static void sd_get_param(IopCpu *c)
 
 static void sd_set_switch(IopCpu *c)
 {
+    SD_HOOK("SetSwitch");
     IopRt *rt = c->rt;
     uint32_t e = A(0) & 0xFFFF, core = e & 1u, id = (e >> 8) & 0xFF, val = A(1) & 0xFFFFFFu;
     rt->sd.sw[core][id & 31u] = val;
@@ -348,6 +405,7 @@ static void sd_get_switch(IopCpu *c)
 
 static void sd_set_addr(IopCpu *c)
 {
+    SD_HOOK("SetAddr");
     IopRt *rt = c->rt;
     uint32_t e = A(0) & 0xFFFF, core = e & 1u, v = (e >> 1) & 31u, id = (e >> 8) & 0xFF, val = A(1);
     rt->sd.addr[core][id & 63u] = val;
@@ -402,19 +460,10 @@ static void sd_dma_to_spu(IopRt *rt, uint32_t iop, uint32_t spu, uint32_t size)
     rt->st.sd_dmas++;
 }
 
-static void sd_trans_done(IopCpu *c, uint32_t ch)
-{
-    IopRt *rt = c->rt;
-    ch &= 1u;
-    if (rt->sd.trans_func[ch]) {
-        iop_rt_call_handler(rt, rt->sd.trans_func[ch], rt->sd.trans_gp[ch], ch, rt->sd.trans_data[ch], 0);
-        iop_rt_preempt_check(rt);
-    }
-}
-
 /* sceSdVoiceTrans(channel, mode, iop_addr, spu_addr, size): the transfer completes at once */
 static void sd_voice_trans(IopCpu *c)
 {
+    SD_HOOK("VoiceTrans");
     IopRt *rt = c->rt;
     uint32_t ch = A(0), mode = A(1), iop = A(2), spu = A(3), size = A(4);
     if ((mode & 3u) == 0) sd_dma_to_spu(rt, iop, spu, size);
@@ -423,17 +472,109 @@ static void sd_voice_trans(IopCpu *c)
         memcpy(rt->mem + (iop & IOP_MEM_MASK), SD_SPU(rt)->ram + spu, n);
     }
     RET(size);
-    sd_trans_done(c, ch);
+    ch &= 1u;
+    rt->sd.vt_calls[ch]++;
+    rt->sd.vt_pending[ch]++;          /* the transfer-end interrupt comes after the call returns */
 }
 
-/* sceSdBlockTrans(channel, mode, iop_addr, size, ...): a one-shot write is a plain transfer to the core's block */
+/* sceSdBlockTrans(channel, mode, iop_addr, size[, start_addr]): mode & 3 = 0 write, 1 read, 2 stop, 3 write from
+   start_addr; | 0x10 = loop. A write plays the buffer as the core's sound-data input (iop_rt_adma_pull, in step with
+   the SPU2 clock); libsd's transfer handler runs at each half of a loop buffer / at the end of a one-shot one. */
 static void sd_block_trans(IopCpu *c)
 {
+    SD_HOOK("BlockTrans");
+    IopRt *rt = c->rt;
+    uint32_t ch = A(0) & 1u, mode = A(1), op = mode & 3u, iop = A(2) & IOP_MEM_MASK, size = A(3);
+    if (op == 2u) { rt->sd.ad_on[ch] = 0; rt->sd.ad_pending[ch] = 0; RET(0); return; }
+    if (op == 1u) { RET(0); rt->sd.vt_pending[ch]++; return; }
+    size &= ~1023u;
+    if (size < 1024u) { RET(0); rt->sd.vt_pending[ch]++; return; }
+    uint32_t f0 = 0;
+    if (op == 3u) {
+        uint32_t from = A(4) & IOP_MEM_MASK;
+        if (from > iop && from < iop + size) f0 = (from - iop) / 1024u * 256u;
+    }
+    rt->sd.ad_base[ch] = iop;
+    rt->sd.ad_size[ch] = size;
+    rt->sd.ad_frame[ch] = f0;
+    rt->sd.ad_loop[ch] = (mode & 0x10u) != 0;
+    rt->sd.ad_pending[ch] = 0;
+    rt->sd.ad_on[ch] = 1;
+    rt->sd.ad_starts++;
     RET(0);
-    sd_trans_done(c, A(0));
 }
 
-static void sd_trans_status(IopCpu *c) { RET(1); }          /* finished */
+static void sd_voice_trans_status(IopCpu *c) { RET(1); }          /* finished */
+/* sceSdBlockTransStatus(channel, flag): (buffer half << 24) | the IOP address being played */
+static void sd_trans_status(IopCpu *c)
+{
+    IopRt *rt = c->rt;
+    uint32_t ch = A(0) & 1u;
+    if (!rt->sd.ad_on[ch]) { RET(0); return; }
+    uint32_t off = rt->sd.ad_frame[ch] / 256u * 1024u;
+    RET(((off >= rt->sd.ad_size[ch] / 2u) ? 1u << 24 : 0u) | ((rt->sd.ad_base[ch] + off) & 0xFFFFFFu));
+}
+
+static inline int16_t sat16(int32_t v) { return (int16_t)(v > 32767 ? 32767 : v < -32768 ? -32768 : v); }
+
+uint32_t iop_rt_adma_pull(IopRt *rt, unsigned ch, int16_t *st, uint32_t frames)
+{
+    ch &= 1u;
+    if (!rt->sd.ad_on[ch]) return 0;
+    uint32_t total = rt->sd.ad_size[ch] / 4u, half = total / 2u, n = 0;
+    while (n < frames && rt->sd.ad_on[ch]) {
+        uint32_t f = rt->sd.ad_frame[ch];
+        const uint8_t *chunk = rt->mem + ((rt->sd.ad_base[ch] + f / 256u * 1024u) & IOP_MEM_MASK);
+        uint32_t i = f & 255u;
+        int16_t l = (int16_t)(chunk[2 * i] | chunk[2 * i + 1] << 8);
+        int16_t r = (int16_t)(chunk[512 + 2 * i] | chunk[512 + 2 * i + 1] << 8);
+        st[2 * n] = sat16(st[2 * n] + l);
+        st[2 * n + 1] = sat16(st[2 * n + 1] + r);
+        n++;
+        f++;
+        if (f == half || f == total) {
+            if (rt->sd.ad_loop[ch] || f == total) { rt->sd.ad_pending[ch]++; rt->sd.ad_halves++; }
+            if (f == total) {
+                f = 0;
+                if (!rt->sd.ad_loop[ch]) rt->sd.ad_on[ch] = 0;
+            }
+        }
+        rt->sd.ad_frame[ch] = f;
+    }
+    rt->sd.ad_frames_played += n;
+    return n;
+}
+
+int iop_rt_adma_fire(IopRt *rt)
+{
+    int k = 0;
+    for (unsigned ch = 0; ch < 2; ch++)
+        while (rt->sd.vt_pending[ch]) {            /* sceSdVoiceTrans / one-shot block transfers that ended */
+            rt->sd.vt_pending[ch]--;
+            rt->sd.vt_done[ch]++;
+            k++;
+            if (rt->sd.trans_func[ch])
+                iop_rt_call_handler(rt, rt->sd.trans_func[ch], rt->sd.trans_gp[ch], ch, rt->sd.trans_data[ch], 0);
+        }
+    for (unsigned ch = 0; ch < 2; ch++)
+        while (rt->sd.ad_pending[ch]) {
+            rt->sd.ad_pending[ch]--;
+            k++;
+            if (rt->sd.trans_func[ch])
+                iop_rt_call_handler(rt, rt->sd.trans_func[ch], rt->sd.trans_gp[ch], ch, rt->sd.trans_data[ch], 0);
+        }
+    return k;
+}
+
+void iop_rt_vt_stats(IopRt *rt, uint64_t calls[2], uint64_t done[2])
+{
+    for (int i = 0; i < 2; i++) { calls[i] = rt->sd.vt_calls[i]; done[i] = rt->sd.vt_done[i]; }
+}
+
+void iop_rt_adma_stats(IopRt *rt, uint64_t *frames, uint64_t *starts, uint64_t *halves)
+{
+    *frames = rt->sd.ad_frames_played; *starts = rt->sd.ad_starts; *halves = rt->sd.ad_halves;
+}
 
 static void sd_set_trans_intr_handler(IopCpu *c)
 {
@@ -462,7 +603,74 @@ static void sd_set_irq_callback(IopCpu *c)
     rt->sd.irq_cb_gp = c->r[28];
 }
 
-static void sd_note2pitch(IopCpu *c) { RET(0x1000); }
+/* sceSdNote2Pitch(center_note, center_fine, note, fine) - 0x1000 at the centre note, x2 per
+   octave, fine in 1/128 semitones (the library's table form; integer math, no libm: 2^(k/1536) by repeated steps) */
+static uint32_t sd_pow2_q12(int32_t steps)              /* 0x1000 * 2^(steps / 1536), steps = semitones * 128 */
+{
+    int32_t oct = steps >= 0 ? steps / 1536 : -((-steps + 1535) / 1536);
+    int32_t rem = steps - oct * 1536;                    /* 0..1535 */
+    /* 2^(rem/1536) in Q16 by a 12-entry semitone table and a linear step inside the semitone */
+    static const uint32_t semi[13] = {65536, 69433, 73562, 77936, 82570, 87480, 92682, 98193, 104032, 110218,
+                                      116772, 123715, 131072};
+    uint32_t st = (uint32_t)rem / 128u, fr = (uint32_t)rem % 128u;
+    uint32_t q16 = semi[st] + (uint32_t)(((uint64_t)(semi[st + 1] - semi[st]) * fr) / 128u);
+    uint64_t v = (uint64_t)q16 * 0x1000u;               /* Q16 * Q12 */
+    v = oct >= 0 ? v << oct : v >> (-oct);
+    v >>= 16;
+    return v > 0x3FFFu ? 0x3FFFu : (uint32_t)v;
+}
+static void sd_note2pitch(IopCpu *c)
+{
+    int32_t cn = (int32_t)(A(0) & 0xFFFF), cf = (int32_t)(A(1) & 0xFFFF), n = (int32_t)(A(2) & 0xFFFF);
+    int32_t f = (int32_t)(int16_t)(A(3) & 0xFFFF);
+    RET(sd_pow2_q12((n - cn) * 128 + (f - cf)));
+}
+static void sd_pitch2note(IopCpu *c)                     /* inverse, coarse: semitones above the centre (note << 8) */
+{
+    uint32_t cn = A(0) & 0xFFFF, p = A(2) & 0xFFFF;
+    int32_t semis = 0;
+    if (p) { while (p >= 0x2000u) { p >>= 1; semis += 12; } while (p < 0x1000u) { p <<= 1; semis -= 12; } }
+    RET(((cn + (uint32_t)semis) & 0xFF) << 8);
+}
+
+/* sceSdProcBatch(batch, rets, num) / sceSdProcBatchEx(batch, rets, num, voice_mask) - each
+   entry {u16 func, u16 entry, u32 value} runs the matching single call; GET results go to rets[] (if given) */
+static void sd_proc_batch_common(IopCpu *c, uint32_t batch, uint32_t rets, uint32_t num)
+{
+    uint32_t a0 = c->r[4], a1 = c->r[5], a2 = c->r[6], a3 = c->r[7], nret = 0;
+    for (uint32_t i = 0; i < num && i < 512; i++) {
+        const uint8_t *e = c->mem + ((batch + i * 8u) & IOP_MEM_MASK);
+        uint32_t func = (uint32_t)e[0] | (uint32_t)e[1] << 8, entry = (uint32_t)e[2] | (uint32_t)e[3] << 8;
+        uint32_t val = (uint32_t)e[4] | (uint32_t)e[5] << 8 | (uint32_t)e[6] << 16 | (uint32_t)e[7] << 24;
+        void (*fn)(IopCpu *) = 0;
+        int get = 0;
+        switch (func) {
+        case 0x01: fn = sd_set_param; break;
+        case 0x02: fn = sd_set_switch; break;
+        case 0x03: fn = sd_set_addr; break;
+        case 0x04: fn = sd_set_core_attr; break;
+        case 0x05: { uint8_t *d = c->mem + (val & IOP_MEM_MASK); d[0] = (uint8_t)entry; d[1] = (uint8_t)(entry >> 8); } break;
+        case 0x10: fn = sd_get_param; get = 1; break;
+        case 0x12: fn = sd_get_switch; get = 1; break;
+        case 0x13: fn = sd_get_addr; get = 1; break;
+        case 0x14: fn = sd_get_core_attr; get = 1; break;
+        default: break;                                  /* 6 / 7: EE writes - not used through this runtime */
+        }
+        if (!fn) continue;
+        c->r[4] = entry; c->r[5] = val;
+        fn(c);
+        if (get && rets) {
+            uint8_t *r = c->mem + ((rets + nret * 4u) & IOP_MEM_MASK);
+            uint32_t v = c->r[2];
+            r[0] = (uint8_t)v; r[1] = (uint8_t)(v >> 8); r[2] = (uint8_t)(v >> 16); r[3] = (uint8_t)(v >> 24);
+        }
+        if (get) nret++;
+    }
+    c->r[4] = a0; c->r[5] = a1; c->r[6] = a2; c->r[7] = a3;
+    RET(num);
+}
+static void sd_proc_batch(IopCpu *c) { sd_proc_batch_common(c, A(0), A(1), A(2)); }
+static void sd_proc_batch_ex(IopCpu *c) { sd_proc_batch_common(c, A(0), A(1), A(2)); }
 
 void iop_rt_spu_irq(IopRt *rt, unsigned core_bits)
 {
@@ -489,6 +697,26 @@ void iop_rt_vblank(IopRt *rt)
     }
 }
 
+/* ------------------------------------------------------------------ sifman: IOP -> EE DMA */
+
+/* sceSifSetDma(SifDmaTransfer *t, count): {u32 src (IOP), u32 dest (EE), u32 size, u32 attr} each; done at once
+   through ee_write; returns a transfer id (never 0) */
+static void sif_set_dma(IopCpu *c)
+{
+    static int warned;
+    IopRt *rt = c->rt;
+    uint32_t t = iop_arg(c, 0), n = iop_arg(c, 1);
+    for (uint32_t k = 0; k < n; k++, t += 16) {
+        uint32_t src = rd32(rt, t), dst = rd32(rt, t + 4), size = rd32(rt, t + 8);
+        if (rt->cfg.ee_write) rt->cfg.ee_write(rt->cfg.ee_user, dst, MEMP(rt, src), size);
+        else if (!warned++) iop_rt_log(rt, 0, "IOP: sceSifSetDma to EE %08x (%u bytes) dropped: no ee_write\n", dst, size);
+        iop_rt_log(rt, 3, "IOP: SIF DMA IOP %06x -> EE %08x %u bytes\n", src, dst, size);
+    }
+    if (++rt->sif_dma_id == 0) rt->sif_dma_id = 1;
+    RET(n ? rt->sif_dma_id : 0);
+}
+static void sif_dma_stat(IopCpu *c) { RET(0xFFFFFFFFu); }      /* < 0: the transfer is complete */
+
 /* ------------------------------------------------------------------ the table */
 
 typedef struct { const char *lib; unsigned num; IopFn fn; const char *name; } Ent;
@@ -499,7 +727,8 @@ static const Ent table[] = {
     {"sysmem", 8, hle_QueryTotalFreeMemSize, "QueryTotalFreeMemSize"}, {"sysmem", 14, hle_Kprintf, "Kprintf"},
     {"loadcore", 6, hle_RegisterLibraryEntries, "RegisterLibraryEntries"},
     {"intrman", 17, hle_CpuSuspendIntr, "CpuSuspendIntr"}, {"intrman", 18, hle_CpuResumeIntr, "CpuResumeIntr"},
-    {"intrman", 9, hle_CpuDisableIntr, "CpuDisableIntr"}, {"intrman", 10, hle_CpuEnableIntr, "CpuEnableIntr"},
+    {"intrman", 8, hle_CpuDisableIntr, "CpuDisableIntr"}, {"intrman", 9, hle_CpuEnableIntr, "CpuEnableIntr"},
+    {"intrman", 6, hle_ok, "EnableIntr"}, {"intrman", 7, hle_ok, "DisableIntr"},   /* ps2sdk intrman numbering */
     {"intrman", 23, hle_QueryIntrContext, "QueryIntrContext"},
     {"thbase", 4, hle_CreateThread, "CreateThread"}, {"thbase", 5, hle_DeleteThread, "DeleteThread"},
     {"thbase", 6, hle_StartThread, "StartThread"}, {"thbase", 8, hle_ExitThread, "ExitThread"},
@@ -524,7 +753,10 @@ static const Ent table[] = {
     {"timrman", 20, hle_SetTimerHandler, "SetTimerHandler"}, {"timrman", 22, hle_SetupHardTimer, "SetupHardTimer"},
     {"timrman", 23, hle_StartHardTimer, "StartHardTimer"}, {"timrman", 24, hle_StopHardTimer, "StopHardTimer"},
     {"sifman", 5, hle_ok, "sceSifInit"}, {"sifman", 29, hle_one, "sceSifCheckInit"},
+    {"sifman", 7, sif_set_dma, "sceSifSetDma"}, {"sifman", 8, sif_dma_stat, "sceSifDmaStat"},
     {"sifcmd", 14, hle_ok, "sceSifInitRpc"}, {"sifcmd", 17, hle_sceSifRegisterRpc, "sceSifRegisterRpc"},
+    {"sifcmd", 15, hle_sceSifBindRpc, "sceSifBindRpc"}, {"sifcmd", 16, hle_sceSifCallRpc, "sceSifCallRpc"},
+    {"sifcmd", 18, hle_sceSifCheckStatRpc, "sceSifCheckStatRpc"},
     {"sifcmd", 19, hle_sceSifSetRpcQueue, "sceSifSetRpcQueue"},
     {"sifcmd", 20, hle_sceSifGetNextRequest, "sceSifGetNextRequest"},
     {"sifcmd", 21, hle_sceSifExecRequest, "sceSifExecRequest"}, {"sifcmd", 22, hle_sceSifRpcLoop, "sceSifRpcLoop"},
@@ -539,17 +771,24 @@ static const Ent table[] = {
     {"ioman", 4, io_open, "open"}, {"ioman", 5, io_close, "close"}, {"ioman", 6, io_read, "read"},
     {"ioman", 7, io_write, "write"}, {"ioman", 8, io_lseek, "lseek"},
     {"cdvdman", 4, hle_one, "sceCdInit"}, {"cdvdman", 6, cd_read, "sceCdRead"}, {"cdvdman", 8, cd_zero, "sceCdGetError"},
-    {"cdvdman", 10, cd_search_file, "sceCdSearchFile"}, {"cdvdman", 11, cd_zero, "sceCdSync"},
+    {"cdvdman", 10, cd_search_file, "sceCdSearchFile"}, {"cdvdman", 11, cd_sync, "sceCdSync"},
     {"cdvdman", 12, cd_disk_type, "sceCdGetDiskType"}, {"cdvdman", 13, cd_disk_ready, "sceCdDiskReady"},
     {"cdvdman", 83, cd_read_dual_info, "sceCdReadDvdDualInfo"},
+    {"cdvdman", 14, cd_tray_req, "sceCdTrayReq"}, {"cdvdman", 28, cd_status, "sceCdStatus"},
+    {"cdvdman", 37, cd_callback, "sceCdCallback"}, {"cdvdman", 39, hle_one, "sceCdBreak"},
+    {"cdvdman", 44, cd_get_read_pos, "sceCdGetReadPos"}, {"cdvdman", 75, hle_one, "sceCdMmode"},
     {"cdvdman", 84, cd_layer_search_file, "sceCdLayerSearchFile"},
     {"libsd", 4, sd_init, "sceSdInit"}, {"libsd", 5, sd_set_param, "sceSdSetParam"},
     {"libsd", 6, sd_get_param, "sceSdGetParam"}, {"libsd", 7, sd_set_switch, "sceSdSetSwitch"},
     {"libsd", 8, sd_get_switch, "sceSdGetSwitch"}, {"libsd", 9, sd_set_addr, "sceSdSetAddr"},
     {"libsd", 10, sd_get_addr, "sceSdGetAddr"}, {"libsd", 11, sd_set_core_attr, "sceSdSetCoreAttr"},
     {"libsd", 12, sd_get_core_attr, "sceSdGetCoreAttr"}, {"libsd", 13, sd_note2pitch, "sceSdNote2Pitch"},
+    {"libsd", 14, sd_pitch2note, "sceSdPitch2Note"}, {"libsd", 15, sd_proc_batch, "sceSdProcBatch"},
+    {"libsd", 16, sd_proc_batch_ex, "sceSdProcBatchEx"}, {"libsd", 24, hle_ok, "sceSdGetEffectAttr"},
+    {"libsd", 30, hle_ok, "sceSdStopTrans"}, {"libsd", 31, hle_ok, "sceSdCleanEffectWorkArea"},
+    {"libsd", 32, hle_ok, "sceSdSetEffectMode"}, {"libsd", 33, hle_ok, "sceSdSetEffectModeParams"},
     {"libsd", 17, sd_voice_trans, "sceSdVoiceTrans"}, {"libsd", 18, sd_block_trans, "sceSdBlockTrans"},
-    {"libsd", 19, sd_trans_status, "sceSdVoiceTransStatus"}, {"libsd", 20, sd_trans_status, "sceSdBlockTransStatus"},
+    {"libsd", 19, sd_voice_trans_status, "sceSdVoiceTransStatus"}, {"libsd", 20, sd_trans_status, "sceSdBlockTransStatus"},
     {"libsd", 22, sd_set_irq_callback, "sceSdSetIRQCallback"}, {"libsd", 23, hle_ok, "sceSdSetEffectAttr"},
     {"libsd", 25, hle_ok, "sceSdClearEffectWorkArea"},
     {"libsd", 26, sd_set_trans_intr_handler, "sceSdSetTransIntrHandler"},

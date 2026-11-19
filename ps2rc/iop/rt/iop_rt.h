@@ -10,6 +10,9 @@
  *   - semaphores, event flags, sleep / wakeup, a virtual microsecond clock (DelayThread, alarms), hardware timers,
  *     interrupt handlers run in an interrupt context (no preemption until they return);
  *   - SIF RPC servers (the EE side calls iop_rt_sif_call);
+ *   - library exports between translated modules: RegisterLibraryEntries records a module's export table; a module
+ *     loaded later that imports that library calls the exporter's translated functions;
+ *   - IOP -> EE SIF DMA (sceSifSetDma, completed at once through IopRtConfig.ee_write);
  *   - sysmem, sysclib, stdio/Kprintf, intrman, loadcore, vblank, ioman (cdrom0:/host0: files of the disc), cdvdman
  *     (search / read on the disc) and libsd (the sound registers, mapped onto an IopSdOps back-end).
  * Library functions are identified by the library name and the export number of the documented IOP module interfaces
@@ -129,6 +132,11 @@ typedef struct IopDiscOps {
     void *user;
     int (*lookup)(void *user, const char *path, uint32_t *lsn, uint32_t *size);   /* 0 = found */
     int (*read)(void *user, uint32_t lsn, uint32_t nsect, void *dst);             /* 0 = ok */
+    /* optional asynchronous sceCdRead (the embedding reads on another thread while the EE goes on): start = 0 if
+       started; poll: 0 busy, 1 done, -1 failed; wait: block until it is done. All three or none. */
+    int (*read_async)(void *user, uint32_t lsn, uint32_t nsect, void *dst);
+    int (*poll)(void *user);
+    void (*wait)(void *user);
 } IopDiscOps;
 
 /* the sound processor under libsd: voice = core * 24 + voice number; byte addresses in SPU RAM */
@@ -157,6 +165,16 @@ typedef struct IopRtConfig {
     IopSdOps sd;
     int sd_dma_round64;                      /* 1 = SPU DMA writes whole 64-byte blocks (hardware); 0 = exact size */
     /* level 0 errors, 1 module output (Kprintf/printf), 2 runtime progress, 3 every call (debug) */
+    /* IOP -> EE SIF DMA (sifman sceSifSetDma): write n bytes to EE address ee_addr; 0 = such transfers are dropped
+       (logged once) */
+    void (*ee_write)(void *user, uint32_t ee_addr, const void *src, uint32_t n);
+    void *ee_user;
+    /* IOP -> EE SIF RPC (sifcmd sceSifBindRpc / sceSifCallRpc of a server the EE registered): ee_bound says whether
+       the EE has the server; calls are queued (iop_rt_ee_next / iop_rt_ee_reply, read on the EE side); ee_pump
+       (optional) is called on the caller's stack while an EE -> IOP call waits for an IOP thread that waits for the
+       EE, to answer the queued requests there. */
+    int (*ee_bound)(void *user, uint32_t sid);
+    void (*ee_pump)(void *user);
     void (*log)(void *user, int level, const char *fmt, ...);
     void *log_user;
     void *(*alloc)(void *user, size_t n);    /* runtime memory (zeroed); 0 = calloc */
@@ -183,9 +201,32 @@ void iop_rt_run(IopRt *rt);
  * IOP until the server thread has answered and every thread waits. 0 = answered, -1 = no such server / not answered */
 int iop_rt_sif_call(IopRt *rt, uint32_t sid, uint32_t fno, const void *send, uint32_t ssize, void *recv,
                     uint32_t rsize);
+int iop_rt_has_server(IopRt *rt, uint32_t sid);         /* 1 = a module registered that SIF RPC server */
+
+/* IOP -> EE RPC requests: the embedding takes the next pending one (returns 0 when none), runs the EE server
+   function and answers with iop_rt_ee_reply (`reply` = n bytes, copied into the IOP's receive buffer; the waiting
+   IOP thread becomes ready). Call iop_rt_run afterwards. */
+typedef struct IopEeReq {
+    int token;
+    uint32_t sid, fno, mode;
+    const void *send;                        /* inside the IOP RAM image */
+    uint32_t ssize, rsize;
+} IopEeReq;
+int iop_rt_ee_next(IopRt *rt, IopEeReq *out);
+void iop_rt_ee_reply(IopRt *rt, int token, const void *reply, uint32_t n);
 
 /* events from the outside (interrupt context; call iop_rt_run afterwards to let woken threads run) */
 void iop_rt_spu_irq(IopRt *rt, unsigned core_bits);     /* SPU2 IRQ -> libsd's SPU2 interrupt handler */
+/* sceSdBlockTrans sound-data input (ADMA PCM, 1024-byte chunks = 256 left + 256 right samples, 48 kHz): mix the next
+   `frames` stereo frames of core ch into st (saturating add); returns the frames taken (0 = not playing). Half-buffer
+   completions are queued; iop_rt_adma_fire runs libsd's transfer handlers for them (returns how many). */
+uint32_t iop_rt_adma_pull(IopRt *rt, unsigned ch, int16_t *st, uint32_t frames);
+int iop_rt_adma_fire(IopRt *rt);
+void iop_rt_adma_stats(IopRt *rt, uint64_t *frames, uint64_t *starts, uint64_t *halves);
+void iop_rt_vt_stats(IopRt *rt, uint64_t calls[2], uint64_t done[2]);   /* sceSdVoiceTrans per channel */
+/* diagnostics: when set, called at the start of the libsd writes (SetParam/SetSwitch/SetAddr/VoiceTrans/BlockTrans)
+   with the caller's return address and the first five arguments */
+extern void (*iop_rt_sd_hook)(const char *fn, uint32_t ra, uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4);
 int iop_rt_timer_count(IopRt *rt);                      /* hardware timers allocated so far */
 int iop_rt_timer_active(IopRt *rt, int k);              /* started and has a handler */
 uint64_t iop_rt_timer_period_ns(IopRt *rt, int k);      /* compare value as time (0 = unknown source) */
