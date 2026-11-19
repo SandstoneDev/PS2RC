@@ -31,7 +31,7 @@ for _b, _f in enumerate(FIELDS):
 SP2.update({"vmulaq": 0x1C, "vabs": 0x1D, "vmulai": 0x1E, "vaddaq": 0x20, "vmaddaq": 0x21, "vaddai": 0x22,
             "vmaddai": 0x23, "vsubaq": 0x24, "vmsubaq": 0x25, "vsubai": 0x26, "vmsubai": 0x27, "vadda": 0x28,
             "vmadda": 0x29, "vmula": 0x2A, "vsuba": 0x2C, "vmsuba": 0x2D, "vnop": 0x2F, "vmove": 0x30,
-            "vmr32": 0x31, "vwaitq": 0x3B, "vrnext": 0x40, "vrget": 0x41, "vrinit": 0x42, "vrxor": 0x43})
+            "vmr32": 0x31, "vopmula": 0x2E, "vwaitq": 0x3B, "vrnext": 0x40, "vrget": 0x41, "vrinit": 0x42, "vrxor": 0x43})
 
 
 def _dest(comps):

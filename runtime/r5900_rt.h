@@ -674,6 +674,36 @@ VU0_INLINE void vu0_fmac(R5900Ctx *c, int op, int d, unsigned dest, int s, int t
     if (dest & 2) w[2] = r2;
     if (dest & 1) w[3] = r3;
 }
+/* VOPMULA (msub = 0, d = VU0_ACC) / VOPMSUB (msub = 1, d = VF index): the outer-product (cross-product) pair, dest
+   always xyz (the decoder rejects other fields): x = [ACC.x -] Fs.y * Ft.z, y = [ACC.y -] Fs.z * Ft.x,
+   z = [ACC.z -] Fs.x * Ft.y; w untouched. Same rounding and clamps as the FMAC lanes (PCSX2 VUops.cpp _vuOPMULA,
+   _vuOPMSUB: vuDouble operands, product rounded before the subtraction). */
+VU0_INLINE void vu0_opm(R5900Ctx *c, int msub, int d, int s, int t)
+{
+    const uint32_t *a = c->vu0.acc.w;
+    int op = msub ? VU0_MSUB : VU0_MUL;
+    uint32_t r0 = vu0_fmac1(op, a[0], vu0_lane(c, s, 1), vu0_lane(c, t, 2), 0, 0);
+    uint32_t r1 = vu0_fmac1(op, a[1], vu0_lane(c, s, 2), vu0_lane(c, t, 0), 0, 0);
+    uint32_t r2 = vu0_fmac1(op, a[2], vu0_lane(c, s, 0), vu0_lane(c, t, 1), 0, 0);
+    if (d == 0) return;
+    uint32_t *w = d == VU0_ACC ? c->vu0.acc.w : c->vu0.vf[d].w;
+    w[0] = r0;
+    w[1] = r1;
+    w[2] = r2;
+}
+/* VMAX / VMINI (lane-wise, x/y/z/w broadcast of Ft, or I): raw-bit sign-magnitude compare without operand clamp
+   (PCSX2 VUops.cpp _vuMAX/_vuMINI fp_max/fp_min = the FPU's MAX.S/MIN.S model fpu_max/fpu_min) */
+VU0_INLINE void vu0_minmax(R5900Ctx *c, int is_max, unsigned dest, int d, int s, int t, int bc)
+{
+    uint32_t r[4];
+    for (int i = 0; i < 4; i++) {
+        uint32_t x = vu0_lane(c, s, i), y = vu0_lane(c, t, bc < 0 ? i : bc);
+        r[i] = is_max ? fpu_max(x, y) : fpu_min(x, y);
+    }
+    if (d == 0) return;
+    for (int i = 0; i < 4; i++)
+        if (dest & (8u >> i)) c->vu0.vf[d].w[i] = r[i];
+}
 /* VMOVE (rot = 0) / VMR32 (rot = 1): VF[t].i = VF[s].(i + rot) & 3, raw bits; VABS (abs = 1): sign cleared */
 VU0_INLINE void vu0_move(R5900Ctx *c, unsigned dest, int t, int s, int rot, int abs)
 {

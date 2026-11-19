@@ -79,6 +79,21 @@ def msub(acc, a, b):
     return sub(clamp_in(acc), mul(a, b))
 
 
+def _smkey(u):
+    """Sign-magnitude order of raw bits (no clamp): -0 just below +0, a bigger negative magnitude is smaller."""
+    m = u & 0x7FFFFFFF
+    return -m - 1 if u & SIGN else m
+
+
+def vmax(a, b):
+    """VMAX lane: the larger operand by sign and magnitude, raw bits (equal keys are identical bits)."""
+    return a if _smkey(a) >= _smkey(b) else b
+
+
+def vmini(a, b):
+    return a if _smkey(a) <= _smkey(b) else b
+
+
 def f2u(f):
     return struct.unpack("<I", struct.pack("<f", f))[0]
 

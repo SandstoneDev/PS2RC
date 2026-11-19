@@ -214,7 +214,9 @@ def lift(insn):
     # ---- coprocessor moves
     if m in ("mfc1", "cfc1", "mfc0", "cfc2"):
         return _apply(m, ops, "d x", "c32")
-    if m in ("mtc1", "ctc1", "mtc0", "ctc2"):
+    if m in ("mfpc", "mfps"):                     # performance counters: the value changes with time (not pure)
+        return _apply(m, ops, "d x", "c32", pure=False)
+    if m in ("mtc1", "ctc1", "mtc0", "ctc2", "mtpc", "mtps"):
         return _apply(m, ops, "s32 x", "c32", pure=False)
     if m == "qmfc2":
         return _apply(m, ops, "D x", "wide", "cop2")
